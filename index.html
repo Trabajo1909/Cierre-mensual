@@ -642,7 +642,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
   let empresa = null, empresaNombre = "", empresas = [];
   let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
-  let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, unsubBk = null, unsubConc = null, bkLoaded = false;
+  let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
   let facturas = [], tipoSel = "emitida", mesSel = null, soloPend = false, unsubFac = null, facLoaded = false;
   const now = new Date();
@@ -1741,7 +1741,12 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     const bank = c.banco||[], aux = c.aux||[];
     const separaCom = bank.some(b=>+b.comision>0);
     const auxCom = separaCom ? aux.filter(esComision) : [], auxRest = separaCom ? aux.filter(a=>!esComision(a)) : aux;
-    const usedA = new Set(), usedB = new Set(), pairs = [];
+    const usedA = new Set(), usedB = new Set(), pairs = [], grupos = [];
+    for(const g of (c.grupos||[])){
+      const bs = (g.b||[]).map(id=>bank.find(x=>x.id===id)).filter(x=>x && !usedB.has(x.id)), as = (g.a||[]).map(id=>auxRest.find(x=>x.id===id)).filter(x=>x && !usedA.has(x.id));
+      if(!bs.length || !as.length) continue;
+      bs.forEach(x=>usedB.add(x.id)); as.forEach(x=>usedA.add(x.id)); grupos.push({id:g.id, bs, as});
+    }
     for(const [bid,aid] of Object.entries(c.links||{})){
       const b = bank.find(x=>x.id===bid), a = auxRest.find(x=>x.id===aid);
       if(b && a && !usedA.has(aid) && !usedB.has(bid)){ pairs.push({b,a,manual:true}); usedA.add(aid); usedB.add(bid); }
@@ -1754,7 +1759,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
       cands.sort((x,y)=> Math.abs(diasEntre(x.fecha,b.fecha))-Math.abs(diasEntre(y.fecha,b.fecha)) || similitud(b,y)-similitud(b,x));
       const a = cands[0]; usedA.add(a.id); usedB.add(b.id); pairs.push({b,a});
     }
-    return {pairs, bankSolo: bank.filter(b=>!usedB.has(b.id)), auxSolo: auxRest.filter(a=>!usedA.has(a.id)), auxCom,
+    return {pairs, grupos, bankSolo: bank.filter(b=>!usedB.has(b.id)), auxSolo: auxRest.filter(a=>!usedA.has(a.id)), auxCom,
       comBanco: r2(bank.reduce((s,b)=>s+(+b.comision||0),0)), comAux: r2(auxCom.reduce((s,a)=>s+(+a.abono||0)-(+a.cargo||0),0))};
   }
   function saldoInicialBanco(c, prof=0){
@@ -1850,19 +1855,44 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     // pendientes
     const item = (lado, x) => {
       const monto = lado==="b" ? (x.tipo==="dep" ? x.monto : -x.monto) : (x.cargo ? x.cargo : -x.abono);
-      const sel = lado==="b" ? selB===x.id : selA===x.id;
+      const sel = lado==="b" ? selBs.has(x.id) : selAs.has(x.id);
       const nombre = lado==="b" ? `${x.nombre}${x.concepto?` · ${x.concepto}`:""}` : `${x.tipo} ${x.num} · ${x.concepto}`;
       return `<li><button data-sel${lado}="${esc(x.id)}" aria-pressed="${sel}"><span>${fechaCorta(x.fecha)}</span><span class="nm" title="${esc(nombre)}">${esc(nombre)}</span><span class="mt">${money.format(monto)}</span></button></li>`;
     };
     const acc = (id) => canWrite ? `<button class="linkbtn" data-aceptar="${esc(id)}" style="margin:0 0 6px 78px;font-size:12px">Es partida en conciliación</button>` : "";
-    const itemR = (lado, x) => item(lado, x).replace("</li>", `${acc(x.id)}</li>`);
+    // Posibles parejas: del otro lado, mismo sentido, ordenadas por importe, fecha y nombre
+    const montoDe = (lado, x) => lado==="b" ? (x.tipo==="dep" ? x.monto : -x.monto) : (x.cargo ? x.cargo : -x.abono);
+    const sugerencias = (lado, x) => {
+      const otros = lado==="b" ? k.revA : k.revB, mx = montoDe(lado, x);
+      return otros.filter(o=>Math.sign(montoDe(lado==="b"?"a":"b", o))===Math.sign(mx))
+        .map(o=>{ const mo = montoDe(lado==="b"?"a":"b", o), dd = Math.abs(diasEntre(o.fecha, x.fecha)), sim = lado==="b" ? similitud(x, o) : similitud(o, x);
+          return {o, mo, dd, sim, score: Math.abs(mo-mx)/Math.max(1,Math.abs(mx))*100 + dd*0.5 - sim*3}; })
+        .filter(s=>s.dd<=45).sort((a,b)=>a.score-b.score).slice(0,3);
+    };
+    const subconjunto = (lado, x) => {
+      const otros = (lado==="b" ? k.revA : k.revB), ladoO = lado==="b" ? "a" : "b", mx = montoDe(lado, x);
+      const cand = otros.filter(o=>{ const mo = montoDe(ladoO, o); return Math.sign(mo)===Math.sign(mx) && Math.abs(mo) < Math.abs(mx) + 0.01 && Math.abs(diasEntre(o.fecha, x.fecha))<=10; }).slice(0,14);
+      let hallado = null;
+      const busca = (i, sel, suma) => { if(hallado) return; if(sel.length>=2 && Math.abs(suma - Math.abs(mx))<0.011){ hallado = sel; return; } if(i>=cand.length || sel.length>=6 || suma > Math.abs(mx)+0.011) return; busca(i+1, [...sel, cand[i]], suma + Math.abs(montoDe(ladoO, cand[i]))); busca(i+1, sel, suma); };
+      busca(0, [], 0); return hallado;
+    };
+    const itemR = (lado, x) => {
+      const sg = canWrite ? sugerencias(lado, x) : [];
+      const sub = canWrite ? subconjunto(lado, x) : null;
+      const grupoHtml = sub ? `<div style="margin:0 0 8px 78px;font-size:12px"><div class="fsub" style="max-width:none">${lado==="b"?`Estas ${sub.length} pólizas juntas suman lo mismo:`:`Estos ${sub.length} movimientos del banco juntos suman lo mismo:`}</div>${sub.map(o=>`<div class="fsub" style="max-width:none">· ${fechaCorta(o.fecha)} ${esc(lado==="b"?`${o.tipo} ${o.num} · ${o.concepto}`:`${o.nombre}${o.concepto?` · ${o.concepto}`:""}`)} · ${money.format(montoDe(lado==="b"?"a":"b", o))}</div>`).join("")}<button class="btn sm" style="margin-top:4px" data-gb="${esc(lado==="b"?x.id:sub.map(o=>o.id).join(","))}" data-ga="${esc(lado==="b"?sub.map(o=>o.id).join(","):x.id)}">Agrupar y emparejar</button></div>` : "";
+      const bloque = sg.length ? `<div style="margin:0 0 8px 78px;font-size:12px"><div class="fsub" style="max-width:none">${lado==="b"?"¿Es alguna de estas pólizas?":"¿Es alguno de estos movimientos del banco?"}</div>${sg.map(s=>{ const o = s.o, dif = r2(Math.abs(s.mo) - Math.abs(montoDe(lado, x)));
+        const txt = lado==="b" ? `${fechaCorta(o.fecha)} · ${o.tipo} ${o.num} · ${o.concepto}` : `${fechaCorta(o.fecha)} · ${o.nombre}${o.concepto?` · ${o.concepto}`:""}`;
+        return `<div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap"><span style="flex:1;min-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(txt)}">${esc(txt)}</span><strong>${money.format(s.mo)}</strong>${Math.abs(dif)>0.009?`<span class="st parcial">dif. ${money.format(Math.abs(dif))}</span>`:`<span class="st pagado">mismo importe</span>`}<button class="btn sm" data-pb="${esc(lado==="b"?x.id:o.id)}" data-pa="${esc(lado==="b"?o.id:x.id)}">Emparejar</button></div>`; }).join("")}</div>` : "";
+      return item(lado, x).replace("</li>", `${bloque}${grupoHtml}${acc(x.id)}</li>`);
+    };
     const comLinea = k.revCom ? `<li><div class="vacio">Comisiones: banco ${fmt(k.comB)} y contabilidad ${fmt(E.comAux)} (diferencia de ${fmt(Math.abs(k.comDif))}).</div>${acc("__com")}</li>` : "";
     html += `<div class="bpanel"><h3>Por revisar${k.porRevisar?` <span class="st vencido" style="margin-left:6px">${k.porRevisar}</span>`:""}<small>Movimientos sin pareja. No entran a la carátula hasta que tú decidas: corrígelos en CONTPAQi y vuelve a subir el auxiliar, emparéjalos, o márcalos como partida en conciliación.</small></h3>
       <div style="padding:8px 8px 0;font-weight:700;font-size:13px;color:var(--muted)">En el estado de cuenta, no en el auxiliar</div>
       <ul class="pend">${k.revB.length ? k.revB.map(x=>itemR("b",x)).join("") : '<li><div class="vacio">Nada pendiente.</div></li>'}${comLinea}</ul>
       <div style="padding:8px 8px 0;font-weight:700;font-size:13px;color:var(--muted)">En el auxiliar, no en el estado de cuenta</div>
       <ul class="pend">${k.revA.length ? k.revA.map(x=>itemR("a",x)).join("") : '<li><div class="vacio">Nada pendiente.</div></li>'}</ul>
-      ${canWrite && (k.revB.length && k.revA.length) ? `<div class="pairbar" style="padding:0 14px 14px"><button class="btn primary sm" id="pairBtn" ${selB&&selA?"":"disabled"}>Emparejar seleccionados</button></div>` : ""}
+      ${canWrite && (k.revB.length && k.revA.length) ? (()=>{ const sb = r2([...selBs].reduce((s,id)=>{ const x = k.revB.find(y=>y.id===id); return s + (x ? montoDe("b", x) : 0); },0)), sa = r2([...selAs].reduce((s,id)=>{ const x = k.revA.find(y=>y.id===id); return s + (x ? montoDe("a", x) : 0); },0));
+        return `<div class="pairbar" style="padding:0 14px 14px;flex-direction:column;align-items:flex-start;gap:6px"><span class="fsub" style="max-width:none">Puedes seleccionar <strong>varios</strong> de cada lado. Banco: ${selBs.size} · ${fmt(sb)} &nbsp;|&nbsp; Auxiliar: ${selAs.size} · ${fmt(sa)}${selBs.size&&selAs.size?` &nbsp;|&nbsp; ${Math.abs(sb-sa)<0.01?"<strong>cuadran</strong>":`diferencia ${fmt(Math.abs(sb-sa))}`}`:""}</span><button class="btn primary sm" id="pairBtn" ${selBs.size&&selAs.size?"":"disabled"}>Emparejar seleccionados</button></div>`; })() : ""}
     </div></div>`;
     // Partidas en conciliación (solo las que tú aceptas o capturas)
     const TIPOS_P = {depNoEdo:"(+) Depósito no considerado en estado de cuenta", retNoEdo:"(−) Retiro no considerado en estado de cuenta", depNoCont:"(−) Depósito no considerado en contabilidad", retNoCont:"(+) Retiro no considerado en contabilidad"};
@@ -1877,8 +1907,9 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     </div>`;
     // emparejados
     const filasP = E.pairs.slice().sort((x,y)=>x.b.fecha.localeCompare(y.b.fecha)).map(p=>`<tr><td>${fechaCorta(p.b.fecha)}</td><td>${esc(p.b.nombre)}<div class="fsub">${esc(p.b.concepto)}</div></td><td class="num">${money.format(p.b.tipo==="dep"?p.b.monto:-p.b.monto)}</td><td>${fechaCorta(p.a.fecha)} · ${esc(p.a.tipo)} ${esc(p.a.num)}<div class="fsub">${esc(p.a.concepto)}</div></td><td>${p.manual && canWrite ? `<button class="linkbtn" data-unpair="${esc(p.b.id)}">Separar</button>` : ""}</td></tr>`).join("");
-    html += `<details class="pares"><summary>Movimientos emparejados (${E.pairs.length})${E.auxCom.length?` y comisiones`:""}</summary>
-      <div class="sheet"><table class="pt"><thead><tr><th>Fecha banco</th><th>Beneficiario / remitente</th><th class="num">Monto</th><th>Póliza</th><th></th></tr></thead><tbody>${filasP}
+    const filasG = E.grupos.map(g=>`<tr><td>${g.bs.map(b=>fechaCorta(b.fecha)).join("<br>")}</td><td>${g.bs.map(b=>`${esc(b.nombre)} <span class="fsub">${money.format(b.tipo==="dep"?b.monto:-b.monto)}</span>`).join("<br>")}<div class="fsub"><span class="st na">Grupo</span></div></td><td class="num">${money.format(g.bs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0))}</td><td>${g.as.map(a=>`${fechaCorta(a.fecha)} · ${esc(a.tipo)} ${esc(a.num)} · ${esc(a.concepto)} <span class="fsub">${money.format(a.cargo?a.cargo:-a.abono)}</span>`).join("<br>")}</td><td>${canWrite?`<button class="linkbtn" data-ungroup="${esc(g.id)}">Separar</button>`:""}</td></tr>`).join("");
+    html += `<details class="pares"><summary>Movimientos emparejados (${E.pairs.length + E.grupos.length})${E.auxCom.length?` y comisiones`:""}</summary>
+      <div class="sheet"><table class="pt"><thead><tr><th>Fecha banco</th><th>Beneficiario / remitente</th><th class="num">Monto</th><th>Póliza</th><th></th></tr></thead><tbody>${filasG}${filasP}
       ${E.auxCom.length||k.comB ? `<tr><td></td><td><strong>Comisiones bancarias</strong><div class="fsub">${(c.banco||[]).filter(b=>b.comision).length} cobros en el estado de cuenta</div></td><td class="num">${money.format(-k.comB)}</td><td>${E.auxCom.map(a=>`${esc(a.tipo)} ${esc(a.num)} · ${money.format(a.abono)}`).join("<br>")||"Sin póliza de comisiones"}</td><td></td></tr>`:""}
       </tbody></table></div></details>`;
     $("bbody").innerHTML = html;
@@ -1898,9 +1929,9 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     if(e.target.closest("#tplBtn")){ $("tplFile").click(); return; }
     if(e.target.closest("#tplQuitar")){ const cta = cuentasB.find(c=>c.id===cuentaSel); const {id, plantilla, ...resto} = cta; try{ await db.doc(`empresas/${empresa}/bancos/${id}`).set(resto); }catch(err){ handleWriteError(err); } return; }
     if(e.target.closest("#addBk")){ $("bkName").value=""; $("bkCta").value=""; $("bkDlg").showModal(); $("bkName").focus(); return; }
-    const b = e.target.closest("[data-cta]"); if(b){ cuentaSel = b.dataset.cta; bMes = null; selA = selB = null; renderBancos(); }
+    const b = e.target.closest("[data-cta]"); if(b){ cuentaSel = b.dataset.cta; bMes = null; selA = selB = null; selBs = new Set(); selAs = new Set(); renderBancos(); }
   });
-  $("bmonths").addEventListener("click", e => { const b = e.target.closest("[data-bmes]"); if(b){ bMes = +b.dataset.bmes; selA = selB = null; renderBancos(); } });
+  $("bmonths").addEventListener("click", e => { const b = e.target.closest("[data-bmes]"); if(b){ bMes = +b.dataset.bmes; selA = selB = null; selBs = new Set(); selAs = new Set(); renderBancos(); } });
   $("cancelBk").onclick = () => $("bkDlg").close();
   $("confirmBk").onclick = async () => {
     const nombre = $("bkName").value.trim(); if(!nombre){ $("bkName").focus(); return; }
@@ -1914,8 +1945,8 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
   };
   $("bbody").addEventListener("click", async e => {
     const sb = e.target.closest("[data-selb]"), sa = e.target.closest("[data-sela]");
-    if(sb){ selB = selB===sb.dataset.selb ? null : sb.dataset.selb; renderBancos(); return; }
-    if(sa){ selA = selA===sa.dataset.sela ? null : sa.dataset.sela; renderBancos(); return; }
+    if(sb){ selBs.has(sb.dataset.selb) ? selBs.delete(sb.dataset.selb) : selBs.add(sb.dataset.selb); renderBancos(); return; }
+    if(sa){ selAs.has(sa.dataset.sela) ? selAs.delete(sa.dataset.sela) : selAs.add(sa.dataset.sela); renderBancos(); return; }
     const c = concDe(cuentaSel, year, bMes); if(!c) return;
     const ac = e.target.closest("[data-aceptar]");
     if(ac){ const d = {...c, partidas: {...(c.partidas||{}), [ac.dataset.aceptar]: true}}; try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); revisarConciliacion(d, cuentasB.find(x=>x.id===cuentaSel)); }catch(err){ handleWriteError(err); } return; }
@@ -1928,7 +1959,21 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
       const monto = r2(+$("pmMonto").value), desc = $("pmDesc").value.trim(); if(!(monto>0)){ $("pmMonto").focus(); return; } if(!desc){ $("pmDesc").focus(); return; }
       const d = {...c, manuales: [...(c.manuales||[]), {id:`m-${Date.now().toString(36)}`, tipo: $("pmTipo").value, desc, monto}]};
       try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); revisarConciliacion(d, cuentasB.find(x=>x.id===cuentaSel)); }catch(err){ handleWriteError(err); } return; }
-    if(e.target.closest("#pairBtn") && selB && selA){
+    const gq = e.target.closest("[data-gb]"), ug = e.target.closest("[data-ungroup]");
+    if(ug){ try{ setSaving("Guardando…"); await escribirConc({...c, grupos: (c.grupos||[]).filter(g=>g.id!==ug.dataset.ungroup)}); setSaving("Guardado"); }catch(err){ handleWriteError(err); } return; }
+    const pq = e.target.closest("[data-pb]");
+    if(pq){ selBs = new Set([pq.dataset.pb]); selAs = new Set([pq.dataset.pa]); }
+    if(gq){ selBs = new Set(gq.dataset.gb.split(",")); selAs = new Set(gq.dataset.ga.split(",")); }
+    if((e.target.closest("#pairBtn") || pq || gq) && (selBs.size>1 || selAs.size>1)){
+      const bs = [...selBs].map(id=>c.banco.find(x=>x.id===id)).filter(Boolean), as = [...selAs].map(id=>c.aux.find(x=>x.id===id)).filter(Boolean);
+      const mb = r2(bs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0)), ma = r2(as.reduce((s,a)=>s+(a.cargo?a.cargo:-a.abono),0));
+      if(Math.abs(mb-ma)>0.009 && !await confirmar(`Los importes no coinciden (${money.format(mb)} en el banco contra ${money.format(ma)} en el auxiliar). ¿Agruparlos de todos modos?`)) return;
+      const d = {...c, grupos: [...(c.grupos||[]), {id:`g-${Date.now().toString(36)}`, b: bs.map(x=>x.id), a: as.map(x=>x.id)}]}; selBs = new Set(); selAs = new Set();
+      try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); revisarConciliacion(d, cuentasB.find(x=>x.id===cuentaSel)); }catch(err){ handleWriteError(err); }
+      return;
+    }
+    if((e.target.closest("#pairBtn") || pq) && selBs.size===1 && selAs.size===1){ selB = [...selBs][0]; selA = [...selAs][0]; selBs = new Set(); selAs = new Set(); }
+    if((e.target.closest("#pairBtn") || pq) && selB && selA){
       const b = c.banco.find(x=>x.id===selB), a = c.aux.find(x=>x.id===selA);
       const mb = b.tipo==="dep" ? b.monto : -b.monto, ma = a.cargo ? a.cargo : -a.abono;
       if(Math.abs(mb-ma)>0.009 && !await confirmar(`Los montos no coinciden (${money.format(mb)} contra ${money.format(ma)}). ¿Emparejarlos de todos modos?`)) return;
@@ -2039,10 +2084,11 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
       const est = limpiar(ws, hr+1); let r = hr+1;
       const filas = [
         ...pares.filter(p=>p.b.tipo===tipo).map(p=>({b:p.b, a:p.a})),
+        ...E.grupos.filter(g=>g.bs[0] && g.bs[0].tipo===tipo).flatMap(g=>{ const n = Math.max(g.bs.length, g.as.length); return Array.from({length:n},(_,i)=>({b:g.bs[i]||null, a:g.as[i]||null, grupo:g.id, ultimo:i===n-1, n})); }),
         ...E.bankSolo.filter(b=>b.tipo===tipo).map(b=>({b, a:null})),
         ...E.auxSolo.filter(a=>tipo==="dep" ? a.cargo : a.abono).map(a=>({b:null, a}))];
       if(tipo==="ret" && (k.comB || E.auxCom.length)) filas.push({b:{fecha:(c.banco||[]).slice(-1)[0]?.fecha || `${y}-${String(m).padStart(2,"0")}-28`, nombre:"COMISIONES BANCARIAS", concepto:"Comisiones del mes", monto:k.comB, comision:0, tipo:"ret"}, a: E.auxCom[0] ? {...E.auxCom[0], abono: r2(E.auxCom.reduce((s,x)=>s+(+x.abono||0),0))} : null});
-      for(const {b, a} of filas){
+      for(const {b, a, grupo, ultimo, n} of filas){
         if(b){ const set = (n, v) => { if(izq[n]) escribe(ws, r, izq[n], v, est); };
           set("FECHA", fechaJS(b.fecha)); set("TIPO", b.tipo==="dep" ? "Depósito" : "Retiro"); set("BENEFICIARIO/REMITENTE", b.nombre);
           set("DESCRIPCION", [b.nombre, b.concepto].filter(Boolean).join(" ").slice(0,120)); if(cMonto) escribe(ws, r, cMonto, b.monto, est);
@@ -2050,7 +2096,8 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
         if(a){ const set = (n, v) => { if(der[n]) escribe(ws, r, der[n], v, est); };
           set("FECHA", fechaCQ(a.fecha)); set("TIPO", a.tipo); set("NUMERO", +a.num||a.num); set("NO", +a.num||a.num); set("CONCEPTO", " "+a.concepto);
           if(cDer) escribe(ws, r, cDer, tipo==="dep" ? (+a.cargo||0) : (+a.abono||0), est); }
-        if(cMonto && cDer) escribe(ws, r, iDif, {formula:`+${L(cMonto)}${r}-${L(cDer)}${r}`}, est);
+        if(cMonto && cDer){ if(grupo){ if(ultimo) escribe(ws, r, iDif, {formula:`SUM(${L(cMonto)}${r-n+1}:${L(cMonto)}${r})-SUM(${L(cDer)}${r-n+1}:${L(cDer)}${r})`}, est); }
+          else escribe(ws, r, iDif, {formula:`+${L(cMonto)}${r}-${L(cDer)}${r}`}, est); }
         r++;
       }
       sumas(ws, r+1, [cMonto, izq.COMISION, izq.TOTAL, iDif, cDer].filter(Boolean), hr+1, r-1, est);
@@ -2083,6 +2130,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
         const w2 = wb.addWorksheet("Emparejados"); w2.columns=[{width:12},{width:34},{width:30},{width:15},{width:11},{width:12},{width:8},{width:36}];
         head(w2, ["Fecha banco","Beneficiario / remitente","Concepto banco","Monto","Comisión","Fecha póliza","Póliza","Concepto póliza"]);
         pares.forEach(p=>{ const r=w2.addRow([p.b.fecha,p.b.nombre,p.b.concepto,p.b.tipo==="dep"?p.b.monto:-p.b.monto,p.b.comision||0,p.a.fecha,`${p.a.tipo} ${p.a.num}`,p.a.concepto]); r.getCell(4).numFmt=M; r.getCell(5).numFmt=M; });
+        E.grupos.forEach(g=>{ const r=w2.addRow([g.bs.map(b=>b.fecha).join(", "), g.bs.map(b=>b.nombre).join(" + "), "Grupo", r2(g.bs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0)), r2(g.bs.reduce((s,b)=>s+(+b.comision||0),0)), g.as.map(a=>a.fecha).join(", "), g.as.map(a=>`${a.tipo} ${a.num}`).join(" + "), g.as.map(a=>a.concepto).join(" + ")]); r.getCell(4).numFmt=M; r.getCell(5).numFmt=M; });
         const rc = w2.addRow(["","Comisiones bancarias","",-k.comB,"","",E.auxCom.map(a=>`${a.tipo} ${a.num}`).join(", "),E.auxCom.map(a=>a.concepto).join(", ")]); rc.font={bold:true}; rc.getCell(4).numFmt=M;
         const w3 = wb.addWorksheet("Por revisar"); w3.columns=[{width:28},{width:12},{width:60},{width:15}];
         head(w3, ["Partida","Fecha","Descripción","Monto"]);
@@ -2107,6 +2155,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
           theme:"grid", margin:{left:40,right:40}, styles:{fontSize:8,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:[252,228,200],textColor:[40,40,40]} });
         doc.autoTable({ startY: doc.lastAutoTable.finalY+18, head:[["Fecha","Beneficiario / remitente","Monto","Póliza"]],
           body: [...pares.map(p=>[p.b.fecha,`${p.b.nombre} · ${p.b.concepto}`,{content:money.format(p.b.tipo==="dep"?p.b.monto:-p.b.monto),styles:{halign:"right"}},`${p.a.tipo} ${p.a.num} · ${p.a.concepto}`]),
+            ...E.grupos.map(g=>[g.bs.map(b=>b.fecha).join(", "), `Grupo: ${g.bs.map(b=>b.nombre).join(" + ")}`, {content:money.format(g.bs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0)),styles:{halign:"right"}}, g.as.map(a=>`${a.tipo} ${a.num} · ${a.concepto}`).join(" + ")]),
             ["","Comisiones bancarias",{content:money.format(-k.comB),styles:{halign:"right"}},E.auxCom.map(a=>`${a.tipo} ${a.num}`).join(", ")]],
           theme:"grid", margin:{left:40,right:40}, styles:{fontSize:7.5,cellPadding:3.5,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:[252,228,200],textColor:[40,40,40]}, columnStyles:{0:{cellWidth:58},2:{cellWidth:72}} });
         await guardarArchivo(`${nombreArchivo}.pdf`, doc.output("blob"));
