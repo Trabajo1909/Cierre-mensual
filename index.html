@@ -195,9 +195,9 @@ table.car tr.dif.ok td{color:var(--done-ink);background:var(--done-fill)}
 table.car tr.dif.bad td{color:var(--late-ink);background:var(--late-fill)}
 table.car input{width:150px;text-align:right;padding:5px 8px;font-size:14px}
 .pend{list-style:none;margin:0;padding:6px}
-.pend li button{width:100%;display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;font-family:inherit;font-size:13px;color:var(--ink);background:none;border:1px solid transparent;border-radius:8px;padding:8px;cursor:pointer}
-.pend li button:hover{background:var(--bg)}
-.pend li button[aria-pressed="true"]{border-color:var(--focus);background:var(--today)}
+.pend li > button[data-selb],.pend li > button[data-sela]{width:100%;display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;font-family:inherit;font-size:13px;color:var(--ink);background:none;border:1px solid transparent;border-radius:8px;padding:8px;cursor:pointer}
+.pend li > button[data-selb]:hover,.pend li > button[data-sela]:hover{background:var(--bg)}
+.pend li > button[aria-pressed="true"]{border-color:var(--focus);background:var(--today)}
 .pend .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pend .mt{font-weight:700;white-space:nowrap}
 .pend .vacio{padding:14px;color:var(--muted);font-size:14px}
@@ -486,6 +486,9 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
 <script>
 window.SUPABASE_URL = "https://qvreueaizyxnlhqofnvf.supabase.co";
 window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2cmV1ZWFpenl4bmxocW9mbnZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMjM4ODksImV4cCI6MjEwODg5OTg4OX0.tSjgOhjv6Jac5fJcsNXhubzFC9VFu0jQggpdi5r6nmI";
+window.GOOGLE_CLIENT_ID = "";
+window.DRIVE_SCRIPT_URL = "";
+window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -533,6 +536,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
     const m = document.createElement("div"); m.id = "sbMenu";
     m.innerHTML = `<button type="button" aria-haspopup="true">⋯ Cuenta</button><div><small>${(s.user.email||"").replace(/</g,"")}</small>
+      ${window.GOOGLE_CLIENT_ID || window.DRIVE_SCRIPT_URL ? `<button type="button" data-a="gd">${(()=>{ try{ return localStorage.getItem("gdConectado")==="1"; }catch(_){ return false; } })() ? "Google Drive conectado ✓" : "Conectar Google Drive"}</button><button type="button" data-a="gdoff">Dejar de guardar en Drive</button>` : ""}
       <button type="button" data-a="imp">Importar respaldo (.zip)</button><button type="button" data-a="out">Cerrar sesión</button></div>
       <input type="file" accept=".zip" hidden>`;
     document.body.appendChild(m);
@@ -540,7 +544,9 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     m.firstElementChild.onclick = () => panel.style.display = panel.style.display==="block" ? "none" : "block";
     panel.onclick = async e => { const a = e.target.dataset.a; panel.style.display = "none";
       if(a==="out"){ await sb.auth.signOut(); location.reload(); }
-      if(a==="imp") inp.click(); };
+      if(a==="imp") inp.click();
+      if(a==="gd"){ if(window.DRIVE_SCRIPT_URL){ try{ localStorage.setItem("gdConectado","1"); }catch(_){} gdAviso("Google Drive activado: tus descargas se guardarán también ahí."); } else gdConectar(); }
+      if(a==="gdoff"){ try{ localStorage.removeItem("gdConectado"); }catch(_){} GD.token = null; gdAviso("Listo: ya no se guardará en Drive."); } };
     inp.onchange = () => { const f = inp.files[0]; inp.value = ""; if(f) importarRespaldo(f); };
   }
   document.addEventListener("DOMContentLoaded", async () => {
@@ -593,9 +599,98 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     return fetchOriginal(u, o);
   };
 
+  // ---------- Google Drive: cada descarga se guarda también en tu Drive, acomodada en carpetas ----------
+  const GD = {token:null, vence:0, cliente:null, carpetas:{}, pendiente:[]};
+  const gdActivo = () => !!window.GOOGLE_CLIENT_ID || !!window.DRIVE_SCRIPT_URL;
+  const gdConectado = () => { try{ return localStorage.getItem("gdConectado")==="1"; }catch(_){ return false; } };
+  function gdAviso(texto, boton){
+    let el = document.getElementById("gdAviso");
+    if(!el){ el = document.createElement("div"); el.id = "gdAviso"; el.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink,#18241D);color:var(--bg,#fff);padding:10px 14px;border-radius:10px;font:500 14px 'Public Sans',system-ui,sans-serif;max-width:92vw;display:flex;gap:10px;align-items:center"; document.body.appendChild(el); }
+    el.innerHTML = ""; const t = document.createElement("span"); t.textContent = texto; el.appendChild(t);
+    if(boton){ const b = document.createElement("button"); b.textContent = boton.texto; b.style.cssText = "font:inherit;font-weight:700;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;background:var(--done,#2F7A4C);color:#fff"; b.onclick = boton.accion; el.appendChild(b); }
+    clearTimeout(gdAviso.t); gdAviso.t = setTimeout(()=>el.remove(), boton ? 15000 : 4500);
+  }
+  function gdCargarGis(){ return window.google && google.accounts ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://accounts.google.com/gsi/client"; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+  async function gdPedirToken(conVentana){
+    await gdCargarGis();
+    return new Promise((res, rej) => {
+      GD.cliente = google.accounts.oauth2.initTokenClient({client_id: window.GOOGLE_CLIENT_ID, scope: "https://www.googleapis.com/auth/drive.file",
+        callback: r => { if(r.error){ rej(r); return; } GD.token = r.access_token; GD.vence = Date.now() + (r.expires_in - 60)*1000; try{ localStorage.setItem("gdConectado","1"); }catch(_){} res(GD.token); },
+        error_callback: e => rej(e)});
+      GD.cliente.requestAccessToken({prompt: conVentana ? "consent" : ""});
+    });
+  }
+  async function gdConectar(){
+    try{ await gdPedirToken(true); gdAviso("Google Drive conectado: tus descargas se guardarán también ahí."); const p = GD.pendiente.splice(0); for(const x of p) await gdSubir(x.filename, x.blob); }
+    catch(e){ gdAviso("No se pudo conectar Google Drive."); }
+  }
+  async function gdApi(url, opts={}){
+    const r = await fetchOriginal(url, {...opts, headers: {...(opts.headers||{}), Authorization: `Bearer ${GD.token}`}});
+    if(r.status===401){ GD.token = null; throw Object.assign(new Error("token"), {token:true}); }
+    if(!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+  async function gdCarpeta(nombre, padre){
+    const clave = `${padre||"root"}/${nombre}`; if(GD.carpetas[clave]) return GD.carpetas[clave];
+    const q = encodeURIComponent(`name='${nombre.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false and '${padre||"root"}' in parents`);
+    const lst = await gdApi(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&spaces=drive`);
+    const id = lst.files && lst.files[0] ? lst.files[0].id : (await gdApi("https://www.googleapis.com/drive/v3/files?fields=id", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({name: nombre, mimeType:"application/vnd.google-apps.folder", parents:[padre||"root"]})})).id;
+    GD.carpetas[clave] = id; return id;
+  }
+  const MESES_GD = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  function gdRuta(filename){
+    const n = filename.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\.(?=[A-Z]{3,4}$)/,"·").replace(/[^A-Z0-9·-]/g," ").replace("·",".");
+    const empresa = ((document.getElementById("companyLabel")||{}).textContent||"").split("·")[0].trim() || "Empresa";
+    let anio = (n.match(/\b(20\d{2})\b/)||[])[1] || String(new Date().getFullYear()), mes = null;
+    const mm = n.match(/^(\d{2}) /); if(mm && +mm[1]>=1 && +mm[1]<=12) mes = +mm[1];
+    if(!mes) MESES_GD.forEach((m,i)=>{ const u = m.toUpperCase(); if(!mes && (new RegExp(`\\b${u}\\b`).test(n) || new RegExp(`\\b${u.slice(0,3)}\\b`).test(n))) mes = i+1; });
+    const iso = n.match(/\b(20\d{2})-(\d{2})-\d{2}\b/); if(!mes && iso){ anio = iso[1]; mes = +iso[2]; }
+    const cat = /RESPALDO/.test(n) ? "Respaldos" : /CONCILIACI|BANCO/.test(n) ? "Bancos" : /DIOT|IMPUESTO|IMSS|\bSUA\b|ACUSE|LINEA|\bISN\b|\bIVA\b/.test(n) ? "Impuestos" : /FACTURA|CANCELACI/.test(n) ? "Facturas" : /CXC|CXP|CUENTAS/.test(n) ? "Cuentas" :
+      /BALANZA/.test(n) ? "Balanza" : /DASHBOARD/.test(n) ? "Dashboards" : /ACTIVO/.test(n) ? "Activo fijo" : /RESPALDO/.test(n) ? "Respaldos" : /CIERRE/.test(n) ? "Tablero" : /\.ZIP$/.test(n) ? "Carpeta del mes" : "Otros";
+    if(cat==="Respaldos") return ["Cierre mensual", empresa, "Respaldos"];
+    if(/COMPARATIVO/.test(n) || cat==="Tablero") return ["Cierre mensual", empresa, anio, cat];
+    return ["Cierre mensual", empresa, anio, mes ? `${String(mes).padStart(2,"0")} ${MESES_GD[mes-1]}` : "Sin mes", cat];
+  }
+  async function gdSubirScript(filename, blob){
+    try{
+      const ruta = gdRuta(filename);
+      const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
+      const r = await fetchOriginal(window.DRIVE_SCRIPT_URL, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({token: window.DRIVE_SCRIPT_TOKEN, ruta, nombre: filename, tipo: blob.type || "application/octet-stream", datos: b64})});
+      const j = await r.json().catch(()=>({ok:false, error:"Respuesta inesperada de Google"}));
+      if(!j.ok) throw new Error(j.error || "Error");
+      gdAviso(`Guardado en Drive: ${ruta.join(" / ")}`);
+    }catch(e){ gdAviso("No se pudo guardar en Drive: " + String(e.message||e).slice(0,120)); }
+  }
+  async function gdSubir(filename, blob){
+    if(window.DRIVE_SCRIPT_URL) return gdSubirScript(filename, blob);
+    if(!GD.token || Date.now() > GD.vence){
+      try{ await gdPedirToken(false); }catch(_){ GD.pendiente.push({filename, blob}); gdAviso("Para guardar en tu Drive, vuelve a conectar Google Drive.", {texto:"Conectar", accion: gdConectar}); return; }
+    }
+    try{
+      const ruta = gdRuta(filename); let padre = null; for(const c of ruta) padre = await gdCarpeta(c, padre);
+      const q = encodeURIComponent(`name='${filename.replace(/'/g,"\\'")}' and '${padre}' in parents and trashed=false`);
+      const ex = await gdApi(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&spaces=drive`);
+      if(ex.files && ex.files[0]){
+        await fetchOriginal(`https://www.googleapis.com/upload/drive/v3/files/${ex.files[0].id}?uploadType=media`, {method:"PATCH", headers:{Authorization:`Bearer ${GD.token}`, "Content-Type": blob.type || "application/octet-stream"}, body: blob});
+      } else {
+        const form = new FormData();
+        form.append("metadata", new Blob([JSON.stringify({name: filename, parents:[padre]})], {type:"application/json"}));
+        form.append("file", blob);
+        const r = await fetchOriginal("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {method:"POST", headers:{Authorization:`Bearer ${GD.token}`}, body: form});
+        if(!r.ok) throw new Error(await r.text());
+      }
+      gdAviso(`Guardado en Drive: ${ruta.join(" / ")}`);
+    }catch(e){
+      if(e.token){ GD.pendiente.push({filename, blob}); gdAviso("Tu sesión de Google Drive venció.", {texto:"Reconectar", accion: gdConectar}); }
+      else gdAviso("No se pudo guardar en Drive: " + String(e.message||e).slice(0,120));
+    }
+  }
+
   // ---------- Descargas ----------
   const downloads = {
-    async save({filename, data}){ const blob = data instanceof Blob ? data : new Blob([data]); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000); return {status: "saved"}; }
+    async save({filename, data}){ const blob = data instanceof Blob ? data : new Blob([data]); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+      if(gdActivo() && gdConectado()) gdSubir(filename, blob);
+      return {status: "saved"}; }
   };
 
   window.claude = {
@@ -1859,7 +1954,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
       const nombre = lado==="b" ? `${x.nombre}${x.concepto?` · ${x.concepto}`:""}` : `${x.tipo} ${x.num} · ${x.concepto}`;
       return `<li><button data-sel${lado}="${esc(x.id)}" aria-pressed="${sel}"><span>${fechaCorta(x.fecha)}</span><span class="nm" title="${esc(nombre)}">${esc(nombre)}</span><span class="mt">${money.format(monto)}</span></button></li>`;
     };
-    const acc = (id) => canWrite ? `<button class="linkbtn" data-aceptar="${esc(id)}" style="margin:0 0 6px 78px;font-size:12px">Es partida en conciliación</button>` : "";
+    const acc = (id) => canWrite ? `<div style="margin:0 0 8px 78px"><button class="linkbtn" data-aceptar="${esc(id)}" style="font-size:12px;white-space:nowrap">Es partida en conciliación</button></div>` : "";
     // Posibles parejas: del otro lado, mismo sentido, ordenadas por importe, fecha y nombre
     const montoDe = (lado, x) => lado==="b" ? (x.tipo==="dep" ? x.monto : -x.monto) : (x.cargo ? x.cargo : -x.abono);
     const sugerencias = (lado, x) => {
