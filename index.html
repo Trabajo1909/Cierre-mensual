@@ -3102,6 +3102,39 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(/^1/.test(c.cuenta) && !/^113/.test(c.cuenta) && c.sf < -0.5) avisos.push(`${c.cuenta} ${c.nombre}: saldo acreedor de ${money.format(-c.sf)} en una cuenta deudora.`);
       if(/^2/.test(c.cuenta) && c.sf > 0.5) avisos.push(`${c.cuenta} ${c.nombre}: saldo deudor de ${money.format(c.sf)} en una cuenta acreedora.`);
     }
+    // --- Observaciones con varios meses ---
+    const f = money.format, nom = c => `${c.cuenta} ${String(c.nombre).replace(/\.\.$/,"")}`;
+    const balDe = mm => mm>=1 ? balanzas[mesKey(y, mm)] : null, prev = balDe(m-1);
+    const ctaEn = (bb, code) => bb ? bb.cuentas.find(x=>x.cuenta===code) : null;
+    const historia = code => { const out = []; for(let mm=m; mm>=1; mm--){ const bb = balDe(mm); if(!bb) break; const x = ctaEn(bb, code); if(!x) break; out.push(x); } return out; };
+    // IVA pendiente de pago (119) e IVA trasladado no cobrado (209) contra facturas PPD con saldo
+    const ivaPend = tipo => r2(facturas.filter(fx=>fx.tipo===tipo && vigente(fx) && fx.metodo==="PPD" && fx.fecha<=fin && +fx.total>0).reduce((s,fx)=>{ const cc = cuentaDe(fx, idx, fin); return s + (cc.saldo>0 ? (+fx.iva||0)*cc.saldo/fx.total : 0); },0));
+    const c119 = pref("119"), c209 = pref("209");
+    if(c119) add("Saldos acumulados", "IVA pendiente de pago (119)", r2(c119.sf), ivaPend("recibida"), "IVA de facturas de proveedores PPD que aún no pagas");
+    if(c209) add("Saldos acumulados", "IVA trasladado no cobrado (209)", r2(-c209.sf) || 0, ivaPend("emitida"), "IVA de facturas a clientes PPD que aún no cobras");
+    // Provisiones que se acumulan sin pagarse (211)
+    for(const c of cs.filter(x=>/^211-\d\d-000$/.test(x.cuenta) && !/-00-000$/.test(x.cuenta))){
+      const hst = historia(c.cuenta); let n = 0; for(const x of hst){ if(!x.cargos && x.sf < -0.009) n++; else break; }
+      if(n>=2) avisos.push(`${nom(c)}: lleva ${n} meses acumulándose sin pagos y ya suma ${f(-c.sf)}. ¿Ya se pagó y falta registrarlo?`);
+    }
+    // Saldos a favor sin aplicar (113)
+    for(const c of cs.filter(x=>/^113-/.test(x.cuenta) && !/-000$/.test(x.cuenta) && x.sf > 0.009)){
+      const hst = historia(c.cuenta); let n = 0; for(const x of hst){ if(!x.cargos && !x.abonos) n++; else break; }
+      if(n>=3) avisos.push(`${nom(c)}: saldo a favor de ${f(c.sf)} sin aplicarse desde hace ${n} meses. Puedes compensarlo o pedirlo en devolución.`);
+    }
+    // Deudores diversos y préstamos a socios (107)
+    for(const code of ["107-00-000","107-02-000"]){
+      const c = get(code), p = ctaEn(prev, code); if(!c || !p) continue;
+      const dif = r2(c.sf - p.sf); if(dif > 1000 && dif > Math.abs(p.sf)*0.05) avisos.push(`${nom(c)} creció ${f(dif)} en el mes y ya suma ${f(c.sf)}. Revisa que estén documentados (pagarés, comprobantes) o si deben reclasificarse.`);
+    }
+    // Gastos no deducibles y recargos
+    const g83 = get("601-83-000"), p83 = ctaEn(prev, "601-83-000");
+    if(g83){ const mes = r2(g83.cargos - g83.abonos), ant = p83 ? r2(p83.cargos - p83.abonos) : null;
+      if(mes > 1000 && ant!=null && mes > ant*1.2) avisos.push(`Gastos no deducibles: ${f(mes)} este mes contra ${f(ant)} el mes anterior (${Math.round((mes/Math.max(1,ant)-1)*100)}% más). Revisa si alguno tiene factura y puede deducirse.`); }
+    const g59 = get("601-59-000"); if(g59){ const mes = r2(g59.cargos - g59.abonos); if(mes > 0.5) avisos.push(`Pagaste ${f(mes)} de recargos fiscales este mes: revisa qué pagos salieron tarde.`); }
+    // Cuentas nuevas
+    if(prev){ const antes = new Set(prev.cuentas.map(x=>x.cuenta)); const nuevas = cs.filter(x=>!antes.has(x.cuenta) && !/-00-000$/.test(x.cuenta) && !/-000$/.test(x.cuenta));
+      if(nuevas.length) avisos.push(`Cuentas que aparecen por primera vez: ${nuevas.slice(0,8).map(nom).join(", ")}${nuevas.length>8?` y ${nuevas.length-8} más`:""}. Confirma que estén bien clasificadas.`); }
     return {filas: out, avisos};
   }
 
