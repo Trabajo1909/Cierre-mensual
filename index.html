@@ -429,6 +429,16 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   </div>
 </dialog>
 
+<dialog id="armarDlg" style="width:min(760px,96vw);max-height:92vh;padding:0">
+  <div style="padding:18px 20px 10px;border-bottom:1px solid var(--line)"><h2 style="margin:0 0 4px">Armar pareja</h2><div id="armarAncla" class="fsub" style="max-width:none;white-space:normal;font-size:13px"></div></div>
+  <div style="padding:10px 20px"><input id="armarBuscar" placeholder="Buscar por nombre, concepto, póliza o importe" autocomplete="off"></div>
+  <div id="armarLista" style="padding:0 12px;max-height:48vh;overflow:auto"></div>
+  <div style="padding:12px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+    <div id="armarTotal" style="font-size:14px"></div>
+    <div style="display:flex;gap:8px"><button class="btn" id="armarCancel">Cancelar</button><button class="btn primary" id="armarOk">Emparejar</button></div>
+  </div>
+</dialog>
+
 <dialog id="bkDlg">
   <h2>Agregar cuenta bancaria</h2>
   <label for="bkName">Nombre de la cuenta</label>
@@ -1846,10 +1856,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const b = bank.find(x=>x.id===bid), a = auxRest.find(x=>x.id===aid);
       if(b && a && !usedA.has(aid) && !usedB.has(bid)){ pairs.push({b,a,manual:true}); usedA.add(aid); usedB.add(bid); }
     }
+    const sepB = c.separadosB || {}, sepA = c.separadosA || {};
     for(const b of [...bank].sort((x,y)=>x.fecha.localeCompare(y.fecha))){
-      if(usedB.has(b.id)) continue;
+      if(usedB.has(b.id) || sepB[b.id]) continue;
       const lado = b.tipo==="dep" ? "cargo" : "abono";
-      const cands = auxRest.filter(a=>!usedA.has(a.id) && Math.abs((+a[lado]||0)-b.monto)<0.005 && Math.abs(diasEntre(a.fecha,b.fecha))<=7);
+      const cands = auxRest.filter(a=>!usedA.has(a.id) && !sepA[a.id] && Math.abs((+a[lado]||0)-b.monto)<0.005 && Math.abs(diasEntre(a.fecha,b.fecha))<=7);
       if(!cands.length) continue;
       cands.sort((x,y)=> Math.abs(diasEntre(x.fecha,b.fecha))-Math.abs(diasEntre(y.fecha,b.fecha)) || similitud(b,y)-similitud(b,x));
       const a = cands[0]; usedA.add(a.id); usedB.add(b.id); pairs.push({b,a});
@@ -1954,7 +1965,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const nombre = lado==="b" ? `${x.nombre}${x.concepto?` · ${x.concepto}`:""}` : `${x.tipo} ${x.num} · ${x.concepto}`;
       return `<li><button data-sel${lado}="${esc(x.id)}" aria-pressed="${sel}"><span>${fechaCorta(x.fecha)}</span><span class="nm" title="${esc(nombre)}">${esc(nombre)}</span><span class="mt">${money.format(monto)}</span></button></li>`;
     };
-    const acc = (id) => canWrite ? `<div style="margin:0 0 8px 78px"><button class="linkbtn" data-aceptar="${esc(id)}" style="font-size:12px;white-space:nowrap">Es partida en conciliación</button></div>` : "";
+    const acc = (id) => canWrite ? `<div style="margin:0 0 8px 78px;display:flex;gap:14px;flex-wrap:wrap">${id!=="__com"?`<button class="linkbtn" data-armar="${esc(id)}" style="font-size:12px;white-space:nowrap">Armar pareja a mano</button>`:""}<button class="linkbtn" data-aceptar="${esc(id)}" style="font-size:12px;white-space:nowrap">Es partida en conciliación</button></div>` : "";
     // Posibles parejas: del otro lado, mismo sentido, ordenadas por importe, fecha y nombre
     const montoDe = (lado, x) => lado==="b" ? (x.tipo==="dep" ? x.monto : -x.monto) : (x.cargo ? x.cargo : -x.abono);
     const sugerencias = (lado, x) => {
@@ -2001,8 +2012,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ${canWrite ? `<div class="pairbar" style="padding:0 14px 14px;align-items:flex-end"><select id="pmTipo" style="width:auto">${Object.entries(TIPOS_P).map(([v,t])=>`<option value="${v}">${t}</option>`).join("")}</select><input id="pmDesc" placeholder="Descripción" style="max-width:240px"><input id="pmMonto" type="number" step="0.01" min="0" placeholder="Importe" style="max-width:130px"><button class="btn sm" id="pmAdd">Agregar partida</button></div>` : ""}
     </div>`;
     // emparejados
-    const filasP = E.pairs.slice().sort((x,y)=>x.b.fecha.localeCompare(y.b.fecha)).map(p=>`<tr><td>${fechaCorta(p.b.fecha)}</td><td>${esc(p.b.nombre)}<div class="fsub">${esc(p.b.concepto)}</div></td><td class="num">${money.format(p.b.tipo==="dep"?p.b.monto:-p.b.monto)}</td><td>${fechaCorta(p.a.fecha)} · ${esc(p.a.tipo)} ${esc(p.a.num)}<div class="fsub">${esc(p.a.concepto)}</div></td><td>${p.manual && canWrite ? `<button class="linkbtn" data-unpair="${esc(p.b.id)}">Separar</button>` : ""}</td></tr>`).join("");
-    const filasG = E.grupos.map(g=>`<tr><td>${g.bs.map(b=>fechaCorta(b.fecha)).join("<br>")}</td><td>${g.bs.map(b=>`${esc(b.nombre)} <span class="fsub">${money.format(b.tipo==="dep"?b.monto:-b.monto)}</span>`).join("<br>")}<div class="fsub"><span class="st na">Grupo</span></div></td><td class="num">${money.format(g.bs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0))}</td><td>${g.as.map(a=>`${fechaCorta(a.fecha)} · ${esc(a.tipo)} ${esc(a.num)} · ${esc(a.concepto)} <span class="fsub">${money.format(a.cargo?a.cargo:-a.abono)}</span>`).join("<br>")}</td><td>${canWrite?`<button class="linkbtn" data-ungroup="${esc(g.id)}">Separar</button>`:""}</td></tr>`).join("");
+    const filasP = E.pairs.slice().sort((x,y)=>x.b.fecha.localeCompare(y.b.fecha)).map(p=>`<tr><td>${fechaCorta(p.b.fecha)}</td><td>${esc(p.b.nombre)}<div class="fsub">${esc(p.b.concepto)}</div></td><td class="num">${money.format(p.b.tipo==="dep"?p.b.monto:-p.b.monto)}</td><td>${fechaCorta(p.a.fecha)} · ${esc(p.a.tipo)} ${esc(p.a.num)}<div class="fsub">${esc(p.a.concepto)}</div></td><td style="white-space:nowrap">${canWrite ? `<button class="linkbtn" data-armar="${esc(p.b.id)}">Rearmar</button> · <button class="linkbtn" data-unpair="${esc(p.b.id)}" data-unpaira="${esc(p.a.id)}" data-manual="${p.manual?1:0}">Separar</button>${selAs.size || selBs.size ? `<div><button class="linkbtn" data-juntar="${esc(p.b.id)}" data-juntara="${esc(p.a.id)}">Juntar con lo seleccionado</button></div>` : ""}` : ""}</td></tr>`).join("");
+    const filasG = E.grupos.map(g=>`<tr><td>${g.bs.map(b=>fechaCorta(b.fecha)).join("<br>")}</td><td>${g.bs.map(b=>`${esc(b.nombre)} <span class="fsub">${money.format(b.tipo==="dep"?b.monto:-b.monto)}</span>`).join("<br>")}<div class="fsub"><span class="st na">Grupo</span></div></td><td class="num">${money.format(g.bs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0))}</td><td>${g.as.map(a=>`${fechaCorta(a.fecha)} · ${esc(a.tipo)} ${esc(a.num)} · ${esc(a.concepto)} <span class="fsub">${money.format(a.cargo?a.cargo:-a.abono)}</span>`).join("<br>")}</td><td style="white-space:nowrap">${canWrite?`<button class="linkbtn" data-armar="${esc(g.bs[0].id)}">Rearmar</button> · <button class="linkbtn" data-ungroup="${esc(g.id)}">Separar</button>`:""}</td></tr>`).join("");
     html += `<details class="pares"><summary>Movimientos emparejados (${E.pairs.length + E.grupos.length})${E.auxCom.length?` y comisiones`:""}</summary>
       <div class="sheet"><table class="pt"><thead><tr><th>Fecha banco</th><th>Beneficiario / remitente</th><th class="num">Monto</th><th>Póliza</th><th></th></tr></thead><tbody>${filasG}${filasP}
       ${E.auxCom.length||k.comB ? `<tr><td></td><td><strong>Comisiones bancarias</strong><div class="fsub">${(c.banco||[]).filter(b=>b.comision).length} cobros en el estado de cuenta</div></td><td class="num">${money.format(-k.comB)}</td><td>${E.auxCom.map(a=>`${esc(a.tipo)} ${esc(a.num)} · ${money.format(a.abono)}`).join("<br>")||"Sin póliza de comisiones"}</td><td></td></tr>`:""}
@@ -2038,7 +2049,68 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       cuentaSel = id; bMes = null; $("bkDlg").close(); toast(`Agregada: ${nombre}`);
     }catch(err){ handleWriteError(err); }
   };
+  // --- Armar pareja a mano: un movimiento ancla y jalas los que lo cubren ---
+  let armar = null;
+  const montoMov = (lado, x) => lado==="b" ? (x.tipo==="dep" ? +x.monto : -x.monto) : (+x.cargo ? +x.cargo : -(+x.abono||0));
+  function abrirArmar(id){
+    const c = concDe(cuentaSel, year, bMes); if(!c) return;
+    const lado = (c.banco||[]).some(x=>x.id===id) ? "b" : "a";
+    armar = {lado, id, sel: new Set(), mismos: new Set(), q: ""};
+    // si ya está emparejado o en grupo, precarga lo que tenía
+    const E = emparejar(c), p = E.pairs.find(p=>(lado==="b"?p.b.id:p.a.id)===id), g = E.grupos.find(g=>(lado==="b"?g.bs:g.as).some(x=>x.id===id));
+    if(p) armar.sel.add(lado==="b" ? p.a.id : p.b.id);
+    if(g){ (lado==="b"?g.as:g.bs).forEach(x=>armar.sel.add(x.id)); (lado==="b"?g.bs:g.as).forEach(x=>{ if(x.id!==id) armar.mismos.add(x.id); }); }
+    $("armarBuscar").value = ""; pintarArmar(); $("armarDlg").showModal();
+  }
+  function pintarArmar(){
+    const c = concDe(cuentaSel, year, bMes); if(!c || !armar) return;
+    const E = emparejar(c), f = money.format, est = {};
+    E.pairs.forEach(p=>{ est["b:"+p.b.id] = `Emparejado con ${p.a.tipo} ${p.a.num}`; est["a:"+p.a.id] = `Emparejado con ${p.b.nombre}`; });
+    E.grupos.forEach(g=>{ g.bs.forEach(b=>est["b:"+b.id] = "En un grupo"); g.as.forEach(a=>est["a:"+a.id] = "En un grupo"); });
+    const L = armar.lado, O = L==="b" ? "a" : "b";
+    const lista = l => (l==="b" ? (c.banco||[]) : (c.aux||[]).filter(a=>!(E.auxCom||[]).includes(a)));
+    const ancla = lista(L).find(x=>x.id===armar.id) || (c.aux||[]).find(x=>x.id===armar.id); if(!ancla) return;
+    const sg = Math.sign(montoMov(L, ancla)), q = normTxt(armar.q);
+    const desc = (l, x) => l==="b" ? `${x.nombre}${x.concepto?` · ${x.concepto}`:""}` : `${x.tipo} ${x.num} · ${x.concepto}`;
+    const pasa = (l, x) => !q || normTxt(desc(l,x)).includes(q) || String(Math.abs(montoMov(l,x)).toFixed(2)).includes(armar.q.replace(/[$,\s]/g,""));
+    const otros = lista(O).filter(x=>Math.sign(montoMov(O,x))===sg && pasa(O,x)).sort((a,b)=>Math.abs(diasEntre(a.fecha, ancla.fecha))-Math.abs(diasEntre(b.fecha, ancla.fecha)));
+    const mismos = lista(L).filter(x=>x.id!==ancla.id && Math.sign(montoMov(L,x))===sg && pasa(L,x)).sort((a,b)=>Math.abs(diasEntre(a.fecha, ancla.fecha))-Math.abs(diasEntre(b.fecha, ancla.fecha)));
+    const nombreL = l => l==="b" ? "estado de cuenta" : "auxiliar";
+    $("armarAncla").innerHTML = `<strong>${nombreL(L)==="estado de cuenta"?"Movimiento del banco":"Póliza del auxiliar"}:</strong> ${fechaCorta(ancla.fecha)} · ${esc(desc(L, ancla))} · <strong>${f(montoMov(L, ancla))}</strong>${est[L+":"+ancla.id]?` <span class="st na">${esc(est[L+":"+ancla.id])}</span>`:""}`;
+    const fila = (l, x, set) => `<label style="display:grid;grid-template-columns:22px 58px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px;border-radius:8px;cursor:pointer;${set.has(x.id)?"background:var(--today)":""}"><input type="checkbox" data-arm="${l}" value="${esc(x.id)}" ${set.has(x.id)?"checked":""} style="width:auto"><span class="fsub">${fechaCorta(x.fecha)}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(desc(l,x))}">${esc(desc(l,x))}${est[l+":"+x.id]?` <span class="st na" style="font-size:11px">${esc(est[l+":"+x.id])}</span>`:""}</span><strong style="white-space:nowrap">${f(montoMov(l,x))}</strong></label>`;
+    $("armarLista").innerHTML = `<div style="font-weight:700;font-size:13px;color:var(--muted);padding:6px 8px">Del ${nombreL(O)} (marca los que lo cubren)</div>${otros.map(x=>fila(O, x, armar.sel)).join("") || '<div class="fsub" style="padding:8px">Nada que coincida.</div>'}
+      <details style="margin:10px 0"><summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--muted);padding:6px 8px">Agregar más del ${nombreL(L)} a este mismo lado</summary>${mismos.map(x=>fila(L, x, armar.mismos)).join("") || '<div class="fsub" style="padding:8px">Nada que coincida.</div>'}</details>`;
+    const totL = r2(montoMov(L, ancla) + [...armar.mismos].reduce((s,id)=>{ const x = lista(L).find(y=>y.id===id); return s + (x ? montoMov(L,x) : 0); },0));
+    const totO = r2([...armar.sel].reduce((s,id)=>{ const x = lista(O).find(y=>y.id===id); return s + (x ? montoMov(O,x) : 0); },0));
+    const falta = r2(Math.abs(totL) - Math.abs(totO));
+    $("armarTotal").innerHTML = `${L==="b"?"Banco":"Auxiliar"}: <strong>${f(totL)}</strong> · ${O==="b"?"Banco":"Auxiliar"}: <strong>${f(totO)}</strong> · ${!armar.sel.size ? "Marca los movimientos que lo cubren" : Math.abs(falta)<0.01 ? '<span class="st pagado">Cuadran</span>' : falta>0 ? `<span class="st parcial">Faltan ${f(falta)}</span>` : `<span class="st vencido">Te pasas por ${f(-falta)}</span>`}`;
+    $("armarOk").disabled = !armar.sel.size;
+  }
+  $("armarBuscar").addEventListener("input", e => { if(armar){ armar.q = e.target.value; pintarArmar(); } });
+  $("armarLista").addEventListener("change", e => { const cb = e.target.closest("[data-arm]"); if(!cb || !armar) return; const set = cb.dataset.arm===armar.lado ? armar.mismos : armar.sel; cb.checked ? set.add(cb.value) : set.delete(cb.value); pintarArmar(); });
+  $("armarCancel").onclick = () => { armar = null; $("armarDlg").close(); };
+  $("armarOk").onclick = async () => {
+    const c = concDe(cuentaSel, year, bMes); if(!c || !armar || !armar.sel.size) return;
+    const bIds = armar.lado==="b" ? [armar.id, ...armar.mismos] : [...armar.sel], aIds = armar.lado==="b" ? [...armar.sel] : [armar.id, ...armar.mismos];
+    const bs = bIds.map(id=>c.banco.find(x=>x.id===id)).filter(Boolean), as = aIds.map(id=>c.aux.find(x=>x.id===id)).filter(Boolean);
+    const mb = r2(bs.reduce((s,x)=>s+montoMov("b",x),0)), ma = r2(as.reduce((s,x)=>s+montoMov("a",x),0));
+    $("armarDlg").close();
+    if(Math.abs(mb-ma)>0.009 && !await confirmar(`El banco suma ${money.format(mb)} y el auxiliar ${money.format(ma)}. ¿Emparejarlos de todos modos?`)){ $("armarDlg").showModal(); return; }
+    const setB = new Set(bIds), setA = new Set(aIds);
+    // Libera estos movimientos de cualquier pareja o grupo anterior
+    const links = {}; for(const [b,a] of Object.entries(c.links||{})) if(!setB.has(b) && !setA.has(a)) links[b] = a;
+    const grupos = (c.grupos||[]).filter(g=>!(g.b||[]).some(id=>setB.has(id)) && !(g.a||[]).some(id=>setA.has(id)));
+    const sepB = {...(c.separadosB||{})}, sepA = {...(c.separadosA||{})}; bIds.forEach(id=>delete sepB[id]); aIds.forEach(id=>delete sepA[id]);
+    const partidas = {...(c.partidas||{})}; [...bIds, ...aIds].forEach(id=>delete partidas[id]);
+    const d = {...c, links, grupos, separadosB: sepB, separadosA: sepA, partidas};
+    if(bIds.length===1 && aIds.length===1) d.links = {...links, [bIds[0]]: aIds[0]};
+    else d.grupos = [...grupos, {id:`g-${Date.now().toString(36)}`, b: bIds, a: aIds}];
+    armar = null; selBs = new Set(); selAs = new Set();
+    try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); toast("Listo, quedaron emparejados."); revisarConciliacion(d, cuentasB.find(x=>x.id===cuentaSel)); }catch(err){ handleWriteError(err); }
+  };
+
   $("bbody").addEventListener("click", async e => {
+    const arm = e.target.closest("[data-armar]"); if(arm){ abrirArmar(arm.dataset.armar); return; }
     const sb = e.target.closest("[data-selb]"), sa = e.target.closest("[data-sela]");
     if(sb){ selBs.has(sb.dataset.selb) ? selBs.delete(sb.dataset.selb) : selBs.add(sb.dataset.selb); renderBancos(); return; }
     if(sa){ selAs.has(sa.dataset.sela) ? selAs.delete(sa.dataset.sela) : selAs.add(sa.dataset.sela); renderBancos(); return; }
@@ -2076,10 +2148,22 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); revisarConciliacion(d, cuentasB.find(x=>x.id===cuentaSel)); }catch(err){ handleWriteError(err); }
       return;
     }
+    const jt = e.target.closest("[data-juntar]");
+    if(jt){
+      const bIds = [jt.dataset.juntar, ...[...selBs].filter(id=>id!==jt.dataset.juntar)], aIds = [jt.dataset.juntara, ...[...selAs].filter(id=>id!==jt.dataset.juntara)];
+      const bs = bIds.map(id=>c.banco.find(x=>x.id===id)).filter(Boolean), as = aIds.map(id=>c.aux.find(x=>x.id===id)).filter(Boolean);
+      const mb = r2(bs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0)), ma = r2(as.reduce((s,a)=>s+(a.cargo?a.cargo:-a.abono),0));
+      if(Math.abs(mb-ma)>0.009 && !await confirmar(`Con lo que seleccionaste, el banco suma ${money.format(mb)} y el auxiliar ${money.format(ma)}. ¿Juntarlos de todos modos?`)) return;
+      const links = {...(c.links||{})}; delete links[jt.dataset.juntar];
+      const d = {...c, links, grupos: [...(c.grupos||[]), {id:`g-${Date.now().toString(36)}`, b: bs.map(x=>x.id), a: as.map(x=>x.id)}]}; selBs = new Set(); selAs = new Set();
+      try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); revisarConciliacion(d, cuentasB.find(x=>x.id===cuentaSel)); }catch(err){ handleWriteError(err); }
+      return;
+    }
     const up = e.target.closest("[data-unpair]");
     if(up){
       const links = {...(c.links||{})}; delete links[up.dataset.unpair];
-      try{ setSaving("Guardando…"); await escribirConc({...c, links}); setSaving("Guardado"); }catch(err){ handleWriteError(err); }
+      const d = up.dataset.manual==="1" ? {...c, links} : {...c, links, separadosB: {...(c.separadosB||{}), [up.dataset.unpair]: true}, separadosA: {...(c.separadosA||{}), [up.dataset.unpaira]: true}};
+      try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); toast("Separados: ahora los dos están en Por revisar."); }catch(err){ handleWriteError(err); }
     }
   });
   $("bbody").addEventListener("change", async e => {
