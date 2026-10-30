@@ -1806,7 +1806,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   // Al volver a subir archivos: qué cambió y qué emparejamientos manuales ya no aplican
   function compararConc(prev, d){
-    const firmaA = a => `${r2(+a.cargo||0)}|${r2(+a.abono||0)}|${a.concepto}`, firmaB = b => `${b.tipo}|${r2(+b.monto)}|${r2(+b.comision||0)}`;
+    const firmaA = a => `${r2(+a.cargo||0)}|${r2(+a.abono||0)}`, firmaB = b => `${b.tipo}|${r2(+b.monto)}|${r2(+b.comision||0)}`;
     const cmp = (viejos, nuevos, firma) => { const mv = new Map(viejos.map(x=>[x.id,x])), mn = new Map(nuevos.map(x=>[x.id,x]));
       return {nuevos: nuevos.filter(x=>!mv.has(x.id)), eliminados: viejos.filter(x=>!mn.has(x.id)), cambiados: nuevos.filter(x=>mv.has(x.id) && firma(mv.get(x.id))!==firma(x))}; };
     const A = d.aux!==prev.aux ? cmp(prev.aux||[], d.aux||[], firmaA) : {nuevos:[], eliminados:[], cambiados:[]};
