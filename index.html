@@ -1195,7 +1195,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
         if(/\.pdf$/i.test(file.name) || file.type==="application/pdf"){
           const L = await leerPdf(file); if(!L) continue;
           if(/Balanza de comprobaci/i.test(L.todo)){ balPdfs.push({L, file}); continue; }
-          if(/cancelaci[oó]n/i.test(L.todo) && /(acuse|solicitud|estatus)/i.test(L.todo) && /[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/i.test(L.todo) && !/IMPUESTOS FEDERALES|OPERACIONES CON TERCEROS/i.test(L.todo)){ acusesCan.push({L, file}); continue; }
+          if(/(acuse|solicitud|estatus|fecha y hora|fecha)\s+de\s+(la\s+)?cancelaci[oó]n/i.test(L.todo) && !/Estado de cuenta|Movimientos|Saldo inicial/i.test(L.todo) && /[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/i.test(L.todo) && !/IMPUESTOS FEDERALES|OPERACIONES CON TERCEROS/i.test(L.todo)){ acusesCan.push({L, file}); continue; }
           if(/Auxiliares del Cat/i.test(L.todo)){ bancoFiles.push({kind:"aux", arr: auxPdfAFilas(L), name:file.name}); continue; }
           if(esPdfImpuesto(L.todo)){ impPdfs.push({L, file}); continue; }
           const movsPdf = parseBancoPdf(L, file);
@@ -1776,20 +1776,26 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     const siAux = +(c.saldoInicialAux||0);
     const sfAux = c.saldoFinalAux!=null ? +c.saldoFinalAux : r2(siAux + depA - retA);
     const comDif = r2(e.comAux - comB);
-    const depNoEdo = sum(e.auxSolo,"cargo");
-    const retNoEdo = r2(sum(e.auxSolo,"abono") + Math.max(0, comDif));
-    const depNoCont = sum(e.bankSolo.filter(b=>b.tipo==="dep"),"monto");
-    const retNoCont = r2(sum(e.bankSolo.filter(b=>b.tipo==="ret"),"monto") + Math.max(0, -comDif));
+    // Solo cuentan como partidas en conciliación las que tú aceptaste o capturaste; lo demás queda por revisar.
+    const acept = c.partidas || {}, man = c.manuales || [];
+    const auxP = e.auxSolo.filter(a=>acept[a.id]), bankP = e.bankSolo.filter(b=>acept[b.id]), comOk = !!acept.__com;
+    const sumMan = t => r2(man.filter(x=>x.tipo===t).reduce((s,x)=>s+(+x.monto||0),0));
+    const depNoEdo = r2(sum(auxP,"cargo") + sumMan("depNoEdo"));
+    const retNoEdo = r2(sum(auxP,"abono") + (comOk ? Math.max(0, comDif) : 0) + sumMan("retNoEdo"));
+    const depNoCont = r2(sum(bankP.filter(b=>b.tipo==="dep"),"monto") + sumMan("depNoCont"));
+    const retNoCont = r2(sum(bankP.filter(b=>b.tipo==="ret"),"monto") + (comOk ? Math.max(0, -comDif) : 0) + sumMan("retNoCont"));
     const conciliado = r2(sfBanco + depNoEdo - retNoEdo - depNoCont + retNoCont);
     const dif = r2(conciliado - sfAux);
+    const revB = e.bankSolo.filter(b=>!acept[b.id]), revA = e.auxSolo.filter(a=>!acept[a.id]), revCom = Math.abs(comDif)>0.009 && !comOk;
     return {e, depB, retB, comB, siBanco, sfBanco, depA, retA, siAux, sfAux, depNoEdo, retNoEdo, depNoCont, retNoCont, conciliado, dif, comDif,
+      auxP, bankP, comOk, man, revB, revA, revCom, porRevisar: revB.length + revA.length + (revCom?1:0),
       completa: bank.length>0 && aux.length>0};
   }
   function revisarConciliacion(c, cta){
     if(!cta || !cta.actividad || c.anio!==year) return;
     if(!actividades.some(a=>a.id===cta.actividad)) return;
     const k = caratula(c);
-    if(!k.completa || Math.abs(k.dif)>0.009) return;
+    if(!k.completa || Math.abs(k.dif)>0.009 || k.porRevisar) return;
     if((estados[cta.actividad]||{})[c.mes]==="done") return;
     estados[cta.actividad] = Object.assign({}, estados[cta.actividad]||{}, {[c.mes]:"done"});
     scheduleSave();
@@ -1811,7 +1817,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     if(!bMes){ let u = -1; estados12.forEach((x,i)=>{ if(x) u=i; }); bMes = u>=0 ? u+1 : (year===now.getFullYear()? now.getMonth()+1 : 1); }
     $("bmonths").innerHTML = estados12.map((x,i)=>{
       let cls="vacio", sub="—";
-      if(x){ if(!x.k.completa){ cls="pend"; sub="Falta archivo"; } else if(Math.abs(x.k.dif)>0.009){ cls="pend"; sub="Diferencia"; } else { cls="ok"; sub="Cuadra"; } }
+      if(x){ if(!x.k.completa){ cls="pend"; sub="Falta archivo"; } else if(x.k.porRevisar){ cls="pend"; sub=`${x.k.porRevisar} por revisar`; } else if(Math.abs(x.k.dif)>0.009){ cls="pend"; sub="Diferencia"; } else { cls="ok"; sub="Cuadra"; } }
       return `<button class="mchip ${cls}" data-bmes="${i+1}" aria-current="${bMes===i+1}"><b>${ABR[i]}</b><small>${sub}</small></button>`;
     }).join("");
     const okN = estados12.filter(x=>x && x.k.completa && Math.abs(x.k.dif)<=0.009).length;
@@ -1848,14 +1854,27 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
       const nombre = lado==="b" ? `${x.nombre}${x.concepto?` · ${x.concepto}`:""}` : `${x.tipo} ${x.num} · ${x.concepto}`;
       return `<li><button data-sel${lado}="${esc(x.id)}" aria-pressed="${sel}"><span>${fechaCorta(x.fecha)}</span><span class="nm" title="${esc(nombre)}">${esc(nombre)}</span><span class="mt">${money.format(monto)}</span></button></li>`;
     };
-    const comLinea = Math.abs(k.comDif)>0.009 ? `<li><div class="vacio">Comisiones: banco ${fmt(k.comB)} y contabilidad ${fmt(E.comAux)} (diferencia de ${fmt(Math.abs(k.comDif))}).</div></li>` : "";
-    html += `<div class="bpanel"><h3>Por revisar<small>Movimientos que no encontraron pareja. Selecciona uno de cada lado para emparejarlos.</small></h3>
-      <div style="padding:8px 8px 0;font-weight:700;font-size:13px;color:var(--muted)">En el banco, no en contabilidad</div>
-      <ul class="pend">${E.bankSolo.length ? E.bankSolo.map(x=>item("b",x)).join("") : '<li><div class="vacio">Nada pendiente.</div></li>'}${comLinea}</ul>
-      <div style="padding:8px 8px 0;font-weight:700;font-size:13px;color:var(--muted)">En contabilidad, no en el banco</div>
-      <ul class="pend">${E.auxSolo.length ? E.auxSolo.map(x=>item("a",x)).join("") : '<li><div class="vacio">Nada pendiente.</div></li>'}</ul>
-      ${canWrite && (E.bankSolo.length && E.auxSolo.length) ? `<div class="pairbar" style="padding:0 14px 14px"><button class="btn primary sm" id="pairBtn" ${selB&&selA?"":"disabled"}>Emparejar seleccionados</button></div>` : ""}
+    const acc = (id) => canWrite ? `<button class="linkbtn" data-aceptar="${esc(id)}" style="margin:0 0 6px 78px;font-size:12px">Es partida en conciliación</button>` : "";
+    const itemR = (lado, x) => item(lado, x).replace("</li>", `${acc(x.id)}</li>`);
+    const comLinea = k.revCom ? `<li><div class="vacio">Comisiones: banco ${fmt(k.comB)} y contabilidad ${fmt(E.comAux)} (diferencia de ${fmt(Math.abs(k.comDif))}).</div>${acc("__com")}</li>` : "";
+    html += `<div class="bpanel"><h3>Por revisar${k.porRevisar?` <span class="st vencido" style="margin-left:6px">${k.porRevisar}</span>`:""}<small>Movimientos sin pareja. No entran a la carátula hasta que tú decidas: corrígelos en CONTPAQi y vuelve a subir el auxiliar, emparéjalos, o márcalos como partida en conciliación.</small></h3>
+      <div style="padding:8px 8px 0;font-weight:700;font-size:13px;color:var(--muted)">En el estado de cuenta, no en el auxiliar</div>
+      <ul class="pend">${k.revB.length ? k.revB.map(x=>itemR("b",x)).join("") : '<li><div class="vacio">Nada pendiente.</div></li>'}${comLinea}</ul>
+      <div style="padding:8px 8px 0;font-weight:700;font-size:13px;color:var(--muted)">En el auxiliar, no en el estado de cuenta</div>
+      <ul class="pend">${k.revA.length ? k.revA.map(x=>itemR("a",x)).join("") : '<li><div class="vacio">Nada pendiente.</div></li>'}</ul>
+      ${canWrite && (k.revB.length && k.revA.length) ? `<div class="pairbar" style="padding:0 14px 14px"><button class="btn primary sm" id="pairBtn" ${selB&&selA?"":"disabled"}>Emparejar seleccionados</button></div>` : ""}
     </div></div>`;
+    // Partidas en conciliación (solo las que tú aceptas o capturas)
+    const TIPOS_P = {depNoEdo:"(+) Depósito no considerado en estado de cuenta", retNoEdo:"(−) Retiro no considerado en estado de cuenta", depNoCont:"(−) Depósito no considerado en contabilidad", retNoCont:"(+) Retiro no considerado en contabilidad"};
+    const filasPart = [
+      ...k.auxP.map(a=>({id:a.id, tipo: a.cargo ? "depNoEdo" : "retNoEdo", desc:`${fechaCorta(a.fecha)} · ${a.tipo} ${a.num} · ${a.concepto}`, monto: a.cargo || a.abono, quitar:"acept"})),
+      ...k.bankP.map(b=>({id:b.id, tipo: b.tipo==="dep" ? "depNoCont" : "retNoCont", desc:`${fechaCorta(b.fecha)} · ${b.nombre} ${b.concepto||""}`, monto: b.monto, quitar:"acept"})),
+      ...(k.comOk && Math.abs(k.comDif)>0.009 ? [{id:"__com", tipo: k.comDif>0 ? "retNoEdo" : "retNoCont", desc:"Diferencia de comisiones bancarias", monto: Math.abs(k.comDif), quitar:"acept"}] : []),
+      ...k.man.map(m=>({id:m.id, tipo:m.tipo, desc:m.desc, monto:+m.monto, quitar:"man"}))];
+    html += `<div class="bpanel" style="margin-top:16px"><h3>Partidas en conciliación<small>Las que entran a la carátula. Solo aparecen aquí las que tú marcas o capturas.</small></h3>
+      ${filasPart.length ? `<div class="sheet" style="border:none;border-radius:0"><table class="decl"><tbody>${filasPart.map(x=>`<tr><td><span class="aut">${TIPOS_P[x.tipo]}</span><div>${esc(x.desc)}</div></td><td class="num">${fmt(x.monto)}</td><td>${canWrite?`<button class="linkbtn" data-quitarp="${esc(x.id)}" data-como="${x.quitar}">Quitar</button>`:""}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty" style="padding:14px">No hay partidas en conciliación.</div>`}
+      ${canWrite ? `<div class="pairbar" style="padding:0 14px 14px;align-items:flex-end"><select id="pmTipo" style="width:auto">${Object.entries(TIPOS_P).map(([v,t])=>`<option value="${v}">${t}</option>`).join("")}</select><input id="pmDesc" placeholder="Descripción" style="max-width:240px"><input id="pmMonto" type="number" step="0.01" min="0" placeholder="Importe" style="max-width:130px"><button class="btn sm" id="pmAdd">Agregar partida</button></div>` : ""}
+    </div>`;
     // emparejados
     const filasP = E.pairs.slice().sort((x,y)=>x.b.fecha.localeCompare(y.b.fecha)).map(p=>`<tr><td>${fechaCorta(p.b.fecha)}</td><td>${esc(p.b.nombre)}<div class="fsub">${esc(p.b.concepto)}</div></td><td class="num">${money.format(p.b.tipo==="dep"?p.b.monto:-p.b.monto)}</td><td>${fechaCorta(p.a.fecha)} · ${esc(p.a.tipo)} ${esc(p.a.num)}<div class="fsub">${esc(p.a.concepto)}</div></td><td>${p.manual && canWrite ? `<button class="linkbtn" data-unpair="${esc(p.b.id)}">Separar</button>` : ""}</td></tr>`).join("");
     html += `<details class="pares"><summary>Movimientos emparejados (${E.pairs.length})${E.auxCom.length?` y comisiones`:""}</summary>
@@ -1898,6 +1917,17 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     if(sb){ selB = selB===sb.dataset.selb ? null : sb.dataset.selb; renderBancos(); return; }
     if(sa){ selA = selA===sa.dataset.sela ? null : sa.dataset.sela; renderBancos(); return; }
     const c = concDe(cuentaSel, year, bMes); if(!c) return;
+    const ac = e.target.closest("[data-aceptar]");
+    if(ac){ const d = {...c, partidas: {...(c.partidas||{}), [ac.dataset.aceptar]: true}}; try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); revisarConciliacion(d, cuentasB.find(x=>x.id===cuentaSel)); }catch(err){ handleWriteError(err); } return; }
+    const qp = e.target.closest("[data-quitarp]");
+    if(qp){ let d;
+      if(qp.dataset.como==="man") d = {...c, manuales: (c.manuales||[]).filter(x=>x.id!==qp.dataset.quitarp)};
+      else { const pp = {...(c.partidas||{})}; delete pp[qp.dataset.quitarp]; d = {...c, partidas: pp}; }
+      try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); }catch(err){ handleWriteError(err); } return; }
+    if(e.target.closest("#pmAdd")){
+      const monto = r2(+$("pmMonto").value), desc = $("pmDesc").value.trim(); if(!(monto>0)){ $("pmMonto").focus(); return; } if(!desc){ $("pmDesc").focus(); return; }
+      const d = {...c, manuales: [...(c.manuales||[]), {id:`m-${Date.now().toString(36)}`, tipo: $("pmTipo").value, desc, monto}]};
+      try{ setSaving("Guardando…"); await escribirConc(d); setSaving("Guardado"); revisarConciliacion(d, cuentasB.find(x=>x.id===cuentaSel)); }catch(err){ handleWriteError(err); } return; }
     if(e.target.closest("#pairBtn") && selB && selA){
       const b = c.banco.find(x=>x.id===selB), a = c.aux.find(x=>x.id===selA);
       const mb = b.tipo==="dep" ? b.monto : -b.monto, ma = a.cargo ? a.cargo : -a.abono;
@@ -1951,10 +1981,11 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
       car.getCell("K2").value = k.siBanco; car.getCell("G8").value = k.sfBanco; car.getCell("G41").value = k.sfAux;
       const bloque = (fila, filas, total) => { for(let i=1;i<=6;i++){ car.getCell(`C${fila+i}`).value = null; car.getCell(`F${fila+i}`).value = null; }
         filas.slice(0,6).forEach((x,i)=>{ car.getCell(`C${fila+1+i}`).value = x[0]; car.getCell(`F${fila+1+i}`).value = x[1]; }); car.getCell(`G${fila}`).value = total; };
-      bloque(11, E.auxSolo.filter(a=>a.cargo).map(a=>[`${fechaCQ(a.fecha)} ${a.tipo} ${a.num} ${a.concepto}`, a.cargo]), k.depNoEdo);
-      bloque(18, [...E.auxSolo.filter(a=>a.abono).map(a=>[`${fechaCQ(a.fecha)} ${a.tipo} ${a.num} ${a.concepto}`, a.abono]), ...(k.comDif>0.009?[["Comisiones registradas de más", k.comDif]]:[])], k.retNoEdo);
-      bloque(25, E.bankSolo.filter(b=>b.tipo==="dep").map(b=>[`${fechaCQ(b.fecha)} ${b.nombre} ${b.concepto}`, b.monto]), k.depNoCont);
-      bloque(33, [...E.bankSolo.filter(b=>b.tipo==="ret").map(b=>[`${fechaCQ(b.fecha)} ${b.nombre} ${b.concepto}`, b.monto]), ...(k.comDif<-0.009?[["Comisiones sin registrar", -k.comDif]]:[])], k.retNoCont);
+      const man = t => k.man.filter(x=>x.tipo===t).map(x=>[x.desc, +x.monto]);
+      bloque(11, [...k.auxP.filter(a=>a.cargo).map(a=>[`${fechaCQ(a.fecha)} ${a.tipo} ${a.num} ${a.concepto}`, a.cargo]), ...man("depNoEdo")], k.depNoEdo);
+      bloque(18, [...k.auxP.filter(a=>a.abono).map(a=>[`${fechaCQ(a.fecha)} ${a.tipo} ${a.num} ${a.concepto}`, a.abono]), ...(k.comOk && k.comDif>0.009?[["Comisiones registradas de más", k.comDif]]:[]), ...man("retNoEdo")], k.retNoEdo);
+      bloque(25, [...k.bankP.filter(b=>b.tipo==="dep").map(b=>[`${fechaCQ(b.fecha)} ${b.nombre} ${b.concepto}`, b.monto]), ...man("depNoCont")], k.depNoCont);
+      bloque(33, [...k.bankP.filter(b=>b.tipo==="ret").map(b=>[`${fechaCQ(b.fecha)} ${b.nombre} ${b.concepto}`, b.monto]), ...(k.comOk && k.comDif<-0.009?[["Comisiones sin registrar", -k.comDif]]:[]), ...man("retNoCont")], k.retNoCont);
       car.getCell("E47").value = k.depB; car.getCell("E48").value = r2(k.retB + k.comB); car.getCell("E50").value = k.depA; car.getCell("E51").value = k.retA;
     }
     // BANCO
@@ -2037,7 +2068,8 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
     const nombreArchivo = `Conciliacion ${cta.nombre} ${empresaNombre} ${ABR[bMes-1]} ${year}`;
     const car = [["Saldo inicial en estado de cuenta",k.siBanco],["Depósitos del estado de cuenta",k.depB],["Retiros del estado de cuenta",k.retB],["Comisiones del estado de cuenta",k.comB],["Saldo final en estado de cuenta",k.sfBanco],["(+) Depósitos no considerados en estado de cuenta",k.depNoEdo],["(−) Retiros no considerados en estado de cuenta",k.retNoEdo],["(−) Depósitos no considerados en contabilidad",k.depNoCont],["(+) Retiros no considerados en contabilidad",k.retNoCont],["Saldo conciliado",k.conciliado],["Saldo en contabilidad (auxiliar)",k.sfAux],["Diferencia",k.dif]];
     const pares = E.pairs.slice().sort((x,y)=>x.b.fecha.localeCompare(y.b.fecha));
-    const pend = [...E.bankSolo.map(b=>["Banco, no en contabilidad", b.fecha, `${b.nombre} · ${b.concepto}`, b.tipo==="dep"?b.monto:-b.monto]), ...E.auxSolo.map(a=>["Contabilidad, no en banco", a.fecha, `${a.tipo} ${a.num} · ${a.concepto}`, a.cargo?a.cargo:-a.abono])];
+    const acp = c.partidas || {};
+    const pend = [...E.bankSolo.map(b=>[acp[b.id] ? "Partida: banco, no en contabilidad" : "Por revisar: banco, no en contabilidad", b.fecha, `${b.nombre} · ${b.concepto}`, b.tipo==="dep"?b.monto:-b.monto]), ...E.auxSolo.map(a=>[acp[a.id] ? "Partida: contabilidad, no en banco" : "Por revisar: contabilidad, no en banco", a.fecha, `${a.tipo} ${a.num} · ${a.concepto}`, a.cargo?a.cargo:-a.abono]), ...(c.manuales||[]).map(m=>["Partida capturada", "", m.desc, +m.monto])];
     const btn = $(fmt==="pdf"?"pdfBtn":"xlsxBtn"); btn.disabled = true;
     try{
       if(fmt==="xlsx" && cta.plantilla){ await exportConcPlantilla(c, cta, k); return; }
@@ -2123,7 +2155,8 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
   }
   function parseBancoPdf(L, file){
     const {lineas, todo} = L;
-    if(!/BBVA/.test(todo)){ toast(`${file.name}: por ahora solo sé leer estados de cuenta de BBVA en PDF.`); return null; }
+    if(/soycedi\.com|Cedi\w* App SAPI/i.test(todo) && !/BBVA MEXICO/i.test(todo)) return parseCediPdf(L, file);
+    if(!/BBVA/.test(todo)){ toast(`${file.name}: por ahora sé leer estados de cuenta en PDF de BBVA y CEDI.`); return null; }
     const per = todo.match(/DEL\s+(\d{2})\/(\d{2})\/(\d{4})\s+AL\s+(\d{2})\/(\d{2})\/(\d{4})/);
     if(!per){ toast(`${file.name}: no encontré el periodo del estado de cuenta.`); return null; }
     const anioFin = +per[6], mesFin = +per[5];
@@ -3433,7 +3466,7 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
           if(!sinComp) marcar(act, m);
         }
         // Conciliaciones
-        for(const cta of cuentasB){ if(!cta.actividad) continue; const c = concDe(cta.id, year, m); if(c && (c.banco||[]).length && (c.aux||[]).length && Math.abs(caratula(c).dif)<=0.009) marcar(cta.actividad, m); }
+        for(const cta of cuentasB){ if(!cta.actividad) continue; const c = concDe(cta.id, year, m); if(c && (c.banco||[]).length && (c.aux||[]).length){ const kk = caratula(c); if(Math.abs(kk.dif)<=0.009 && !kk.porRevisar) marcar(cta.actividad, m); } }
         // Impuestos, DIOT e IMSS
         const k = calcMes(year, m, memo);
         for(const [aut, act] of [["SAT","impuestos-sat"],["SATEG","impuestos-sateg"]]){
@@ -3743,6 +3776,47 @@ window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
       toast(`Respaldo listo: ${docsOut.length} registros y ${ids.length} archivos.`);
     }catch(e){ console.error(e); toast("No se pudo armar el respaldo."); }
     finally{ btn.disabled = false; btn.textContent = txt0; }
+  }
+
+  // --- Estado de cuenta de CEDI en PDF ---
+  function parseCediPdf(L, file){
+    const amt = /^\$?-?[\d,]+\.\d{2}$/, valor = s => +String(s).replace(/[$,]/g,"");
+    const linea = re => L.lineas.find(l=>re.test(l.texto));
+    const montoDe = re => { const l = linea(re); if(!l) return null; const it = l.items.filter(i=>amt.test(i.s.trim()) && i.x > (l.items.find(j=>re.test(j.s))||{x:0}).x); return it.length ? valor(it[0].s.trim()) : null; };
+    const saldoInicial = montoDe(/Saldo inicial/i), saldoFinal = montoDe(/Saldo f\w*nal/i), totDep = montoDe(/Total Dep/i), totRet = montoDe(/Total Retiros/i), totCom = montoDe(/Comisiones del periodo/i), totIva = montoDe(/IVA del periodo/i);
+    const movs = [], ids = new Set(); let cols = null, actual = null, ultimoY = null;
+    for(const l of L.lineas){
+      const it = l.items.map(i=>({...i, s:i.s.trim()})).filter(i=>i.s);
+      const g = n => it.find(i=>i.s===n);
+      if(g("Depósitos") && g("Retiros") && g("Saldo")){ cols = {dep:g("Depósitos").r, ret:g("Retiros").r, com:(g("Comisión")||{r:g("Retiros").r+50}).r, iva:(g("IVA")||{r:g("Retiros").r+100}).r, saldo:g("Saldo").r, desc:g("Retiros").x - 60}; actual = null; continue; }
+      if(!cols) continue;
+      if(/^(La cuenta CLABE|Este documento|Cedi\w* App SAPI|contacto@)/i.test(l.texto)){ actual = null; continue; }
+      const dm = it[0] && it[0].s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if(dm){
+        const m = {dep:0, ret:0, com:0, iva:0};
+        for(const i of it){ if(!amt.test(i.s)) continue; const k = Object.entries(cols).filter(([n])=>n!=="desc").sort((a,b)=>Math.abs(a[1]-i.r)-Math.abs(b[1]-i.r))[0][0]; if(k!=="saldo") m[k] += valor(i.s); }
+        const desc = it.slice(1).filter(i=>!amt.test(i.s) && i.s!=="-" && i.x < cols.desc + 60).map(i=>i.s).join(" ");
+        const fecha = `${dm[3]}-${dm[2]}-${dm[1]}`, tipo = m.dep ? "dep" : "ret", monto = r2(m.dep || m.ret);
+        if(!monto){ actual = null; continue; }
+        let id = `${fecha}-${tipo}-${Math.round(monto*100)}`; while(ids.has(id)) id += "x"; ids.add(id);
+        actual = {id, fecha, tipo, desc, monto, comision: r2(m.com + m.iva)}; movs.push(actual); ultimoY = l.y; continue;
+      }
+      if(actual && Math.abs(l.y - ultimoY) < 40 && it.every(i=>i.x < cols.desc + 60 && !amt.test(i.s))){ actual.desc = `${actual.desc} ${l.texto}`.replace(/\s+/g," ").trim(); ultimoY = l.y; }
+    }
+    const final = movs.map(({desc, ...m}) => {
+      const d = desc.replace(/\s+/g," ").trim(), mm = d.match(/^(?:Transferencia(?:\s+SPEI)?\s+a|Dep[oó]sito(?:\s+SPEI)?\s+de)\s+(.*)$/i), resto = mm ? mm[1] : d, k = resto.indexOf(", ");
+      return {...m, nombre: (k>0 ? resto.slice(0,k) : resto).trim(), concepto: (k>0 ? resto.slice(k+2) : "").trim()};
+    });
+    if(!final.length){ toast(`${file.name}: no encontré movimientos en el estado de cuenta de CEDI.`); return null; }
+    const sDep = r2(final.filter(m=>m.tipo==="dep").reduce((s,m)=>s+m.monto,0)), sRet = r2(final.filter(m=>m.tipo==="ret").reduce((s,m)=>s+m.monto,0)), sCom = r2(final.reduce((s,m)=>s+m.comision,0));
+    const avisos = [];
+    if(totDep!=null && Math.abs(totDep - sDep) > 0.009) avisos.push(`depósitos ${money.format(sDep)} contra ${money.format(totDep)}`);
+    if(totRet!=null && Math.abs(totRet - sRet) > 0.009) avisos.push(`retiros ${money.format(sRet)} contra ${money.format(totRet)}`);
+    if(totCom!=null && Math.abs(r2(totCom + (totIva||0)) - sCom) > 0.009) avisos.push(`comisiones ${money.format(sCom)} contra ${money.format(r2(totCom + (totIva||0)))}`);
+    if(saldoInicial!=null && saldoFinal!=null && Math.abs(r2(saldoInicial + sDep - sRet - sCom) - saldoFinal) > 0.009) avisos.push(`el saldo final no cuadra con el del PDF (${money.format(saldoFinal)})`);
+    if(avisos.length) toast(`${file.name}: revisa los movimientos, leí ${avisos.join(", ")}.`);
+    const f0 = final[0].fecha;
+    return {movs: final, saldoInicial, periodo: {anio: +f0.slice(0,4), mes: +f0.slice(5,7)}};
   }
 
   // ---------- Arranque ----------
