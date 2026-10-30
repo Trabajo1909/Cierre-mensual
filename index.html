@@ -2704,6 +2704,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const id = declId(it.anio, it.mes, it.clave), prev = declDe(it.anio, it.mes, it.clave) || {};
         const d = {...prev, anio: it.anio, mes: it.mes, clave: it.clave, presentada: true};
         delete d.id;
+        // Si ya había una declaración presentada y llega otra distinta (complementaria), guarda la anterior en el historial
+        const esOtra = prev.presentada && ((it.operacion && prev.operacion && it.operacion!==prev.operacion) || (/COMPLEM/i.test(it.tipoDecl||"") && !/COMPLEM/i.test(prev.tipoDecl||"")) || (it.fechaPresentacion && prev.fechaPresentacion && it.fechaPresentacion!==prev.fechaPresentacion));
+        if(esOtra){ d.versiones = [...(prev.versiones||[]), {tipoDecl: prev.tipoDecl||"NORMAL", fechaPresentacion: prev.fechaPresentacion||"", operacion: prev.operacion||"", aPagar: +prev.aPagar||0, aFavor: +prev.aFavor||0, pagada: !!prev.pagada, fechaPago: prev.fechaPago||""}];
+          d.aPagar = 0; d.aFavor = 0; d.pagada = false; delete d.fechaPago; delete d.linea; if(!it.tipoDecl) d.tipoDecl = "COMPLEMENTARIA"; }
         if(it.fechaPresentacion) d.fechaPresentacion = it.fechaPresentacion;
         if(it.operacion) d.operacion = it.operacion;
         if(it.tipoDecl) d.tipoDecl = it.tipoDecl;
@@ -2779,12 +2783,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const o of OBLIG){
       const e = estadoOblig(o,k); if(!e.visible) continue; const d = e.d||{};
       const esDiot = o.clave==="diot";
-      const declarado = d.presentada ? (esDiot ? (d.ivaDiot!=null ? `IVA ${f(+d.ivaDiot)}` : "Presentada") : +d.aFavor ? `A favor ${f(+d.aFavor)}` : f(+d.aPagar||0)) : "—";
+      // Con complementarias: lo declarado en total es lo pagado en las anteriores más la diferencia (o menos el saldo a favor) de la última
+      const vers = d.versiones || [], totalDecl = vers.length ? r2(vers.reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0) - (+d.aFavor||0)) : null;
+      const declarado = d.presentada && totalDecl!=null && o.clave!=="iva" && !esDiot ? `${f(totalDecl)}<div class="fsub" style="max-width:none">${vers.length+1} declaraciones</div>` : d.presentada ? (esDiot ? (d.ivaDiot!=null ? `IVA ${f(+d.ivaDiot)}` : "Presentada") : +d.aFavor ? `A favor ${f(+d.aFavor)}` : f(+d.aPagar||0)) : "—";
       const calcTxt = o.sinCalculo ? "—" : esDiot ? `IVA ${f(k.diot.iva)}` : o.clave==="iva" && k.ivaNeto<0 ? `A favor ${f(-k.ivaNeto)}` : f(e.calc);
-      const dif = d.presentada && !o.sinCalculo ? (esDiot ? (d.ivaDiot!=null ? Math.abs(+d.ivaDiot - k.diot.iva) : 0) : o.clave==="iva" && k.ivaNeto<0 ? Math.abs((+d.aFavor||0) - (-k.ivaNeto)) : Math.abs((+d.aPagar||0) - e.calc)) : 0;
+      const dif = d.presentada && !o.sinCalculo && totalDecl!=null && o.clave!=="iva" && !esDiot ? Math.abs(totalDecl - e.calc) : d.presentada && !o.sinCalculo ? (esDiot ? (d.ivaDiot!=null ? Math.abs(+d.ivaDiot - k.diot.iva) : 0) : o.clave==="iva" && k.ivaNeto<0 ? Math.abs((+d.aFavor||0) - (-k.ivaNeto)) : Math.abs((+d.aPagar||0) - e.calc)) : 0;
       const docs = (d.archivos||[]).map((a,ix)=>`<button class="doc" data-dl="${esc(o.clave)}" data-ix="${ix}" title="Descargar ${esc(a.nombre)}">${({linea:"Línea de captura", declaracion:"Declaración", resumen:"Resumen SUA", cedula:"Cédula SUA", comprobante:"Comprobante de pago"})[a.tipo]||"Acuse"}</button>`).join("");
       const banco = d.presentada && +d.aPagar>0 && !d.pagada ? buscarPagoBanco(+d.aPagar, `${k.y}-${String(k.m).padStart(2,"0")}-01`) : null;
-      const det = [e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
+      const det = [...vers.map(v=>`${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}`), e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
         d.linea && d.linea.fechaLimite && !d.pagada && +d.aPagar>0 ? `Pagar antes del ${fechaCorta(d.linea.fechaLimite)} ${d.linea.fechaLimite.slice(0,4)}`:"", d.pagada&&d.fechaPago?`Pagada ${fechaCorta(d.fechaPago)} ${d.fechaPago.slice(0,4)}`:"", d.folioSUA?`Folio SUA ${esc(d.folioSUA)}`:"",
         o.clave==="imss" && d.pagada ? (d.contpaq ? "Registrado en CONTPAQi" : "Falta registrarlo en CONTPAQi") : "",
         banco ? `<strong>Encontré un retiro de ${f(banco.monto)} en ${esc(banco.cuenta)} el ${fechaCorta(banco.fecha)}</strong>` : ""].filter(Boolean).join(" · ");
