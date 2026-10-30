@@ -1804,6 +1804,24 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const saldoFinal = movs.length ? (movs[movs.length-1].saldo || r2(saldoInicial + movs.reduce((s,m)=>s+m.cargo-m.abono,0))) : saldoInicial;
     return {saldoInicial, saldoFinal, periodo, movs, varias: cuentas.length > 1, cuentaUsada: elegida.cuenta};
   }
+  // Al volver a subir archivos: qué cambió y qué emparejamientos manuales ya no aplican
+  function compararConc(prev, d){
+    const firmaA = a => `${r2(+a.cargo||0)}|${r2(+a.abono||0)}|${a.concepto}`, firmaB = b => `${b.tipo}|${r2(+b.monto)}|${r2(+b.comision||0)}`;
+    const cmp = (viejos, nuevos, firma) => { const mv = new Map(viejos.map(x=>[x.id,x])), mn = new Map(nuevos.map(x=>[x.id,x]));
+      return {nuevos: nuevos.filter(x=>!mv.has(x.id)), eliminados: viejos.filter(x=>!mn.has(x.id)), cambiados: nuevos.filter(x=>mv.has(x.id) && firma(mv.get(x.id))!==firma(x))}; };
+    const A = d.aux!==prev.aux ? cmp(prev.aux||[], d.aux||[], firmaA) : {nuevos:[], eliminados:[], cambiados:[]};
+    const B = d.banco!==prev.banco ? cmp(prev.banco||[], d.banco||[], firmaB) : {nuevos:[], eliminados:[], cambiados:[]};
+    const malA = new Set([...A.eliminados, ...A.cambiados].map(x=>x.id)), malB = new Set([...B.eliminados, ...B.cambiados].map(x=>x.id));
+    let deshechos = 0;
+    const links = {}; for(const [b,a] of Object.entries(d.links||{})){ if(malB.has(b) || malA.has(a)) deshechos++; else links[b] = a; }
+    const grupos = (d.grupos||[]).filter(g=>{ const malo = (g.b||[]).some(id=>malB.has(id)) || (g.a||[]).some(id=>malA.has(id)); if(malo) deshechos++; return !malo; });
+    const partidas = {...(d.partidas||{})}; let partidasQuitadas = 0; for(const id of Object.keys(partidas)) if(malA.has(id) || malB.has(id)){ delete partidas[id]; partidasQuitadas++; }
+    const sepA = {...(d.separadosA||{})}, sepB = {...(d.separadosB||{})}; malA.forEach(id=>delete sepA[id]); malB.forEach(id=>delete sepB[id]);
+    Object.assign(d, {links, grupos, partidas, separadosA: sepA, separadosB: sepB});
+    const desc = (x, l) => l==="a" ? `${x.tipo} ${x.num} · ${x.concepto} · ${money.format(+x.cargo || -(+x.abono||0))}` : `${x.nombre} · ${money.format(x.tipo==="dep"?x.monto:-x.monto)}`;
+    return {fecha: hoyISO, aux: {nuevas: A.nuevos.map(x=>desc(x,"a")), eliminadas: A.eliminados.map(x=>desc(x,"a")), modificadas: A.cambiados.map(x=>desc(x,"a"))},
+      banco: {nuevos: B.nuevos.map(x=>desc(x,"b")), eliminados: B.eliminados.map(x=>desc(x,"b")), modificados: B.cambiados.map(x=>desc(x,"b"))}, deshechos, partidasQuitadas, visto: false};
+  }
   async function escribirConc(doc){
     const id = doc.id; const data = {...doc}; delete data.id;
     concQ[id] = (concQ[id]||Promise.resolve()).then(()=>conReintento(()=>db.doc(`empresas/${empresa}/conciliaciones/${id}`).set(data)));
@@ -1830,7 +1848,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       }
     }
     const lista = Object.values(cambios);
-    for(const d of lista){ d.links ||= {}; d.actualizado = new Date().toISOString(); await escribirConc(d); }
+    for(const d of lista){
+      d.links ||= {}; d.actualizado = new Date().toISOString();
+      const prev = concDe(cuentaSel, d.anio, d.mes);
+      if(prev && ((prev.aux||[]).length || (prev.banco||[]).length)) d.ultimaRevision = compararConc(prev, d);
+      await escribirConc(d);
+    }
     if(ultimo){ year = ultimo[0]; bMes = ultimo[1]; }
     for(const d of lista) revisarConciliacion(d, cta);
     return lista.length ? `${cta.nombre}: ${lista.map(d=>MESES[d.mes-1].toLowerCase()).join(", ")}` : "";
@@ -1941,7 +1964,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const k = caratula(c), E = k.e;
     const fmt = x => money.format(x);
     const nB = (c.banco||[]).length, nA = (c.aux||[]).length;
-    let html = `<div class="bfiles"><span>Estado de cuenta: ${nB ? `<b>${nB} movimientos</b>` : '<span class="falta">falta subirlo</span>'}</span><span>Auxiliar: ${nA ? `<b>${nA} pólizas</b>` : '<span class="falta">falta subirlo</span>'}</span><span>Emparejados: <b>${E.pairs.length}</b></span></div>`;
+    const ur = c.ultimaRevision;
+    const resumenRev = ur && !ur.visto ? (()=>{ const p = [], L = (t, xs) => xs && xs.length ? `<div><strong>${t} (${xs.length}):</strong> ${xs.slice(0,6).map(esc).join(" · ")}${xs.length>6?` y ${xs.length-6} más`:""}</div>` : "";
+      const det = L("Pólizas nuevas", ur.aux.nuevas) + L("Pólizas que ya no vienen", ur.aux.eliminadas) + L("Pólizas modificadas", ur.aux.modificadas) + L("Movimientos del banco nuevos", ur.banco.nuevos) + L("Movimientos del banco que ya no vienen", ur.banco.eliminados) + L("Movimientos del banco modificados", ur.banco.modificados);
+      return `<div class="bpanel" style="margin:0 0 14px;border-left:4px solid var(--today-line)"><h3>Volviste a subir archivos el ${fechaCorta(ur.fecha)}<small>La conciliación ya se revisó otra vez con los cambios.</small></h3><div style="padding:10px 14px;font-size:13px;display:grid;gap:4px">${det || "<div>No hubo cambios en los movimientos.</div>"}${ur.deshechos ? `<div><strong>${ur.deshechos} ${ur.deshechos===1?"emparejamiento que armaste":"emparejamientos que armaste"} se deshizo</strong> porque una de sus pólizas o movimientos cambió o ya no viene: revisa <strong>Por revisar</strong>.</div>` : ""}${ur.partidasQuitadas ? `<div><strong>${ur.partidasQuitadas} ${ur.partidasQuitadas===1?"partida en conciliación se quitó":"partidas en conciliación se quitaron"}</strong> por la misma razón.</div>` : ""}</div>${canWrite?`<div class="pairbar" style="padding:0 14px 12px"><button class="btn sm" id="revVisto">Entendido</button></div>`:""}</div>`; })() : "";
+    let html = resumenRev + `<div class="bfiles"><span>Estado de cuenta: ${nB ? `<b>${nB} movimientos</b>` : '<span class="falta">falta subirlo</span>'}</span><span>Auxiliar: ${nA ? `<b>${nA} pólizas</b>` : '<span class="falta">falta subirlo</span>'}</span><span>Emparejados: <b>${E.pairs.length}</b></span></div>`;
     const okDif = Math.abs(k.dif)<=0.009;
     html += `<div class="bgrid"><div class="bpanel"><h3>Carátula de conciliación<small>${esc(cta.nombre)}${cta.cuentaContable?` · cuenta ${esc(cta.cuentaContable)}`:""} · al ${new Date(Date.UTC(year,bMes,0)).getUTCDate()} de ${MESES[bMes-1].toLowerCase()} de ${year}</small></h3>
       <table class="car"><tbody>
@@ -2111,6 +2138,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   $("bbody").addEventListener("click", async e => {
     const arm = e.target.closest("[data-armar]"); if(arm){ abrirArmar(arm.dataset.armar); return; }
+    if(e.target.closest("#revVisto")){ const c0 = concDe(cuentaSel, year, bMes); if(c0 && c0.ultimaRevision){ try{ await escribirConc({...c0, ultimaRevision: {...c0.ultimaRevision, visto:true}}); }catch(err){ handleWriteError(err); } } return; }
     const sb = e.target.closest("[data-selb]"), sa = e.target.closest("[data-sela]");
     if(sb){ selBs.has(sb.dataset.selb) ? selBs.delete(sb.dataset.selb) : selBs.add(sb.dataset.selb); renderBancos(); return; }
     if(sa){ selAs.has(sa.dataset.sela) ? selAs.delete(sa.dataset.sela) : selAs.add(sa.dataset.sela); renderBancos(); return; }
