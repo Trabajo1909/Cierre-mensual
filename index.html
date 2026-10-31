@@ -282,7 +282,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
     </div>
     <div class="actions">
       <span class="saving" id="saving" aria-live="polite"></span>
-      <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf" multiple hidden><input type="file" id="attachFile" accept=".pdf,image/*" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
+      <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf" multiple hidden><input type="file" id="attachFile" accept="application/pdf,image/*,.heic,.heif" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
       <button class="btn" id="editBtn" aria-pressed="false">Editar lista</button>
       <button class="btn" id="addBtn">Agregar actividad</button>
       <button class="btn" id="xlsxBtn">Descargar Excel</button>
@@ -1622,8 +1622,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const movs = abonos.filter(a=>a.tipo===(tipo==="emitida"?"cobro":"pago") && a.fecha>=ini && a.fecha<=fin);
       const alCorte = fs.filter(f=>f.fecha<=fin).map(f=>({f, c:cuentaDe(f, idx, fin)})).filter(x=>x.c.saldo>0);
       const vencidas = alCorte.filter(x=>x.c.vence && x.c.vence<=fin);
-      res[tipo] = {n: mes.length, facturado: mes.reduce((s,f)=>s+(+f.total||0),0), movido: movs.reduce((s,a)=>s+(+a.monto||0),0),
-        saldo: alCorte.reduce((s,x)=>s+x.c.saldo,0), nVenc: vencidas.length, montoVenc: vencidas.reduce((s,x)=>s+x.c.saldo,0)};
+      const calc = (filtroF, filtroMov) => { const mz = mes.filter(filtroF), mv = movs.filter(filtroMov), ac = alCorte.filter(x=>filtroF(x.f)), vc = vencidas.filter(x=>filtroF(x.f));
+        return {n: mz.length, facturado: r2(mz.reduce((s,f)=>s+(+f.total||0),0)), movido: r2(mv.reduce((s,a)=>s+(+a.monto||0),0)), saldo: r2(ac.reduce((s,x)=>s+x.c.saldo,0)), nVenc: vc.length, montoVenc: r2(vc.reduce((s,x)=>s+x.c.saldo,0))}; };
+      const metodoDe = uuid => { const f = facturas.find(x=>x.uuid===uuid); return f ? f.metodo : ""; };
+      res[tipo] = {...calc(()=>true, ()=>true), PUE: calc(f=>f.metodo==="PUE", a=>metodoDe(a.uuid)==="PUE"), PPD: calc(f=>f.metodo==="PPD", a=>metodoDe(a.uuid)==="PPD")};
     }
     return {ini, fin, res};
   }
@@ -1631,15 +1633,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!rMes) rMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
     $("rmes").innerHTML = MESES.map((n,i)=>`<option value="${i+1}" ${rMes===i+1?"selected":""}>${n} ${year}</option>`).join("");
     const {res} = datosResumen(rMes), E = res.emitida, R = res.recibida;
-    const fila = (lbl,a,b) => `<tr><td>${lbl}</td><td>${a}</td><td>${b}</td></tr>`;
-    $("rsheet").innerHTML = `<table class="rt"><thead><tr><th></th><th>Por cobrar</th><th>Por pagar</th></tr></thead><tbody>
-      ${fila("Facturas del mes", E.n, R.n)}
-      ${fila("Monto facturado en el mes", money.format(E.facturado), money.format(R.facturado))}
-      ${fila("Cobrado / pagado en el mes", money.format(E.movido), money.format(R.movido))}
-      ${fila("Saldo pendiente al cierre", money.format(E.saldo), money.format(R.saldo))}
-      ${fila("Facturas vencidas al cierre", E.nVenc, R.nVenc)}
-      ${fila("Monto vencido al cierre", money.format(E.montoVenc), money.format(R.montoVenc))}
-      <tr class="neto"><td>Flujo neto del mes (cobrado − pagado)</td><td colspan="2">${money.format(E.movido - R.movido)}</td></tr>
+    const M = money.format, campos = [["Facturas del mes","n",false],["Monto facturado en el mes","facturado",true],["Cobrado / pagado en el mes","movido",true],["Saldo pendiente al cierre","saldo",true],["Facturas vencidas al cierre","nVenc",false],["Monto vencido al cierre","montoVenc",true]];
+    const v = (o,k,mon) => mon ? M(o[k]) : o[k];
+    $("rsheet").innerHTML = `<table class="rt" style="min-width:760px"><thead><tr><th></th><th colspan="3" style="text-align:center">Por cobrar</th><th colspan="3" style="text-align:center;border-left:1px solid var(--line-strong)">Por pagar</th></tr><tr><th></th><th>PUE</th><th>PPD</th><th>Total</th><th style="border-left:1px solid var(--line-strong)">PUE</th><th>PPD</th><th>Total</th></tr></thead><tbody>
+      ${campos.map(([l,k,mon])=>`<tr><td>${l}</td><td>${v(E.PUE,k,mon)}</td><td>${v(E.PPD,k,mon)}</td><td><strong>${v(E,k,mon)}</strong></td><td style="border-left:1px solid var(--line)">${v(R.PUE,k,mon)}</td><td>${v(R.PPD,k,mon)}</td><td><strong>${v(R,k,mon)}</strong></td></tr>`).join("")}
+      <tr class="neto"><td>Flujo neto del mes (cobrado − pagado)</td><td colspan="6">${M(E.movido - R.movido)}</td></tr>
     </tbody></table>`;
   }
 
@@ -1670,11 +1668,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         // hoja de resumen
         const {res} = datosResumen(rMes), E = res.emitida, R = res.recibida;
         const rs = wb.addWorksheet(`Resumen ${ABR[rMes-1]} ${year}`);
-        rs.columns = [{width:40},{width:18},{width:18}];
+        rs.columns = [{width:40},{width:15},{width:15},{width:15},{width:15},{width:15},{width:15}];
         rs.addRow([`Resumen mensual · ${MESES[rMes-1]} ${year}`]).font = {bold:true,size:13};
-        rs.addRow([]); const h2 = rs.addRow(["","Por cobrar","Por pagar"]); h2.font={bold:true};
-        [["Facturas del mes",E.n,R.n],["Monto facturado en el mes",E.facturado,R.facturado],["Cobrado / pagado en el mes",E.movido,R.movido],["Saldo pendiente al cierre",E.saldo,R.saldo],["Facturas vencidas al cierre",E.nVenc,R.nVenc],["Monto vencido al cierre",E.montoVenc,R.montoVenc]]
-          .forEach((x,i)=>{ const r=rs.addRow(x); if(i!==0 && i!==4){ r.getCell(2).numFmt='"$"#,##0.00'; r.getCell(3).numFmt='"$"#,##0.00'; } });
+        rs.addRow([]); rs.addRow(["","Por cobrar","","","Por pagar","",""]).font={bold:true}; const h2 = rs.addRow(["","PUE","PPD","Total","PUE","PPD","Total"]); h2.font={bold:true};
+        [["Facturas del mes","n"],["Monto facturado en el mes","facturado"],["Cobrado / pagado en el mes","movido"],["Saldo pendiente al cierre","saldo"],["Facturas vencidas al cierre","nVenc"],["Monto vencido al cierre","montoVenc"]]
+          .forEach(([l,k],i)=>{ const r=rs.addRow([l, E.PUE[k], E.PPD[k], E[k], R.PUE[k], R.PPD[k], R[k]]); if(i!==0 && i!==4) for(let c=2;c<=7;c++) r.getCell(c).numFmt='"$"#,##0.00'; });
         const n = rs.addRow(["Flujo neto del mes (cobrado − pagado)", E.movido-R.movido]); n.font={bold:true}; n.getCell(2).numFmt='"$"#,##0.00';
         const buf = await wb.xlsx.writeBuffer();
         await guardarArchivo(`${nombreArchivo}.xlsx`, new Blob([buf]));
@@ -2691,7 +2689,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     return null;
   }
   async function guardarPdfsImpuesto(lista){
-    let n = 0;
+    let n = 0; const entradas = [];
+    // 1. Leer todos los PDF y guardar los archivos
     for(const {L, file} of lista){
       const items = parsePdfImpuesto(L.todo);
       if(!items){ toast(`${file.name}: no reconocí este documento de impuestos.`); continue; }
@@ -2700,14 +2699,28 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         try{ const up = await assets.upload(file); archivo = {id: up.id, nombre: file.name, tipo: items[0].tipoDoc, subido: hoyISO}; }
         catch(e){ toast(`No se pudo guardar el PDF ${file.name}; registré solo sus datos.`); }
       }
-      for(const it of items){
-        const id = declId(it.anio, it.mes, it.clave), prev = declDe(it.anio, it.mes, it.clave) || {};
-        const d = {...prev, anio: it.anio, mes: it.mes, clave: it.clave, presentada: true};
-        delete d.id;
-        // Si ya había una declaración presentada y llega otra distinta (complementaria), guarda la anterior en el historial
-        const esOtra = prev.presentada && ((it.operacion && prev.operacion && it.operacion!==prev.operacion) || (/COMPLEM/i.test(it.tipoDecl||"") && !/COMPLEM/i.test(prev.tipoDecl||"")) || (it.fechaPresentacion && prev.fechaPresentacion && it.fechaPresentacion!==prev.fechaPresentacion));
-        if(esOtra){ d.versiones = [...(prev.versiones||[]), {tipoDecl: prev.tipoDecl||"NORMAL", fechaPresentacion: prev.fechaPresentacion||"", operacion: prev.operacion||"", aPagar: +prev.aPagar||0, aFavor: +prev.aFavor||0, pagada: !!prev.pagada, fechaPago: prev.fechaPago||""}];
-          d.aPagar = 0; d.aFavor = 0; d.pagada = false; delete d.fechaPago; delete d.linea; if(!it.tipoDecl) d.tipoDecl = "COMPLEMENTARIA"; }
+      items.forEach(it=>entradas.push({it, archivo})); n++;
+    }
+    // 2. Aplicarlos del más antiguo al más reciente, para que normales y complementarias queden en orden
+    entradas.sort((a,b)=>String(a.it.fechaPresentacion||"9999").localeCompare(String(b.it.fechaPresentacion||"9999")) || (a.it.tipoDoc==="linea") - (b.it.tipoDoc==="linea"));
+    const snap = v => ({tipoDecl: v.tipoDecl||"NORMAL", fechaPresentacion: v.fechaPresentacion||"", operacion: v.operacion||"", aPagar: +v.aPagar||0, aFavor: +v.aFavor||0, pagada: !!v.pagada, fechaPago: v.fechaPago||""});
+    for(const {it, archivo} of entradas){
+      const id = declId(it.anio, it.mes, it.clave), prev = declDe(it.anio, it.mes, it.clave) || {};
+      let d = {...prev, anio: it.anio, mes: it.mes, clave: it.clave, presentada: true}; delete d.id;
+      const misma = (a, b) => (a.operacion && b.operacion) ? a.operacion===b.operacion : (a.fechaPresentacion||"")===(b.fechaPresentacion||"");
+      const versiones = prev.versiones || [];
+      const enHist = versiones.findIndex(v=>misma(v, it));
+      if(prev.presentada && !misma(prev, it) && enHist<0 && it.fechaPresentacion && prev.fechaPresentacion && it.fechaPresentacion < prev.fechaPresentacion){
+        // Es una declaración más antigua que la actual: va al historial, ordenada por fecha
+        d.versiones = [...versiones, snap({...it, tipoDecl: it.tipoDecl || (versiones.length ? "COMPLEMENTARIA" : "NORMAL")})].sort((a,b)=>String(a.fechaPresentacion).localeCompare(String(b.fechaPresentacion)));
+        if(d.versiones[0]) d.versiones[0].tipoDecl = d.versiones[0].tipoDecl || "NORMAL";
+      } else if(enHist>=0){
+        // Ya estaba en el historial: solo completa sus datos
+        const v = {...versiones[enHist]}; if(it.aPagar!=null && it.tipoDoc!=="declaracion") v.aPagar = it.aPagar; if(it.aFavor!=null && it.tipoDoc!=="declaracion") v.aFavor = it.aFavor; if(it.operacion) v.operacion = it.operacion;
+        d.versiones = versiones.map((x,i)=>i===enHist ? v : x);
+      } else {
+        const esOtra = prev.presentada && !misma(prev, it);
+        if(esOtra){ d.versiones = [...versiones, snap(prev)]; d.aPagar = 0; d.aFavor = 0; d.pagada = false; delete d.fechaPago; delete d.linea; if(!it.tipoDecl) d.tipoDecl = "COMPLEMENTARIA"; }
         if(it.fechaPresentacion) d.fechaPresentacion = it.fechaPresentacion;
         if(it.operacion) d.operacion = it.operacion;
         if(it.tipoDecl) d.tipoDecl = it.tipoDecl;
@@ -2716,13 +2729,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(it.imssDet) d.imssDet = it.imssDet;
         if(it.operaciones) d.operaciones = it.operaciones;
         if(it.tipoDoc!=="declaracion" || d.aPagar==null){ if(it.aPagar!=null) d.aPagar = it.aPagar; if(it.aFavor!=null) d.aFavor = it.aFavor; }
-        if(it.linea) d.linea = {...(prev.linea||{}), ...Object.fromEntries(Object.entries(it.linea).filter(([,v])=>v))};
-        if(archivo && !(d.archivos||[]).some(a=>a.nombre===archivo.nombre)) d.archivos = [...(d.archivos||[]), archivo];
-        await escribirDecl(id, d);
-        declaraciones = [...declaraciones.filter(x=>x.id!==id), {id, ...d}];
-        iMes = it.mes; if(year!==it.anio){ year = it.anio; subscribeYear(); }
+        if(it.linea) d.linea = {...(esOtra ? {} : (prev.linea||{})), ...Object.fromEntries(Object.entries(it.linea).filter(([,v])=>v))};
       }
-      n++;
+      if(archivo && !(d.archivos||[]).some(a=>a.nombre===archivo.nombre)) d.archivos = [...(d.archivos||[]), archivo];
+      await escribirDecl(id, d);
+      declaraciones = [...declaraciones.filter(x=>x.id!==id), {id, ...d}];
+      iMes = it.mes; if(year!==it.anio){ year = it.anio; subscribeYear(); }
     }
     revisarImpuestosTablero();
     return n;
@@ -2790,7 +2802,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const dif = d.presentada && !o.sinCalculo && totalDecl!=null && o.clave!=="iva" && !esDiot ? Math.abs(totalDecl - e.calc) : d.presentada && !o.sinCalculo ? (esDiot ? (d.ivaDiot!=null ? Math.abs(+d.ivaDiot - k.diot.iva) : 0) : o.clave==="iva" && k.ivaNeto<0 ? Math.abs((+d.aFavor||0) - (-k.ivaNeto)) : Math.abs((+d.aPagar||0) - e.calc)) : 0;
       const docs = (d.archivos||[]).map((a,ix)=>`<button class="doc" data-dl="${esc(o.clave)}" data-ix="${ix}" title="Descargar ${esc(a.nombre)}">${({linea:"Línea de captura", declaracion:"Declaración", resumen:"Resumen SUA", cedula:"Cédula SUA", comprobante:"Comprobante de pago"})[a.tipo]||"Acuse"}</button>`).join("");
       const banco = d.presentada && +d.aPagar>0 && !d.pagada ? buscarPagoBanco(+d.aPagar, `${k.y}-${String(k.m).padStart(2,"0")}-01`) : null;
-      const det = [...vers.map(v=>`${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}`), e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
+      const imd = o.clave==="imss" && d.imssDet ? d.imssDet : null;
+      const det = [imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map(v=>`${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}`), e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
         d.linea && d.linea.fechaLimite && !d.pagada && +d.aPagar>0 ? `Pagar antes del ${fechaCorta(d.linea.fechaLimite)} ${d.linea.fechaLimite.slice(0,4)}`:"", d.pagada&&d.fechaPago?`Pagada ${fechaCorta(d.fechaPago)} ${d.fechaPago.slice(0,4)}`:"", d.folioSUA?`Folio SUA ${esc(d.folioSUA)}`:"",
         o.clave==="imss" && d.pagada ? (d.contpaq ? "Registrado en CONTPAQi" : "Falta registrarlo en CONTPAQi") : "",
         banco ? `<strong>Encontré un retiro de ${f(banco.monto)} en ${esc(banco.cuenta)} el ${fechaCorta(banco.fecha)}</strong>` : ""].filter(Boolean).join(" · ");
@@ -2802,7 +2815,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         o.clave==="imss" && d.pagada ? `<button class="linkbtn" data-act="contpaq" data-cl="${o.clave}">${d.contpaq?"Quitar registro en CONTPAQi":"Marcar registrado en CONTPAQi"}</button>` : "",
         d.presentada && !(d.archivos||[]).length ? `<button class="linkbtn" data-act="despresentar" data-cl="${o.clave}">Quitar</button>` : ""].join("") : "";
       ctl += `<tr><td><span class="aut">${o.aut}</span><div><strong>${o.nombre}</strong></div>${det?`<div class="fsub" style="white-space:normal;max-width:none">${det}</div>`:""}${d.linea&&d.linea.referencia?`<div class="uuid">Ref. ${esc(d.linea.referencia)}</div>`:""}<div class="docs">${docs}</div><div class="acts">${acts}</div></td>
-        <td class="num">${calcTxt}</td><td class="num">${declarado}${dif>1?`<span class="difw">Diferencia ${f(dif)}</span>`:""}</td><td><span class="st ${e.st}">${ST_TXT[e.st]}</span></td></tr>`;
+        <td class="num">${calcTxt}</td><td class="num">${declarado}${dif>1 ? (()=>{ const neto = totalDecl!=null && o.clave!=="iva" && !esDiot ? totalDecl : (o.clave==="iva" && k.ivaNeto<0 ? null : (+d.aPagar||0)); if(neto==null || esDiot || o.sinCalculo) return `<span class="difw">Diferencia ${f(dif)}</span>`; return neto < e.calc ? `<span class="difw" style="color:var(--late-ink)">Declaraste de menos ${f(dif)}: falta complementaria</span>` : `<span class="difw">Declaraste de más ${f(dif)}${totalDecl!=null&&+d.aFavor?" (ya tienes saldo a favor)":""}</span>`; })() : ""}</td><td><span class="st ${e.st}">${ST_TXT[e.st]}</span></td></tr>`;
     }
     ctl += `</tbody></table></div>${(declaraciones.some(d=>d.anio===year&&d.mes===iMes&&(d.archivos||[]).length)) ? `<div style="padding:12px 14px"><button class="btn sm" id="zipBtn">Descargar documentos del mes (.zip)</button></div>` : ""}</div>`;
     // DIOT
@@ -2912,8 +2925,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.text(`${empresaNombre} · Resumen de cuentas · ${MESES[m-1]} ${year}`, 40, 44);
       doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(100); doc.text(`Saldos al ${fechaCorta(fin)} ${year} · generado el ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`, 40, 60);
       const M = x => money.format(x), hs = {fillColor:[252,228,200], textColor:[40,40,40]}, st = {fontSize:8.5, cellPadding:4, lineColor:[210,210,210], lineWidth:.5};
-      doc.autoTable({startY:72, head:[["","Por cobrar","Por pagar"]], body:[["Facturas del mes",E.n,R.n],["Monto facturado en el mes",M(E.facturado),M(R.facturado)],["Cobrado / pagado en el mes",M(E.movido),M(R.movido)],["Saldo pendiente al cierre",M(E.saldo),M(R.saldo)],["Facturas vencidas al cierre",E.nVenc,R.nVenc],["Monto vencido al cierre",M(E.montoVenc),M(R.montoVenc)],[{content:"Flujo neto del mes (cobrado − pagado)".replace("−","-"),styles:{fontStyle:"bold"}},{content:M(E.movido-R.movido),colSpan:2,styles:{fontStyle:"bold",halign:"right"}}]],
-        theme:"grid", margin:{left:40,right:40}, styles:st, headStyles:hs, columnStyles:{1:{halign:"right"},2:{halign:"right"}}});
+      const camposR = [["Facturas del mes","n",false],["Monto facturado en el mes","facturado",true],["Cobrado / pagado en el mes","movido",true],["Saldo pendiente al cierre","saldo",true],["Facturas vencidas al cierre","nVenc",false],["Monto vencido al cierre","montoVenc",true]];
+      const vv = (o,k,mon) => ({content: mon ? M(o[k]) : String(o[k]), styles:{halign:"right"}});
+      doc.autoTable({startY:72, head:[["",{content:"Por cobrar",colSpan:3,styles:{halign:"center"}},{content:"Por pagar",colSpan:3,styles:{halign:"center"}}],["","PUE","PPD","Total","PUE","PPD","Total"]],
+        body:[...camposR.map(([l,k,mon])=>[l, vv(E.PUE,k,mon), vv(E.PPD,k,mon), {...vv(E,k,mon), styles:{halign:"right",fontStyle:"bold"}}, vv(R.PUE,k,mon), vv(R.PPD,k,mon), {...vv(R,k,mon), styles:{halign:"right",fontStyle:"bold"}}]),
+          [{content:"Flujo neto del mes (cobrado - pagado)",styles:{fontStyle:"bold"}},{content:M(E.movido-R.movido),colSpan:6,styles:{fontStyle:"bold",halign:"right"}}]],
+        theme:"grid", margin:{left:40,right:40}, styles:{...st, fontSize:7.5}, headStyles:hs});
       for(const [tipo, titulo] of [["emitida","Cuentas por cobrar con saldo al cierre"],["recibida","Cuentas por pagar con saldo al cierre"]]){
         const rows = facturas.filter(f=>f.tipo===tipo && vigente(f) && f.fecha<=fin).map(f=>({f, c:cuentaDe(f, idx, fin)})).filter(x=>x.c.saldo>0).sort((a,b)=>a.f.fecha.localeCompare(b.f.fecha));
         doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(30); doc.text(titulo, 40, doc.lastAutoTable.finalY+24);
