@@ -2499,15 +2499,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const OBLIG = [
     {clave:"isr-pm", aut:"SAT", nombre:"ISR personas morales", siempre:true},
     {clave:"isr-sueldos", aut:"SAT", nombre:"ISR retenciones por salarios"},
-    {clave:"isr-asim", aut:"SAT", nombre:"ISR retenciones por asimilados a salarios"},
+    {clave:"isr-asim", aut:"SAT", nombre:"ISR retenciones por asimilados a salarios", siempre:true},
     {clave:"iva", aut:"SAT", nombre:"IVA personas morales", siempre:true},
     {clave:"iva-ret", aut:"SAT", nombre:"IVA retenciones"},
-    {clave:"isr-ret", aut:"SAT", nombre:"ISR retenciones (honorarios y RESICO)"},
+    {clave:"isr-ret", aut:"SAT", nombre:"ISR retenciones (honorarios y RESICO)", siempre:true},
     {clave:"diot", aut:"SAT", nombre:"DIOT (informativa)", info:true},
     {clave:"imss", aut:"IMSS", nombre:"Cuotas IMSS (SUA)", sinCalculo:true},
     {clave:"isn", aut:"SATEG", nombre:"Impuesto sobre nómina"},
-    {clave:"ced-hon", aut:"SATEG", nombre:"Cedular honorarios"},
-    {clave:"ced-resico", aut:"SATEG", nombre:"Cedular RESICO"},
+    {clave:"ced-hon", aut:"SATEG", nombre:"Cedular honorarios", siempre:true},
+    {clave:"ced-resico", aut:"SATEG", nombre:"Cedular RESICO", siempre:true},
   ];
   const MES_NOMBRE = {ENERO:1,FEBRERO:2,MARZO:3,ABRIL:4,MAYO:5,JUNIO:6,JULIO:7,AGOSTO:8,SEPTIEMBRE:9,OCTUBRE:10,NOVIEMBRE:11,DICIEMBRE:12};
   const declId = (y,m,cl) => `${y}-${String(m).padStart(2,"0")}-${cl}`;
@@ -2852,7 +2852,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const gpTxt = gp.length>1 ? `Se paga junto con ${gp.filter(x=>x.clave!==o.clave).map(x=>(OBLIG.find(y=>y.clave===x.clave)||{}).nombre||x.clave).join(", ")} · total ${f(totGp)}` : "";
       const imd = o.clave==="imss" && d.imssDet ? d.imssDet : null;
       const comps = (d.compensaciones||[]).filter(x=>+x.monto>0);
-      const det = [d.revisadaOk ? `<strong>Revisada: correcta</strong>` : "", +d.recargos ? `Recargos pagados ${f(+d.recargos)}` : "", +d.actualizacion ? `Actualización ${f(+d.actualizacion)}` : "",
+      const det = [o.siempre && !d.presentada && !e.porTablero && Math.abs(e.calc)<0.01 ? `<span style="color:var(--wip-ink)">Aunque dé $0, hay que presentarla en ceros.</span>` : "", d.revisadaOk ? `<strong>Revisada: correcta</strong>` : "", +d.recargos ? `Recargos pagados ${f(+d.recargos)}` : "", +d.actualizacion ? `Actualización ${f(+d.actualizacion)}` : "",
         ...comps.map(x=>`Compensado con IVA a favor de ${MESES[+x.origen.slice(5)-1].toLowerCase()} ${x.origen.slice(0,4)}: ${f(+x.monto)}`), +d.pagadoReal ? `Se pagó ${f(+d.pagadoReal)} en el banco` : "",
         d.nota ? `Nota: ${esc(d.nota)}` : "", gpTxt, imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map((v,vi)=>`${[...vers.slice(0,vi), ...vers.slice(vi+1), d].some(o2=>mismaDeclaracion(v, o2)) ? '<strong style="color:var(--late-ink)">Parece repetida:</strong> ' : ""}${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}${v.operacion?` (op. ${esc(v.operacion)})`:""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}${canWrite?` <button class="linkbtn" data-delver="${esc(o.clave)}" data-i="${vi}" style="font-size:12px">quitar</button>`:""}`), vers.length && d.presentada ? `Actual: ${/COMPLEM/i.test(d.tipoDecl||"")?"complementaria":"normal"}${d.operacion?` (op. ${esc(d.operacion)})`:""}${canWrite?` <button class="linkbtn" data-delactual="${esc(o.clave)}" style="font-size:12px">quitar</button>`:""}` : "", e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
         d.linea && d.linea.fechaLimite && !d.pagada && +d.aPagar>0 ? `Pagar antes del ${fechaCorta(d.linea.fechaLimite)} ${d.linea.fechaLimite.slice(0,4)}`:"", d.pagada&&d.fechaPago?`Pagada ${fechaCorta(d.fechaPago)} ${d.fechaPago.slice(0,4)}`:"", d.folioSUA?`Folio SUA ${esc(d.folioSUA)}`:"",
