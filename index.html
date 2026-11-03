@@ -409,6 +409,14 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <div class="dlg-actions"><button class="btn" id="bajaCancel">Cancelar</button><button class="btn primary" id="bajaOk">Dar de baja</button></div>
 </dialog>
 
+<dialog id="juntarDlg" style="width:min(520px,94vw)">
+  <h2>Impuestos pagados juntos</h2>
+  <p class="fsub" style="max-width:none;white-space:normal">Marca los impuestos que pagaste en la misma línea de captura o con el mismo retiro del banco. La app buscará ese retiro por el total y, al marcar uno como pagado, se marcan todos.</p>
+  <div id="juntarLista" style="display:grid;gap:6px;margin:10px 0"></div>
+  <div id="juntarTotal" style="font-weight:700"></div>
+  <div class="dlg-actions"><button class="btn" id="juntarCancel">Cancelar</button><button class="btn primary" id="juntarOk">Guardar</button></div>
+</dialog>
+
 <dialog id="okDlg">
   <h2 id="okTitulo">¿Confirmas?</h2>
   <p id="okTexto" style="margin:0 0 6px;line-height:1.5"></p>
@@ -2821,9 +2829,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const calcTxt = o.sinCalculo ? "—" : esDiot ? `IVA ${f(k.diot.iva)}` : o.clave==="iva" && k.ivaNeto<0 ? `A favor ${f(-k.ivaNeto)}` : f(e.calc);
       const dif = d.presentada && !o.sinCalculo && totalDecl!=null && o.clave!=="iva" && !esDiot ? Math.abs(totalDecl - e.calc) : d.presentada && !o.sinCalculo ? (esDiot ? (d.ivaDiot!=null ? Math.abs(+d.ivaDiot - k.diot.iva) : 0) : o.clave==="iva" && k.ivaNeto<0 ? Math.abs((+d.aFavor||0) - (-k.ivaNeto)) : Math.abs((+d.aPagar||0) - e.calc)) : 0;
       const docs = (d.archivos||[]).map((a,ix)=>`<button class="doc" data-dl="${esc(o.clave)}" data-ix="${ix}" title="Descargar ${esc(a.nombre)}">${({linea:"Línea de captura", declaracion:"Declaración", resumen:"Resumen SUA", cedula:"Cédula SUA", comprobante:"Comprobante de pago"})[a.tipo]||"Acuse"}</button>`).join("");
-      const banco = d.presentada && +d.aPagar>0 && !d.pagada ? buscarPagoBanco(+d.aPagar, `${k.y}-${String(k.m).padStart(2,"0")}-01`) : null;
+      const gp = d.presentada && +d.aPagar>0 ? grupoPago({...d, anio:k.y, mes:k.m, clave:o.clave}) : [], totGp = r2(gp.reduce((s,x)=>s+(+x.aPagar||0),0));
+      const banco = d.presentada && +d.aPagar>0 && !d.pagada ? (buscarPagoBanco(gp.length>1 ? totGp : +d.aPagar, `${k.y}-${String(k.m).padStart(2,"0")}-01`) || (gp.length>1 ? null : null)) : null;
+      const gpTxt = gp.length>1 ? `Se paga junto con ${gp.filter(x=>x.clave!==o.clave).map(x=>(OBLIG.find(y=>y.clave===x.clave)||{}).nombre||x.clave).join(", ")} · total ${f(totGp)}` : "";
       const imd = o.clave==="imss" && d.imssDet ? d.imssDet : null;
-      const det = [imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map(v=>`${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}`), e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
+      const det = [gpTxt, imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map(v=>`${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}`), e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
         d.linea && d.linea.fechaLimite && !d.pagada && +d.aPagar>0 ? `Pagar antes del ${fechaCorta(d.linea.fechaLimite)} ${d.linea.fechaLimite.slice(0,4)}`:"", d.pagada&&d.fechaPago?`Pagada ${fechaCorta(d.fechaPago)} ${d.fechaPago.slice(0,4)}`:"", d.folioSUA?`Folio SUA ${esc(d.folioSUA)}`:"",
         o.clave==="imss" && d.pagada ? (d.contpaq ? "Registrado en CONTPAQi" : "Falta registrarlo en CONTPAQi") : "",
         banco ? `<strong>Encontré un retiro de ${f(banco.monto)} en ${esc(banco.cuenta)} el ${fechaCorta(banco.fecha)}</strong>` : ""].filter(Boolean).join(" · ");
@@ -2832,6 +2842,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         d.pagada ? `<button class="linkbtn" data-act="despagar" data-cl="${o.clave}">Quitar pago</button>` : "",
         banco ? `<button class="linkbtn" data-act="pagarBanco" data-cl="${o.clave}" data-fecha="${banco.fecha}" data-banco="${esc(banco.cuenta)}">Marcar pagada con ese retiro</button>` : "",
         d.presentada ? `<button class="linkbtn" data-act="adjuntar" data-cl="${o.clave}">Adjuntar comprobante</button>` : "",
+        d.presentada && +d.aPagar>0 && !d.pagada ? `<button class="linkbtn" data-act="juntarPago" data-cl="${o.clave}">${gp.length>1?"Cambiar impuestos de este pago":"Se pagó junto con otros"}</button>` : "",
         o.clave==="imss" && d.pagada ? `<button class="linkbtn" data-act="contpaq" data-cl="${o.clave}">${d.contpaq?"Quitar registro en CONTPAQi":"Marcar registrado en CONTPAQi"}</button>` : "",
         d.presentada && !(d.archivos||[]).length ? `<button class="linkbtn" data-act="despresentar" data-cl="${o.clave}">Quitar</button>` : ""].join("") : "";
       ctl += `<tr><td><span class="aut">${o.aut}</span><div><strong>${o.nombre}</strong></div>${det?`<div class="fsub" style="white-space:normal;max-width:none">${det}</div>`:""}${d.linea&&d.linea.referencia?`<div class="uuid">Ref. ${esc(d.linea.referencia)}</div>`:""}<div class="docs">${docs}</div><div class="acts">${acts}</div></td>
@@ -2908,6 +2919,21 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const b = e.target.closest("[data-act]"); if(!b) return;
     const cl = b.dataset.cl, id = declId(year, iMes, cl), prev = declDe(year, iMes, cl) || {anio:year, mes:iMes, clave:cl};
     const d = {...prev}; delete d.id;
+    if(b.dataset.act==="juntarPago"){ abrirJuntarPago(cl); return; }
+    // Pagar, desmarcar o adjuntar comprobante aplica a todos los impuestos del mismo pago
+    if(["pagar","pagarBanco","despagar"].includes(b.dataset.act) && prev.presentada){
+      const grupo = grupoPago(prev);
+      if(grupo.length>1){
+        try{ setSaving("Guardando…");
+          for(const g of grupo){ const x = {...g}; const gid = x.id; delete x.id;
+            if(b.dataset.act==="pagar"){ x.pagada = true; x.fechaPago = hoyISO; }
+            if(b.dataset.act==="pagarBanco"){ x.pagada = true; x.fechaPago = b.dataset.fecha; x.bancoPago = b.dataset.banco || ""; }
+            if(b.dataset.act==="despagar"){ x.pagada = false; delete x.fechaPago; }
+            await escribirDecl(gid, x); declaraciones = [...declaraciones.filter(y=>y.id!==gid), {id:gid, ...x}]; }
+          setSaving("Guardado"); toast(`Aplicado a ${grupo.length} impuestos del mismo pago.`); revisarImpuestosTablero(); renderImpuestos(); }catch(err){ handleWriteError(err); }
+        return;
+      }
+    }
     if(b.dataset.act==="presentar"){ d.presentada = true; d.fechaPresentacion = d.fechaPresentacion || hoyISO; if(d.aPagar==null) d.aPagar = calcMes(year,iMes).montos[cl]; }
     if(b.dataset.act==="pagar"){ d.pagada = true; d.fechaPago = hoyISO; }
     if(b.dataset.act==="pagarBanco"){ d.pagada = true; d.fechaPago = b.dataset.fecha; d.bancoPago = b.dataset.banco || ""; }
@@ -2961,6 +2987,35 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       await guardarArchivo(`Resumen de cuentas ${empresaNombre} ${ABR[m-1]} ${year}.pdf`, doc.output("blob"));
     }catch(err){ toast("No se pudo preparar el resumen."); }
   }
+  // Impuestos que se pagan en una sola línea de captura o un solo retiro
+  let juntarDe = null;
+  function abrirJuntarPago(cl){
+    const base = declDe(year, iMes, cl); if(!base) return; juntarDe = cl;
+    const actual = new Set(grupoPago(base).map(x=>x.clave));
+    const opciones = declaraciones.filter(x=>x.anio===year && x.mes===iMes && x.presentada && +x.aPagar>0 && (!x.pagada || actual.has(x.clave)));
+    $("juntarLista").innerHTML = opciones.map(x=>`<label class="check" style="margin:0"><input type="checkbox" value="${esc(x.clave)}" ${actual.has(x.clave)?"checked":""} ${x.clave===cl?"disabled":""}><span>${esc((OBLIG.find(y=>y.clave===x.clave)||{}).nombre||x.clave)} · <strong>${money.format(+x.aPagar)}</strong></span></label>`).join("");
+    const tot = () => { const sel = [...$("juntarLista").querySelectorAll("input:checked")].map(i=>i.value); $("juntarTotal").textContent = `Total del pago: ${money.format(r2(opciones.filter(x=>sel.includes(x.clave)).reduce((s,x)=>s+(+x.aPagar),0)))}`; };
+    $("juntarLista").onchange = tot; tot(); $("juntarDlg").showModal();
+  }
+  $("juntarCancel").onclick = () => $("juntarDlg").close();
+  $("juntarOk").onclick = async () => {
+    const sel = [...$("juntarLista").querySelectorAll("input:checked")].map(i=>i.value), gid = `p-${Date.now().toString(36)}`;
+    const todos = declaraciones.filter(x=>x.anio===year && x.mes===iMes && (sel.includes(x.clave) || x.grupoPago===(declDe(year,iMes,juntarDe)||{}).grupoPago && x.grupoPago));
+    try{ setSaving("Guardando…");
+      for(const g of todos){ const x = {...g}; const id = x.id; delete x.id; if(sel.includes(x.clave) && sel.length>1) x.grupoPago = gid; else delete x.grupoPago;
+        await escribirDecl(id, x); declaraciones = [...declaraciones.filter(y=>y.id!==id), {id, ...x}]; }
+      setSaving("Guardado"); $("juntarDlg").close(); renderImpuestos(); }
+    catch(err){ handleWriteError(err); }
+  };
+  function grupoPago(d){
+    if(!d) return [];
+    const mismos = declaraciones.filter(x=>x.anio===d.anio && x.mes===d.mes && x.presentada && +x.aPagar>0);
+    let key = d.grupoPago ? "g:"+d.grupoPago : (d.linea && d.linea.referencia) ? "l:"+d.linea.referencia : (d.operacion && !["isn","ced-resico","ced-hon","imss"].includes(d.clave)) ? "o:"+d.operacion : null;
+    if(!key) return [d];
+    const kDe = x => x.grupoPago ? "g:"+x.grupoPago : (x.linea && x.linea.referencia) ? "l:"+x.linea.referencia : (x.operacion && !["isn","ced-resico","ced-hon","imss"].includes(x.clave)) ? "o:"+x.operacion : null;
+    const g = mismos.filter(x=>kDe(x)===key);
+    return g.length ? g : [d];
+  }
   function buscarPagoBanco(monto, desde){
     for(const c of concs){
       const cta = cuentasB.find(x=>x.id===c.cuenta);
@@ -2975,9 +3030,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const {id, d} = adjuntarA; adjuntarA = null;
     try{
       setSaving("Subiendo…"); const up = await assets.upload(file);
-      d.archivos = [...(d.archivos||[]), {id: up.id, nombre: file.name, tipo: "comprobante", subido: hoyISO}];
-      if(!d.pagada){ d.pagada = true; d.fechaPago = hoyISO; }
-      await escribirDecl(id, d); declaraciones = [...declaraciones.filter(x=>x.id!==id), {id, ...d}];
+      const grupo = d.presentada && +d.aPagar>0 ? grupoPago({...d, id}) : [];
+      const destinos = grupo.length>1 ? grupo.map(g=>{ const x = {...g}; const gid = x.id; delete x.id; return [gid, x]; }) : [[id, d]];
+      for(const [gid, x] of destinos){
+        x.archivos = [...(x.archivos||[]), {id: up.id, nombre: file.name, tipo: "comprobante", subido: hoyISO}];
+        if(!x.pagada){ x.pagada = true; x.fechaPago = hoyISO; }
+        await escribirDecl(gid, x); declaraciones = [...declaraciones.filter(y=>y.id!==gid), {id:gid, ...x}];
+      }
       setSaving("Guardado"); toast("Comprobante guardado y marcado como pagado."); revisarImpuestosTablero(); renderImpuestos();
     }catch(err){ setSaving(""); toast("No se pudo guardar el comprobante."); }
   };
