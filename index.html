@@ -1840,16 +1840,16 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const f of files){
       if(f.kind==="edo" || f.kind==="pdf"){
         const movs = f.kind==="pdf" ? f.movs : parseEdo(f.arr); const grupos = {};
-        if(f.kind==="pdf" && f.periodo && f.saldoInicial!=null) base(f.periodo.anio, f.periodo.mes).saldoInicialBanco = f.saldoInicial;
+        if(f.kind==="pdf" && f.periodo && f.saldoInicial!=null){ const b0 = base(f.periodo.anio, f.periodo.mes); b0.saldoInicialBanco = f.saldoInicial; b0.edoSubido = true; if(!movs.length){ b0.banco = []; ultimo = [f.periodo.anio, f.periodo.mes]; } }
         for(const m of movs){ (grupos[m.fecha.slice(0,7)] ||= []).push(m); }
-        for(const k of Object.keys(grupos)){ const [y,m] = k.split("-").map(Number); base(y,m).banco = grupos[k]; ultimo = [y,m]; }
+        for(const k of Object.keys(grupos)){ const [y,m] = k.split("-").map(Number); base(y,m).banco = grupos[k]; base(y,m).edoSubido = true; ultimo = [y,m]; }
       } else {
         const a = parseAux(f.arr, cta);
         if(!a.periodo){ toast(`${f.name}: no encontré el periodo del auxiliar. ¿Es el auxiliar de CONTPAQi?`); continue; }
         if(!a.movs.length) toast(`${f.name}: leí el auxiliar de ${MESES[a.periodo.mes-1].toLowerCase()}, pero no encontré movimientos.`);
         else if(a.varias) toast(`El auxiliar traía varias cuentas; usé la ${a.cuentaUsada || "primera"} para ${cta.nombre}.`);
         const d = base(a.periodo.anio, a.periodo.mes);
-        d.aux = a.movs; d.saldoInicialAux = a.saldoInicial; d.saldoFinalAux = a.saldoFinal; ultimo = [a.periodo.anio, a.periodo.mes];
+        d.aux = a.movs; d.saldoInicialAux = a.saldoInicial; d.saldoFinalAux = a.saldoFinal; d.auxSubido = true; ultimo = [a.periodo.anio, a.periodo.mes];
       }
     }
     const lista = Object.values(cambios);
@@ -1928,7 +1928,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const revB = e.bankSolo.filter(b=>!acept[b.id]), revA = e.auxSolo.filter(a=>!acept[a.id]), revCom = Math.abs(comDif)>0.009 && !comOk;
     return {e, depB, retB, comB, siBanco, sfBanco, depA, retA, siAux, sfAux, depNoEdo, retNoEdo, depNoCont, retNoCont, conciliado, dif, comDif,
       auxP, bankP, comOk, man, revB, revA, revCom, porRevisar: revB.length + revA.length + (revCom?1:0),
-      completa: bank.length>0 && aux.length>0};
+      completa: (bank.length>0 || !!c.edoSubido) && (aux.length>0 || !!c.auxSubido)};
   }
   function revisarConciliacion(c, cta){
     if(!cta || !cta.actividad || c.anio!==year) return;
@@ -1965,7 +1965,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const okN = estados12.filter(x=>x && x.k.completa && Math.abs(x.k.dif)<=0.009).length;
     $("statusLine").innerHTML = `${esc(cta.nombre)}: <strong>${okN} ${okN===1?"mes conciliado":"meses conciliados"}</strong> en ${year}.`;
     const c = concDe(cuentaSel, year, bMes);
-    if(!c || (!(c.banco||[]).length && !(c.aux||[]).length)){
+    if(!c || (!(c.banco||[]).length && !(c.aux||[]).length && !c.edoSubido && !c.auxSubido)){
       $("bbody").innerHTML = `<div class="empty">Sube el estado de cuenta de ${esc(cta.nombre)} y el auxiliar de CONTPAQi de ${MESES[bMes-1].toLowerCase()} con <strong>Subir estado de cuenta o auxiliar</strong>. Puedes subir los dos a la vez.</div>`;
       return;
     }
@@ -1976,7 +1976,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const resumenRev = ur && !ur.visto ? (()=>{ const p = [], L = (t, xs) => xs && xs.length ? `<div><strong>${t} (${xs.length}):</strong> ${xs.slice(0,6).map(esc).join(" · ")}${xs.length>6?` y ${xs.length-6} más`:""}</div>` : "";
       const det = L("Pólizas nuevas", ur.aux.nuevas) + L("Pólizas que ya no vienen", ur.aux.eliminadas) + L("Pólizas modificadas", ur.aux.modificadas) + L("Movimientos del banco nuevos", ur.banco.nuevos) + L("Movimientos del banco que ya no vienen", ur.banco.eliminados) + L("Movimientos del banco modificados", ur.banco.modificados);
       return `<div class="bpanel" style="margin:0 0 14px;border-left:4px solid var(--today-line)"><h3>Volviste a subir archivos el ${fechaCorta(ur.fecha)}<small>La conciliación ya se revisó otra vez con los cambios.</small></h3><div style="padding:10px 14px;font-size:13px;display:grid;gap:4px">${det || "<div>No hubo cambios en los movimientos.</div>"}${ur.deshechos ? `<div><strong>${ur.deshechos} ${ur.deshechos===1?"emparejamiento que armaste":"emparejamientos que armaste"} se deshizo</strong> porque una de sus pólizas o movimientos cambió o ya no viene: revisa <strong>Por revisar</strong>.</div>` : ""}${ur.partidasQuitadas ? `<div><strong>${ur.partidasQuitadas} ${ur.partidasQuitadas===1?"partida en conciliación se quitó":"partidas en conciliación se quitaron"}</strong> por la misma razón.</div>` : ""}</div>${canWrite?`<div class="pairbar" style="padding:0 14px 12px"><button class="btn sm" id="revVisto">Entendido</button></div>`:""}</div>`; })() : "";
-    let html = resumenRev + `<div class="bfiles"><span>Estado de cuenta: ${nB ? `<b>${nB} movimientos</b>` : '<span class="falta">falta subirlo</span>'}</span><span>Auxiliar: ${nA ? `<b>${nA} pólizas</b>` : '<span class="falta">falta subirlo</span>'}</span><span>Emparejados: <b>${E.pairs.length}</b></span></div>`;
+    let html = resumenRev + `<div class="bfiles"><span>Estado de cuenta: ${nB ? `<b>${nB} movimientos</b>` : c.edoSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Auxiliar: ${nA ? `<b>${nA} pólizas</b>` : c.auxSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Emparejados: <b>${E.pairs.length}</b></span></div>`;
     const okDif = Math.abs(k.dif)<=0.009;
     html += `<div class="bgrid"><div class="bpanel"><h3>Carátula de conciliación<small>${esc(cta.nombre)}${cta.cuentaContable?` · cuenta ${esc(cta.cuentaContable)}`:""} · al ${new Date(Date.UTC(year,bMes,0)).getUTCDate()} de ${MESES[bMes-1].toLowerCase()} de ${year}</small></h3>
       <table class="car"><tbody>
@@ -4139,7 +4139,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const d = desc.replace(/\s+/g," ").trim(), mm = d.match(/^(?:Transferencia(?:\s+SPEI)?\s+a|Dep[oó]sito(?:\s+SPEI)?\s+de)\s+(.*)$/i), resto = mm ? mm[1] : d, k = resto.indexOf(", ");
       return {...m, nombre: (k>0 ? resto.slice(0,k) : resto).trim(), concepto: (k>0 ? resto.slice(k+2) : "").trim()};
     });
-    if(!final.length){ toast(`${file.name}: no encontré movimientos en el estado de cuenta de CEDI.`); return null; }
+    if(!final.length){
+      // Estado de cuenta sin movimientos: se toma el periodo y el saldo del resumen
+      const pm = sinAcento(L.todo).match(/PERIODO\s+\d{1,2}\s+DE\s+([A-Z]+)\s+DE\s+(\d{4})/);
+      if(!pm || !MES_NOMBRE[pm[1]] || saldoInicial==null){ toast(`${file.name}: no encontré movimientos ni el periodo del estado de cuenta.`); return null; }
+      return {movs: [], saldoInicial, periodo: {anio: +pm[2], mes: MES_NOMBRE[pm[1]]}, sinMovs: true};
+    }
     const sDep = r2(final.filter(m=>m.tipo==="dep").reduce((s,m)=>s+m.monto,0)), sRet = r2(final.filter(m=>m.tipo==="ret").reduce((s,m)=>s+m.monto,0)), sCom = r2(final.reduce((s,m)=>s+m.comision,0));
     const avisos = [];
     if(totDep!=null && Math.abs(totDep - sDep) > 0.009) avisos.push(`depósitos ${money.format(sDep)} contra ${money.format(totDep)}`);
