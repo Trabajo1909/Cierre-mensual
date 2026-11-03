@@ -267,7 +267,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
@@ -282,7 +282,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
     </div>
     <div class="actions">
       <span class="saving" id="saving" aria-live="polite"></span>
-      <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf" multiple hidden><input type="file" id="attachFile" accept="application/pdf,image/*,.heic,.heif" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
+      <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf,.txt" multiple hidden><input type="file" id="attachFile" accept="application/pdf,image/*,.heic,.heif" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
       <button class="btn" id="editBtn" aria-pressed="false">Editar lista</button>
       <button class="btn" id="addBtn">Agregar actividad</button>
       <button class="btn" id="xlsxBtn">Descargar Excel</button>
@@ -327,6 +327,12 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vConta" hidden>
+    <div class="tabs2" aria-label="Tipo de póliza" id="ctabs"></div>
+    <div class="months" id="cmonths2"></div>
+    <div id="cobody"></div>
   </section>
 
   <section id="vActivos" hidden>
@@ -407,6 +413,13 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <label for="bajaMotivo">Motivo</label><select id="bajaMotivo"><option>Venta</option><option>Robo o pérdida</option><option>Obsolescencia o daño</option><option>Donación</option><option>Otro</option></select>
   <label for="bajaPrecio">Precio de venta, si aplica (sin IVA)</label><input id="bajaPrecio" type="number" step="0.01" min="0">
   <div class="dlg-actions"><button class="btn" id="bajaCancel">Cancelar</button><button class="btn primary" id="bajaOk">Dar de baja</button></div>
+</dialog>
+
+<dialog id="contaCfgDlg" style="width:min(560px,94vw)">
+  <h2>Cuentas generales</h2>
+  <p class="fsub" style="max-width:none;white-space:normal">Las cuentas que la app usa para IVA, retenciones e ingresos. Las de cada proveedor y cliente las eliges en cada póliza.</p>
+  <div id="contaCfgLista" style="max-height:60vh;overflow:auto"></div>
+  <div class="dlg-actions"><button class="btn" id="contaCfgCancel">Cancelar</button><button class="btn primary" id="contaCfgOk">Guardar</button></div>
 </dialog>
 
 <dialog id="detDlg" style="width:min(560px,94vw)">
@@ -772,7 +785,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -819,6 +832,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="expediente"){ renderExpediente(); return; }
     if(vista==="notas"){ renderNotas(); return; }
     if(vista==="activos"){ renderActivos(); return; }
+    if(vista==="conta"){ renderConta(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -963,6 +977,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeNotas();
     subscribeDiario();
     subscribeNotasMes();
+    subscribeConta();
+    subscribeDiotManual();
     subscribeActivos();
   }
   $("tabs").addEventListener("click", e => {
@@ -1089,6 +1105,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="balanza") return exportBalanza("xlsx");
     if(vista==="dashboard") return exportDashboard("xlsx");
     if(vista==="activos") return exportActivos("xlsx");
+    if(vista==="conta") return exportConta("xlsx");
     const btn=$("xlsxBtn"); btn.disabled=true;
     try{
       await loadLibs("excel");
@@ -1181,16 +1198,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
     $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || !canWrite;
+    $("pdfBtn").style.display = v==="conta" ? "none" : $("pdfBtn").style.display;
     $("xlsxBtn").style.display = v==="expediente" || v==="notas" ? "none" : ""; $("pdfBtn").style.display = v==="expediente" || v==="notas" ? "none" : "";
-    $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : "Subir reporte de AdminXML";
+    $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt)" : "Subir reporte de AdminXML";
     try{ history.replaceState(null,"", "#"+v); }catch(_){}
     render();
   }
@@ -1326,8 +1344,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     try{
       await loadLibs("xlsx");
       const byId = Object.fromEntries(facturas.map(f=>[f.id,f]));
-      const docs = [], comps = [], bancoFiles = [], impPdfs = [], noms = [], balPdfs = [], polXlsx = [], canceladas = [], acusesCan = [];
+      const docs = [], comps = [], bancoFiles = [], impPdfs = [], noms = [], balPdfs = [], polXlsx = [], canceladas = [], acusesCan = [], txtRes = [];
       for(const file of files){
+        if(/\.txt$/i.test(file.name) || file.type==="text/plain"){
+          const txt = new TextDecoder("windows-1252").decode(await file.arrayBuffer());
+          const res = await importarTxtContpaq(txt, file.name);
+          if(res) txtRes.push(res);
+          continue;
+        }
         if(/\.pdf$/i.test(file.name) || file.type==="application/pdf"){
           const L = await leerPdf(file); if(!L) continue;
           if(/Balanza de comprobaci/i.test(L.todo)){ balPdfs.push({L, file}); continue; }
@@ -1426,6 +1450,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(bancoN) partes.push(bancoN);
       if(nomN) partes.push(`${nomN} ${nomN===1?"recibo de nómina":"recibos de nómina"}`);
       if(balN) partes.push(balN);
+      partes.push(...txtRes);
       if(polN) partes.push(polN);
       if(acusesCan.length){ const n = await guardarAcusesCancelacion(acusesCan); if(n) partes.push(`${n} ${n===1?"acuse de cancelación":"acuses de cancelación"}`); }
       if(canceladas.length){ await registrarCanceladas(canceladas); setTimeout(()=>toast(`${canceladas.length} ${canceladas.length===1?"comprobante que ya estaba en tus cálculos se canceló":"comprobantes que ya estaban en tus cálculos se cancelaron"}. Revísalos en Facturas.`), 3200); }
@@ -2572,7 +2597,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       else (cpIdx[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mk).forEach(c=>pagosMes.push({f, p:(+c.impPagado||0)/f.total}));
     });
     const huerfanos = cR.filter(c=>!fac[c.doc]);
-    const acrBase = r2(S(rPUE,f=>f.ivaBase) + S(pagosMes,x=>x.f.ivaBase*x.p) + S(huerfanos,c=>c.ivaBase)), acr = r2(S(rPUE,f=>f.iva) + S(pagosMes,x=>x.f.iva*x.p) + S(huerfanos,c=>c.iva));
+    const manD = ((typeof diotManual!=="undefined" && diotManual[mesKey(y,m)]) || {}).rows || [], manAcr = manD.filter(x=>x.acreditable!==false);
+    const acrBase = r2(S(rPUE,f=>f.ivaBase) + S(pagosMes,x=>x.f.ivaBase*x.p) + S(huerfanos,c=>c.ivaBase) + S(manAcr,x=>+x.b16||0)), acr = r2(S(rPUE,f=>f.iva) + S(pagosMes,x=>x.f.iva*x.p) + S(huerfanos,c=>c.iva) + S(manAcr,x=>+x.iva||0));
     const ivaRetCli = r2(S(ePUE,f=>f.ivaRet) + S(cobrosMes,x=>(+x.f.ivaRet||0)*x.p));
     // Retenciones a terceros (recibidas PUE + complementos proporcionales)
     const ret = {isrPF:0, isrRES:0, iva:0, cedPF:0, cedRES:0};
@@ -2587,10 +2613,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       g.b16 += (+f.ivaBase||0)*p; g.iva += (+f.iva||0)*p; g.b0 += (+f.iva0Base||0)*p; g.ex += (+f.ivaExBase||0)*p; g.ret += (+f.ivaRet||0)*p; };
     rPUE.forEach(f=>addD(f,1)); pagosMes.forEach(x=>addD(x.f, x.p));
     huerfanos.forEach(c=>{ const g = dg["SIN-RFC "+c.nombre] ||= {rfc:"", nombre:c.nombre, b16:0, iva:0, b0:0, ex:0, ret:0}; g.b16 += +c.ivaBase||0; g.iva += +c.iva||0; });
+    manD.forEach(x=>{ const rfc = String(x.rfc||"").toUpperCase().trim(); const g = dg[rfc || "SIN-RFC "+x.nombre] ||= {rfc, nombre:x.nombre, b16:0, iva:0, b0:0, ex:0, ret:0}; g.b16 += +x.b16||0; g.iva += +x.iva||0; g.b0 += +x.b0||0; g.ex += +x.ex||0; g.ret += +x.ret||0; g.manual = true; if(x.tipoOp) g.tipoOpMan = x.tipoOp; if(x.tercero) g.tercero = x.tercero; });
     const diotRows = Object.values(dg).filter(g=>g.b16||g.iva||g.b0||g.ex||g.ret).map(g=>{
       const rfcOk = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(g.rfc);
       const pref = (proveedores[g.rfc]||{}).tipoOp;
-      return {...g, rfcOk, tipoOp: pref || (g.rfc.length===13 ? "03" : "85")};
+      return {...g, rfcOk, tipoOp: pref || g.tipoOpMan || (g.rfc.length===13 ? "03" : "85")};
     }).sort((a,b)=>a.rfc.localeCompare(b.rfc));
     const diot = {rows: diotRows, b16: diotRows.reduce((s,g)=>s+Math.round(g.b16),0), iva: diotRows.reduce((s,g)=>s+Math.round(g.iva),0), b0: diotRows.reduce((s,g)=>s+Math.round(g.b0),0), ivaExacto: r2(diotRows.reduce((s,g)=>s+g.iva,0))};
     Object.keys(ret).forEach(k=>ret[k]=r2(ret[k]));
@@ -2874,7 +2901,22 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // DIOT
     const D = k.diot, TIPO_OP = {"02":"02 Enajenación de bienes","03":"03 Servicios profesionales","06":"06 Arrendamiento","85":"85 Otros"};
     let dt = `<div class="bpanel" style="margin-top:18px"><h3>DIOT de ${MESES[iMes-1].toLowerCase()}<small>Lo que pagaste a cada proveedor en el mes, con el mismo criterio que tu IVA acreditable. Se redondea a pesos, como la pide el SAT.</small></h3>`;
-    if(!D.rows.length){ dt += `<div class="empty">No hay pagos a proveedores en este mes.</div></div>`; }
+    const manRows = (diotManual[mesKey(year, iMes)]||{}).rows || [];
+    const manHtml = `<div style="padding:12px 14px;border-top:1px solid var(--line)"><strong>Proveedores sin factura</strong><div class="fsub" style="max-width:none;white-space:normal">Por ejemplo, el banco: su estado de cuenta timbrado ampara las comisiones y su IVA. Lo que agregues aquí entra a la DIOT y, si lo marcas, a tu IVA acreditable del mes.</div>
+      ${manRows.length ? `<div class="sheet" style="border:none;border-radius:0;margin-top:8px"><table class="decl"><thead><tr><th>RFC</th><th>Proveedor</th><th class="num">Base 16%</th><th class="num">IVA</th><th class="num">Tasa 0%</th><th class="num">Exento</th><th>IVA acreditable</th><th></th></tr></thead><tbody>${manRows.map((x,i)=>`<tr><td class="uuid">${esc(x.rfc||"—")}</td><td>${esc(x.nombre)}${x.nota?`<div class="fsub">${esc(x.nota)}</div>`:""}</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td><td class="num">${x.b0?f(+x.b0):""}</td><td class="num">${x.ex?f(+x.ex):""}</td><td>${x.acreditable===false?"No":"Sí"}</td><td>${canWrite?`<button class="linkbtn" data-dmquitar="${i}">Quitar</button>`:""}</td></tr>`).join("")}</tbody></table></div>` : ""}
+      ${canWrite ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:10px;align-items:end">
+        <div><label for="dmRfc" style="margin:0 0 2px">RFC</label><input id="dmRfc" placeholder="BBA830831LJ2" autocomplete="off"></div>
+        <div style="grid-column:span 2"><label for="dmNom" style="margin:0 0 2px">Proveedor</label><input id="dmNom" placeholder="BBVA México" autocomplete="off"></div>
+        <div><label for="dmBase" style="margin:0 0 2px">Base 16%</label><input id="dmBase" type="number" step="0.01" min="0"></div>
+        <div><label for="dmIva" style="margin:0 0 2px">IVA</label><input id="dmIva" type="number" step="0.01" min="0" placeholder="16% automático"></div>
+        <div><label for="dmB0" style="margin:0 0 2px">Tasa 0%</label><input id="dmB0" type="number" step="0.01" min="0"></div>
+        <div><label for="dmEx" style="margin:0 0 2px">Exento</label><input id="dmEx" type="number" step="0.01" min="0"></div>
+        <div><label for="dmTipo" style="margin:0 0 2px">Tipo de operación</label><select id="dmTipo"><option value="85">85 Otros</option><option value="03">03 Serv. profesionales</option><option value="06">06 Arrendamiento</option><option value="02">02 Enajenación</option></select></div>
+        <div><label for="dmTer" style="margin:0 0 2px">Tipo de tercero</label><select id="dmTer"><option value="04">04 Nacional</option><option value="05">05 Extranjero</option><option value="15">15 Global</option></select></div>
+      </div>
+      <label class="check" style="margin-top:8px"><input type="checkbox" id="dmAcr" checked><span>Sumar su IVA a mi IVA acreditable de ${MESES[iMes-1].toLowerCase()}</span></label>
+      <div class="pairbar" style="margin-top:8px"><button class="btn sm primary" id="dmAdd">Agregar a la DIOT</button><button class="btn sm" id="dmBanco">Tomar las comisiones de mis bancos</button></div>` : ""}</div>`;
+    if(!D.rows.length){ dt += `<div class="empty">No hay pagos a proveedores en este mes.</div>${manHtml}</div>`; }
     else {
       const cuadra = Math.abs(D.ivaExacto - k.acr) < 0.05;
       dt += `<div class="bfiles" style="padding:12px 14px 0"><span><b>${D.rows.length}</b> proveedores</span><span>Base 16%: <b>${f(D.b16)}</b></span><span>IVA pagado: <b>${f(D.iva)}</b></span>${D.b0?`<span>Tasa 0%: <b>${f(D.b0)}</b></span>`:""}<span>${cuadra ? "Coincide con tu IVA acreditable" : `<span class="falta">No coincide con el IVA acreditable (${f(k.acr)})</span>`}</span></div>
@@ -2884,7 +2926,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const n = x => x ? Math.round(x).toLocaleString("es-MX") : "";
         dt += `<tr><td class="uuid">${g.rfcOk?esc(g.rfc):'<span class="falta">Sin RFC</span>'}</td><td>${esc(g.nombre||"")}</td><td>${sel}</td><td class="num">${n(g.b16)}</td><td class="num">${n(g.iva)}</td><td class="num">${n(g.b0)}</td><td class="num">${n(g.ex)}</td><td class="num">${n(g.ret)}</td></tr>`;
       }
-      dt += `</tbody></table></div><div class="pairbar" style="padding:0 14px 14px">${downloads?`<button class="btn primary sm" id="diotTxt">Descargar archivo de carga (.txt)</button><button class="btn sm" id="diotXlsx">Descargar DIOT en Excel</button>`:""}</div></div>`;
+      dt += `</tbody></table></div>${manHtml}<div class="pairbar" style="padding:0 14px 14px">${downloads?`<button class="btn primary sm" id="diotTxt">Descargar archivo de carga (.txt)</button><button class="btn sm" id="diotXlsx">Descargar DIOT en Excel</button>`:""}</div></div>`;
     }
     // Pólizas y cierre
     const pol = polizas[mesKey(year, iMes)] || {};
@@ -3106,7 +3148,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function diotLineas(k){
     return k.diot.rows.filter(g=>g.rfcOk).map(g=>{
       const c = Array(54).fill(""), n = x => { const v = Math.round(x||0); return v ? String(v) : ""; };
-      c[0] = "04"; c[1] = g.tipoOp; c[2] = g.rfc; c[11] = n(g.b16); c[21] = n(g.iva); c[47] = n(g.ret); c[49] = n(g.ex); c[50] = n(g.b0); c[53] = "01";
+      c[0] = g.tercero || "04"; c[1] = g.tipoOp; c[2] = g.rfc; c[11] = n(g.b16); c[21] = n(g.iva); c[47] = n(g.ret); c[49] = n(g.ex); c[50] = n(g.b0); c[53] = "01";
       return c.join("|");
     });
   }
@@ -4595,6 +4637,268 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     try{ setSaving("Guardando…"); await escribirDecl(id, d); declaraciones = [...declaraciones.filter(x=>x.id!==id), {id, ...d}]; setSaving("Guardado"); $("detDlg").close(); revisarImpuestosTablero(); renderImpuestos(); }
     catch(err){ handleWriteError(err); }
   };
+
+  // ---------- Contabilidad automática (pólizas para CONTPAQi) ----------
+  let catalogo = [], terceros = {}, contaCfg = {}, unsubCat = null, unsubTer = null, unsubCC = null, coTab = "provProv", coMes = null;
+  const CO_TABS = [["provProv","Provisión proveedores"],["provCli","Provisión clientes"],["egresos","Egresos"],["ingresos","Ingresos"]];
+  const CTA_DEF = {iva119:"119-01-000", iva118:"118-01-000", iva209:"209-01-000", iva208:"208-01-000", ingresos:"401-01-000",
+    retIsrResico:"216-12-004", retIvaResico:"216-12-006", retCedResico:"216-12-005", retIsrHon:"213-07-004", retIvaHon:"213-07-003", retCedHon:"213-07-005", ivaRetCli:"113-01-000", isrRetCli:"113-02-000"};
+  const CTA_NOM = {iva119:"IVA pendiente de pago", iva118:"IVA acreditable pagado", iva209:"IVA trasladado no cobrado", iva208:"IVA trasladado cobrado", ingresos:"Ingresos",
+    retIsrResico:"ISR retenido a RESICO", retIvaResico:"IVA retenido a RESICO", retCedResico:"Cedular retenida a RESICO", retIsrHon:"ISR retenido por honorarios", retIvaHon:"IVA retenido por honorarios", retCedHon:"Cedular retenida por honorarios", ivaRetCli:"IVA que te retienen tus clientes", isrRetCli:"ISR que te retienen tus clientes"};
+  function subscribeConta(){
+    [unsubCat, unsubTer, unsubCC].forEach(u=>u && u()); catalogo = []; terceros = {}; contaCfg = {};
+    if(!db || !empresa) return;
+    unsubCat = db.doc(`empresas/${empresa}/catalogo/cuentas`).onSnapshot(s => { catalogo = s.exists ? (s.data().cuentas||[]) : []; if(vista==="conta") renderConta(); }, () => {});
+    unsubTer = db.collection(`empresas/${empresa}/terceros`).onSnapshot(qs => { terceros = Object.fromEntries(qs.docs.map(d=>[d.id, d.data()])); if(vista==="conta") renderConta(); }, () => {});
+    unsubCC = db.doc(`empresas/${empresa}/catalogo/config`).onSnapshot(s => { contaCfg = s.exists ? s.data() : {}; if(vista==="conta") renderConta(); }, () => {});
+  }
+  const fmtCta = c => { const d = String(c).replace(/\D/g,""); return d.length===8 ? `${d.slice(0,3)}-${d.slice(3,5)}-${d.slice(5)}` : String(c); };
+  const ctaN = c => { const x = catalogo.find(k=>k.c===c); return x ? x.n : ""; };
+  const esDetalle = c => !!catalogo.find(k=>k.c===c) && !catalogo.some(k=>k.p===c);
+  const ctaCfg = k => (contaCfg.cuentas||{})[k] || CTA_DEF[k];
+
+  // --- Lectura de los TXT de CONTPAQi: catálogo de cuentas y pólizas ---
+  async function importarTxtContpaq(txt, nombre){
+    const L = txt.split(/\r?\n/);
+    if(L.filter(l=>l.startsWith("C  ")).length > 10){
+      const cuentas = L.filter(l=>l.startsWith("C  ")).map(l=>({c: fmtCta(l.slice(3,33).trim()), n: l.slice(33,84).trim(), p: fmtCta(l.slice(135,165).trim()), t: l.slice(166,168).trim()}));
+      await conReintento(()=>db.doc(`empresas/${empresa}/catalogo/cuentas`).set({cuentas, subido: hoyISO, archivo: nombre}));
+      catalogo = cuentas; return `catálogo de cuentas (${cuentas.length} cuentas)`;
+    }
+    if(L.some(l=>l.startsWith("P  ")) && L.some(l=>l.startsWith("M1"))){
+      const TIPO = {"1":"Ingresos","2":"Egresos","3":"Diario"}, polizas = []; let cur = null;
+      for(const l of L){
+        if(l.startsWith("P  ")){ const f = l.slice(3,11); cur = {fecha:`${f.slice(0,4)}-${f.slice(4,6)}-${f.slice(6,8)}`, tipo: TIPO[l.slice(11,16).trim()] || l.slice(11,16).trim(), num: +l.slice(16,26).trim()||0, concepto: l.slice(40,140).trim(), cfdi: 0, movs: []}; polizas.push(cur); }
+        else if(l.startsWith("M1") && cur){ const imp = +l.slice(67,87).trim()||0, abono = l.slice(65,66)==="1"; cur.movs.push({c: fmtCta(l.slice(3,33).trim()), r: l.slice(33,63).trim(), n: l.slice(120,226).trim(), ca: abono ? 0 : r2(imp), ab: abono ? r2(imp) : 0}); }
+      }
+      const porMes = {}; polizas.forEach(p=>(porMes[p.fecha.slice(0,7)] ||= []).push(p));
+      for(const [k, ps] of Object.entries(porMes)){ await conReintento(()=>db.doc(`empresas/${empresa}/polizasCQ/${k}`).set({polizas: ps, subido: hoyISO, origen: "txt"})); polCQ = {...polCQ, [k]: {polizas: ps}}; }
+      const ms = Object.keys(porMes).sort();
+      return `${polizas.length} pólizas de ${ms.map(k=>MESES[+k.slice(5)-1].toLowerCase()).join(", ")}`;
+    }
+    toast(`${nombre}: no reconocí este archivo de CONTPAQi.`); return null;
+  }
+
+  // --- Aprende de tus pólizas qué cuentas usas con cada proveedor o cliente ---
+  function aprenderCuentas(nombre, tipo){
+    const tk = tokens(nombre), out = {prov:{}, gasto:{}, cli:{}};
+    for(const k of Object.keys(polCQ)) for(const p of (polCQ[k].polizas||[])){
+      const tp = tokens(p.concepto + " " + p.movs.map(m=>m.n).join(" ")); if(inter(tk, tp) < Math.min(2, tk.size)) continue;
+      for(const m of p.movs){
+        if(/^201-/.test(m.c)) out.prov[m.c] = (out.prov[m.c]||0) + 1;
+        if(/^105-/.test(m.c)) out.cli[m.c] = (out.cli[m.c]||0) + 1;
+        if(/^(5|6|7)\d\d-/.test(m.c) && m.ca>0 && p.tipo!=="Ingresos") out.gasto[m.c] = (out.gasto[m.c]||0) + 1;
+        if(/^15\d-/.test(m.c) && m.ca>0) out.gasto[m.c] = (out.gasto[m.c]||0) + 1;
+      }
+    }
+    const top = o => Object.entries(o).sort((a,b)=>b[1]-a[1])[0]?.[0] || null;
+    return {prov: top(out.prov), gasto: top(out.gasto), cli: top(out.cli)};
+  }
+  function ctaPorNombre(prefijo, nombre){
+    const tk = tokens(nombre); let mejor = null, pt = 0;
+    for(const k of catalogo){ if(!k.c.startsWith(prefijo) || /-000$/.test(k.c)) continue; const s = inter(tk, tokens(k.n)); if(s > pt){ pt = s; mejor = k.c; } }
+    return pt >= 1 ? mejor : null;
+  }
+  function cuentasTercero(f){
+    const id = String(f.rfc||f.nombre).toUpperCase().replace(/[\/\s.#$\[\]]/g,"_"), t = terceros[id] || {}, ap = aprenderCuentas(f.nombre);
+    const v = (k, ...alt) => t[k]==="__elegir" ? null : (t[k] || alt.find(Boolean) || null);
+    if(f.tipo==="emitida") return {id, cli: v("cli", ap.cli, ctaPorNombre("105-01", f.nombre))};
+    return {id, prov: v("prov", ap.prov, ctaPorNombre("201-0", f.nombre)), gasto: v("gasto", ap.gasto)};
+  }
+  const folioDe = f => f.folio ? `F-${String(f.folio).replace(/^F-?/i,"")}` : "";
+  const refDe = f => [folioDe(f), String(f.uuid).slice(0,8)].filter(Boolean).join(" ").slice(0,30);
+  function bancoDePago(monto, fecha){
+    for(const c of concs) for(const m of (c.banco||[])) if(Math.abs((+m.monto||0) - monto) < 0.011 && Math.abs(diasEntre(m.fecha, fecha))<=5){ const cta = cuentasB.find(x=>x.id===c.cuenta); if(cta && cta.cuentaContable) return {cta: cta.cuentaContable, nombre: cta.nombre}; }
+    const cta = cuentasB.find(x=>x.cuentaContable); return cta ? {cta: cta.cuentaContable, nombre: cta.nombre, supuesto: true} : {cta: "", nombre: "", supuesto: true};
+  }
+  function retCtas(f){ const resico = String(f.regimen||"").startsWith("626"); return {isr: ctaCfg(resico?"retIsrResico":"retIsrHon"), iva: ctaCfg(resico?"retIvaResico":"retIvaHon"), ced: ctaCfg(resico?"retCedResico":"retCedHon")}; }
+
+  // --- Arma las pólizas del mes ---
+  function polizasMes(y, m, tab){
+    const mk = mesKey(y, m), out = [], add = (p) => out.push(p);
+    const enMes = x => String(x).slice(0,7)===mk;
+    const R = (() => { try{ return conciliarXml(); }catch(_){ return null; } })();
+    const yaReg = uuid => R && R.asig[uuid] && R.asig[uuid].p ? R.asig[uuid].p.id : null;
+    if(tab==="provProv" || tab==="provCli"){
+      const tipo = tab==="provProv" ? "recibida" : "emitida";
+      for(const f of facturas.filter(f=>f.tipo===tipo && vigente(f) && f.metodo==="PPD" && enMes(f.fecha)).sort((a,b)=>a.fecha.localeCompare(b.fecha))){
+        const ct = cuentasTercero(f), lin = [], sub = r2(+f.subtotal||0), iva = r2(+f.iva||0), tot = r2(+f.total||0);
+        if(tipo==="recibida"){
+          const rc = retCtas(f);
+          lin.push({c: ct.gasto, ca: sub, falta: !ct.gasto && "gasto", n: `PROV ${f.nombre}`});
+          if(iva) lin.push({c: ctaCfg("iva119"), ca: iva});
+          if(+f.isrRet) lin.push({c: rc.isr, ab: r2(+f.isrRet)});
+          if(+f.ivaRet) lin.push({c: rc.iva, ab: r2(+f.ivaRet)});
+          if(+f.impLoc) lin.push({c: rc.ced, ab: r2(+f.impLoc)});
+          lin.push({c: ct.prov, ab: tot, falta: !ct.prov && "prov"});
+        } else {
+          lin.push({c: ct.cli, ca: tot, falta: !ct.cli && "cli"});
+          if(+f.ivaRet) lin.push({c: ctaCfg("ivaRetCli"), ca: r2(+f.ivaRet)});
+          if(+f.isrRet) lin.push({c: ctaCfg("isrRetCli"), ca: r2(+f.isrRet)});
+          if(iva) lin.push({c: ctaCfg("iva209"), ab: iva});
+          lin.push({c: ctaCfg("ingresos"), ab: sub});
+        }
+        add({key: `${tab}-${f.uuid}`, tipo: "Diario", fecha: f.fecha, concepto: `PROV ${f.nombre}${folioDe(f)?" "+folioDe(f):""}`, ref: refDe(f), f, ct, lin, ya: yaReg(f.uuid)});
+      }
+    } else {
+      const tipo = tab==="egresos" ? "recibida" : "emitida", tAb = tab==="egresos" ? "pago" : "cobro";
+      const movs = [];
+      abonos.filter(a=>a.tipo===tAb && enMes(a.fecha)).forEach(a=>{ const f = facturas.find(x=>x.uuid===a.uuid && x.tipo===tipo && vigente(x)); if(f) movs.push({f, monto: r2(+a.monto), fecha: String(a.fecha).slice(0,10)}); });
+      facturas.filter(f=>f.tipo===tipo && vigente(f) && f.metodo==="PUE" && enMes(f.fecha) && !abonos.some(a=>a.uuid===f.uuid)).forEach(f=>movs.push({f, monto: r2(+f.total), fecha: f.fecha, sinPago: true}));
+      movs.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+      for(const x of movs){
+        const f = x.f, ct = cuentasTercero(f), p = +f.total ? x.monto / f.total : 1, bk = bancoDePago(x.monto, x.fecha), lin = [];
+        const iva = r2((+f.iva||0)*p), sub = r2((+f.subtotal||0)*p);
+        if(tipo==="recibida"){
+          if(f.metodo==="PPD"){ lin.push({c: ct.prov, ca: x.monto, falta: !ct.prov && "prov"}); lin.push({c: bk.cta, ab: x.monto, falta: !bk.cta && "banco"}); if(iva){ lin.push({c: ctaCfg("iva118"), ca: iva}); lin.push({c: ctaCfg("iva119"), ab: iva}); } }
+          else { const rc = retCtas(f); lin.push({c: ct.gasto, ca: sub, falta: !ct.gasto && "gasto"}); if(iva) lin.push({c: ctaCfg("iva118"), ca: iva});
+            if(+f.isrRet) lin.push({c: rc.isr, ab: r2(+f.isrRet*p)}); if(+f.ivaRet) lin.push({c: rc.iva, ab: r2(+f.ivaRet*p)}); if(+f.impLoc) lin.push({c: rc.ced, ab: r2(+f.impLoc*p)});
+            lin.push({c: bk.cta, ab: x.monto, falta: !bk.cta && "banco"}); }
+        } else {
+          if(f.metodo==="PPD"){ lin.push({c: bk.cta, ca: x.monto, falta: !bk.cta && "banco"}); if(iva){ lin.push({c: ctaCfg("iva209"), ca: iva}); lin.push({c: ctaCfg("iva208"), ab: iva}); } lin.push({c: ct.cli, ab: x.monto, falta: !ct.cli && "cli"}); }
+          else { lin.push({c: bk.cta, ca: x.monto, falta: !bk.cta && "banco"}); if(iva) lin.push({c: ctaCfg("iva208"), ab: iva}); lin.push({c: ctaCfg("ingresos"), ab: sub}); }
+        }
+        add({key: `${tab}-${f.uuid}-${x.fecha}-${x.monto}`, tipo: tab==="egresos" ? "Egresos" : "Ingresos", fecha: x.fecha, concepto: `PAGO ${folioDe(f)?folioDe(f)+" ":""}${f.nombre}`, ref: refDe(f), f, ct, lin, bk, sinPago: x.sinPago, ya: null});
+      }
+    }
+    // Cuadre: si cargos y abonos no cuadran por centavos, ajusta la línea mayor
+    for(const p of out){ const ca = r2(p.lin.reduce((s,l)=>s+(+l.ca||0),0)), ab = r2(p.lin.reduce((s,l)=>s+(+l.ab||0),0)); p.dif = r2(ca - ab);
+      if(Math.abs(p.dif) > 0 && Math.abs(p.dif) <= 0.05){ const l = p.lin.find(l=>(p.dif>0 ? l.ab : l.ca)); if(l){ if(p.dif>0) l.ab = r2(l.ab + p.dif); else l.ca = r2(l.ca - p.dif); p.dif = 0; } } }
+    // Numeración: empieza en el número que configures para el mes
+    const ini = ((contaCfg.inicios||{})[mk]||{})[out[0] ? out[0].tipo : ""] || siguienteNum(mk, out[0] ? out[0].tipo : "");
+    out.forEach((p,i)=>{ p.num = ini + i; });
+    return out;
+  }
+
+  // Si ya subiste pólizas de ese mes, propone seguir después del último número de ese tipo
+  function siguienteNum(mk, tipo){ const ps = ((polCQ[mk]||{}).polizas||[]).filter(p=>p.tipo===tipo); return ps.length ? Math.max(...ps.map(p=>+p.num||0)) + 1 : 1; }
+  function renderConta(){
+    $("yearLabel").textContent = year;
+    if(!coMes) coMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
+    $("ctabs").innerHTML = CO_TABS.map(([k,n])=>`<button data-cotab="${k}" aria-pressed="${coTab===k}">${n}</button>`).join("");
+    $("cmonths2").innerHTML = Array.from({length:12},(_,i)=>`<button class="mchip" data-comes="${i+1}" aria-current="${coMes===i+1}"><b>${ABR[i]}</b><small>&nbsp;</small></button>`).join("");
+    const f = money.format;
+    if(!catalogo.length){ $("statusLine").textContent = "Sube tu catálogo de cuentas de CONTPAQi para empezar.";
+      $("cobody").innerHTML = `<div class="empty">Sube con <strong>Subir catálogo o pólizas (.txt)</strong> tu <strong>catálogo de cuentas</strong> exportado de CONTPAQi. Si también subes tus <strong>pólizas exportadas en .txt</strong>, la app aprende qué cuentas usas con cada proveedor y cliente.</div>`; return; }
+    const ps = polizasMes(year, coMes, coTab), excl = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[]));
+    const nuevas = ps.filter(p=>!p.ya), faltan = ps.filter(p=>p.lin.some(l=>l.falta || (l.c && !esDetalle(l.c))) || Math.abs(p.dif)>0.009);
+    $("statusLine").innerHTML = `${ps.length} ${ps.length===1?"póliza":"pólizas"} de ${CO_TABS.find(x=>x[0]===coTab)[1].toLowerCase()} en ${MESES[coMes-1].toLowerCase()}${faltan.length?` · <strong style="color:var(--wip-ink)">${faltan.length} con cuentas por completar</strong>`:""}.`;
+    const tipoP = ps[0] ? ps[0].tipo : (coTab==="egresos"?"Egresos":coTab==="ingresos"?"Ingresos":"Diario"), ini = ((contaCfg.inicios||{})[mesKey(year, coMes)]||{})[tipoP] || siguienteNum(mesKey(year, coMes), tipoP);
+    const opts = (pref, sel) => `<option value="">Elige cuenta…</option>${catalogo.filter(k=>pref.some(p=>k.c.startsWith(p)) && esDetalle(k.c)).map(k=>`<option value="${k.c}" ${k.c===sel?"selected":""}>${k.c} ${esc(k.n)}</option>`).join("")}`;
+    let html = `<div class="pairbar" style="margin:0 0 12px;flex-wrap:wrap;gap:10px;align-items:center"><label style="margin:0;font-weight:600">Empezar ${tipoP==="Diario"?"los Diarios":tipoP==="Egresos"?"los Egresos":"los Ingresos"} de ${MESES[coMes-1].toLowerCase()} en el número</label><input type="number" id="coIni" min="1" value="${ini}" style="width:90px">
+      ${downloads?`<button class="btn primary sm" id="coTxt">Descargar para importar en CONTPAQi (.txt)</button><button class="btn sm" id="coXls">Descargar en Excel (captura manual)</button>`:""}<button class="linkbtn" id="coCfg">Cuentas generales</button></div>`;
+    if(!ps.length) html += `<div class="empty">No hay movimientos para esta póliza en ${MESES[coMes-1].toLowerCase()}.</div>`;
+    for(const p of ps){
+      const inc = !excl.has(p.key) && !p.ya;
+      html += `<div class="bpanel" style="margin-bottom:12px;${inc?"":"opacity:.6"}"><h3 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label class="check" style="margin:0"><input type="checkbox" data-coinc="${esc(p.key)}" ${inc?"checked":""}><span>${p.tipo} ${inc?p.num:""}</span></label><span style="font-weight:600">${fechaCorta(p.fecha)} · ${esc(p.concepto)}</span>
+        ${p.ya?`<span class="st pagado">Ya está en tus pólizas (${esc(p.ya)})</span>`:""}${p.sinPago?`<span class="st parcial">PUE sin pago registrado: se usa la fecha de la factura</span>`:""}${p.bk && p.bk.supuesto?`<span class="st parcial">Banco supuesto: ${esc(p.bk.nombre)}</span>`:""}<small>Ref. ${esc(p.ref)}</small></h3>
+        <div class="sheet" style="border:none;border-radius:0"><table class="pt" style="min-width:0;width:100%"><thead><tr><th>Cuenta</th><th class="num">Cargo</th><th class="num">Abono</th></tr></thead><tbody>
+        ${p.lin.map((l,i)=>{ const ok = l.c && esDetalle(l.c);
+          const sel = l.falta || !ok ? (l.falta==="gasto" || (!ok && /^(5|6|7)/.test(l.c||"")) ? `<select data-coset="gasto" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["5","6","7","15"], l.c)}</select>` : l.falta==="prov" ? `<select data-coset="prov" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["201","205"], l.c)}</select>` : l.falta==="cli" ? `<select data-coset="cli" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["105"], l.c)}</select>` : `<span class="falta">${l.c?`${esc(l.c)} no existe en tu catálogo`:"Falta cuenta"}</span>`) : "";
+          return `<tr><td>${ok?`<strong>${l.c}</strong> ${esc(ctaN(l.c))}`:""}${sel}${ok && ["gasto","prov","cli"].some(t=>p.ct[t]===l.c) ? ` <button class="linkbtn" data-cocambia="${["gasto","prov","cli"].find(t=>p.ct[t]===l.c)}" data-id="${esc(p.ct.id)}" style="font-size:12px">cambiar</button>` : ""}</td><td class="num">${l.ca?f(l.ca):""}</td><td class="num">${l.ab?f(l.ab):""}</td></tr>`; }).join("")}
+        <tr><td><strong>Sumas</strong>${Math.abs(p.dif)>0.009?` <span class="difw">No cuadra por ${f(Math.abs(p.dif))}</span>`:""}</td><td class="num"><strong>${f(p.lin.reduce((s,l)=>s+(+l.ca||0),0))}</strong></td><td class="num"><strong>${f(p.lin.reduce((s,l)=>s+(+l.ab||0),0))}</strong></td></tr></tbody></table></div></div>`;
+    }
+    $("cobody").innerHTML = html;
+  }
+  $("ctabs").addEventListener("click", e => { const b = e.target.closest("[data-cotab]"); if(b){ coTab = b.dataset.cotab; renderConta(); } });
+  $("cmonths2").addEventListener("click", e => { const b = e.target.closest("[data-comes]"); if(b){ coMes = +b.dataset.comes; renderConta(); } });
+  async function guardarCfgConta(cambios){ contaCfg = {...contaCfg, ...cambios}; try{ await db.doc(`empresas/${empresa}/catalogo/config`).set(contaCfg); }catch(err){ handleWriteError(err); } renderConta(); }
+  $("cobody").addEventListener("change", async e => {
+    const s = e.target.closest("[data-coset]");
+    if(s && s.value){ const id = s.dataset.id; try{ await db.doc(`empresas/${empresa}/terceros/${id}`).set({...(terceros[id]||{}), [s.dataset.coset]: s.value}); terceros = {...terceros, [id]: {...(terceros[id]||{}), [s.dataset.coset]: s.value}}; renderConta(); }catch(err){ handleWriteError(err); } return; }
+    const c = e.target.closest("[data-coinc]");
+    if(c){ const mk = mesKey(year, coMes), ex = new Set(((contaCfg.excluir||{})[mk]||[])); c.checked ? ex.delete(c.dataset.coinc) : ex.add(c.dataset.coinc); guardarCfgConta({excluir: {...(contaCfg.excluir||{}), [mk]: [...ex]}}); return; }
+    if(e.target.id==="coIni"){ const mk = mesKey(year, coMes), ps = polizasMes(year, coMes, coTab), tp = ps[0] ? ps[0].tipo : (coTab==="egresos"?"Egresos":coTab==="ingresos"?"Ingresos":"Diario");
+      guardarCfgConta({inicios: {...(contaCfg.inicios||{}), [mk]: {...((contaCfg.inicios||{})[mk]||{}), [tp]: Math.max(1, +e.target.value||1)}}}); }
+  });
+  $("cobody").addEventListener("click", async e => {
+    const cb = e.target.closest("[data-cocambia]");
+    if(cb){ const id = cb.dataset.id, t = {...(terceros[id]||{})}; t[cb.dataset.cocambia] = ""; terceros = {...terceros, [id]: {...t, [cb.dataset.cocambia]: "__elegir"}}; renderConta(); return; }
+    if(e.target.closest("#coTxt")) return exportConta("txt");
+    if(e.target.closest("#coXls")) return exportConta("xlsx");
+    if(e.target.closest("#coCfg")){ abrirCfgConta(); return; }
+  });
+  function abrirCfgConta(){
+    const d = $("contaCfgDlg"), cur = contaCfg.cuentas || {};
+    $("contaCfgLista").innerHTML = Object.keys(CTA_DEF).map(k=>`<label style="margin:6px 0 2px">${CTA_NOM[k]}</label><select data-cfgk="${k}">${catalogo.filter(c=>esDetalle(c.c)).map(c=>`<option value="${c.c}" ${(cur[k]||CTA_DEF[k])===c.c?"selected":""}>${c.c} ${esc(c.n)}</option>`).join("")}</select>`).join("");
+    d.showModal();
+  }
+  $("contaCfgCancel").onclick = () => $("contaCfgDlg").close();
+  $("contaCfgOk").onclick = () => { const c = {}; document.querySelectorAll("[data-cfgk]").forEach(s=>c[s.dataset.cfgk] = s.value); $("contaCfgDlg").close(); guardarCfgConta({cuentas: c}); };
+  async function exportConta(fmt){
+    const ps = polizasMes(year, coMes, coTab), excl = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[]));
+    const sel = ps.filter(p=>!excl.has(p.key) && !p.ya);
+    if(!sel.length){ toast("No hay pólizas seleccionadas."); return; }
+    const malas = sel.filter(p=>p.lin.some(l=>!l.c || !esDetalle(l.c)) || Math.abs(p.dif)>0.009);
+    if(malas.length && !await confirmar(`${malas.length} ${malas.length===1?"póliza tiene":"pólizas tienen"} cuentas por completar o no cuadran. ¿Descargar de todos modos?`)) return;
+    const nombreArch = `Polizas ${CO_TABS.find(x=>x[0]===coTab)[1]} ${empresaNombre} ${ABR[coMes-1]} ${year}`;
+    if(fmt==="txt"){
+      const TIPO = {Ingresos:1, Egresos:2, Diario:3}, guid = () => (crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; return (c==="x" ? r : (r&3|8)).toString(16); })).toUpperCase();
+      const pad = (s, n) => String(s??"").slice(0,n).padEnd(n), padL = (s, n) => String(s??"").slice(-n).padStart(n);
+      const num = v => { const x = String(Math.round(v*100)/100); return x.includes(".") ? x : x + ".0"; };
+      const lineas = [];
+      for(const p of sel){
+        const fe = p.fecha.replace(/-/g,"");
+        lineas.push(`P  ${fe}${padL(TIPO[p.tipo], 5)}${padL(p.num, 10)} 1 0${" ".repeat(10)}${pad(p.concepto, 100)} 11 0 0 ${guid()} `);
+        for(const l of p.lin){ const imp = l.ca || l.ab || 0; if(!imp) continue;
+          lineas.push(`M1 ${pad(String(l.c||"").replace(/-/g,""), 30)}${pad(p.ref, 30)}  ${l.ab ? 1 : 0} ${pad(num(imp), 20)} ${pad("0", 10)} ${pad("0.0", 20)} ${pad(p.concepto, 106)}${guid()} ${fe} `); }
+      }
+      const s = lineas.join("\r\n") + "\r\n", bytes = new Uint8Array(s.length);
+      for(let i=0;i<s.length;i++){ const c = s.charCodeAt(i); bytes[i] = c < 256 ? c : 63; }
+      await guardarArchivo(`${nombreArch}.txt`, new Blob([bytes], {type:"text/plain"}));
+      toast(`${sel.length} ${sel.length===1?"póliza lista":"pólizas listas"} para importar.`);
+    } else {
+      await loadLibs("excel"); const wb = new ExcelJS.Workbook(), w = wb.addWorksheet("Pólizas"), M = '"$"#,##0.00';
+      w.columns = [{width:10},{width:8},{width:12},{width:44},{width:14},{width:40},{width:16},{width:14},{width:14}];
+      w.addRow(["Tipo","Número","Fecha","Concepto","Cuenta","Nombre de la cuenta","Referencia","Cargo","Abono"]).font = {bold:true};
+      for(const p of sel){ for(const l of p.lin){ const r = w.addRow([p.tipo, p.num, p.fecha, p.concepto, l.c||"FALTA", ctaN(l.c), p.ref, l.ca||null, l.ab||null]); r.getCell(8).numFmt = M; r.getCell(9).numFmt = M; } w.addRow([]); }
+      await guardarArchivo(`${nombreArch}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
+    }
+  }
+
+  // ---------- DIOT: proveedores sin factura (bancos, etc.) ----------
+  let diotManual = {}, unsubDM = null;
+  function subscribeDiotManual(){
+    if(unsubDM) unsubDM(); diotManual = {};
+    if(!db || !empresa) return;
+    unsubDM = db.collection(`empresas/${empresa}/diotManual`).onSnapshot(qs => { diotManual = Object.fromEntries(qs.docs.map(d=>[d.id, d.data()])); rerenderDatos(); }, () => {});
+  }
+  async function guardarDiotManual(rows){
+    const key = mesKey(year, iMes); diotManual = {...diotManual, [key]: {rows}};
+    try{ setSaving("Guardando…"); await db.doc(`empresas/${empresa}/diotManual/${key}`).set({rows}); setSaving("Guardado"); renderImpuestos(); }catch(err){ handleWriteError(err); }
+  }
+  // Comisiones del mes en tus conciliaciones: CEDI trae comisión + IVA por retiro; en otros bancos, los movimientos de comisión
+  function comisionesBancos(y, m){
+    const out = [];
+    for(const c of concs.filter(x=>x.anio===y && x.mes===m)){
+      const cta = cuentasB.find(x=>x.id===c.cuenta); if(!cta) continue;
+      let tot = r2((c.banco||[]).reduce((s,b)=>s+(+b.comision||0),0));
+      tot = r2(tot + (c.banco||[]).filter(b=>b.tipo==="ret" && /COMISI|IVA COM|CUOTA/i.test(`${b.nombre} ${b.concepto}`)).reduce((s,b)=>s+(+b.monto||0),0));
+      if(tot>0) out.push({nombre: cta.nombre, total: tot});
+    }
+    return out;
+  }
+  $("ibody").addEventListener("click", async e => {
+    const q = e.target.closest("[data-dmquitar]");
+    if(q){ const rows = [...((diotManual[mesKey(year, iMes)]||{}).rows||[])]; rows.splice(+q.dataset.dmquitar, 1); guardarDiotManual(rows); return; }
+    if(e.target.closest("#dmAdd")){
+      const base = r2(+$("dmBase").value||0), iva = $("dmIva").value==="" ? r2(base*0.16) : r2(+$("dmIva").value), b0 = r2(+$("dmB0").value||0), ex = r2(+$("dmEx").value||0);
+      const nombre = $("dmNom").value.trim(), rfc = $("dmRfc").value.trim().toUpperCase();
+      if(!nombre){ $("dmNom").focus(); return; } if(!(base||b0||ex)){ $("dmBase").focus(); return; }
+      if(rfc && !/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(rfc) && !await confirmar("Ese RFC no tiene el formato correcto. ¿Agregarlo de todos modos?")) return;
+      const rows = [...((diotManual[mesKey(year, iMes)]||{}).rows||[]), {rfc, nombre, b16: base, iva, b0, ex, ret: 0, tipoOp: $("dmTipo").value, tercero: $("dmTer").value, acreditable: $("dmAcr").checked}];
+      guardarDiotManual(rows); return;
+    }
+    if(e.target.closest("#dmBanco")){
+      const cs = comisionesBancos(year, iMes);
+      if(!cs.length){ toast("No encontré comisiones en las conciliaciones de este mes. Sube primero tus estados de cuenta."); return; }
+      const c = cs[0], base = r2(c.total/1.16);
+      $("dmNom").value = c.nombre; $("dmBase").value = base; $("dmIva").value = r2(c.total - base);
+      if(/BBVA/i.test(c.nombre)) $("dmRfc").value = "BBA830831LJ2";
+      toast(cs.length>1 ? `Llené ${c.nombre} (${money.format(c.total)} con IVA). Agrégalo y vuelve a tocar el botón para ${cs.slice(1).map(x=>x.nombre).join(", ")}.` : `Comisiones de ${c.nombre}: ${money.format(c.total)} con IVA. Revisa el RFC y toca "Agregar a la DIOT".`);
+      return;
+    }
+  });
 
   // ---------- Arranque ----------
   render();
