@@ -409,6 +409,21 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <div class="dlg-actions"><button class="btn" id="bajaCancel">Cancelar</button><button class="btn primary" id="bajaOk">Dar de baja</button></div>
 </dialog>
 
+<dialog id="detDlg" style="width:min(560px,94vw)">
+  <h2 id="detTitulo">Detalle del pago</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+    <div><label for="detRec">Recargos pagados</label><input id="detRec" type="number" step="0.01" min="0"></div>
+    <div><label for="detAct">Actualización</label><input id="detAct" type="number" step="0.01" min="0"></div>
+  </div>
+  <label for="detReal">Monto que salió del banco (si fue distinto al de la declaración)</label><input id="detReal" type="number" step="0.01" min="0">
+  <label>Compensación con IVA a favor</label>
+  <div id="detComps" style="display:grid;gap:6px"></div>
+  <button class="linkbtn" id="detCompAdd" style="justify-self:start;margin-top:4px">+ Agregar compensación</button>
+  <label for="detNota">Nota</label><textarea id="detNota" rows="3" style="width:100%;font-family:inherit;font-size:15px;padding:9px 10px;border-radius:8px;border:1px solid var(--line-strong);background:var(--bg);color:var(--ink)"></textarea>
+  <label class="check"><input type="checkbox" id="detOk"><span>Ya la revisé y está correcta (no la marques como pendiente ni con diferencia)</span></label>
+  <div class="dlg-actions"><button class="btn" id="detCancel">Cancelar</button><button class="btn primary" id="detGuardar">Guardar</button></div>
+</dialog>
+
 <dialog id="juntarDlg" style="width:min(520px,94vw)">
   <h2>Impuestos pagados juntos</h2>
   <p class="fsub" style="max-width:none;white-space:normal">Marca los impuestos que pagaste en la misma línea de captura o con el mismo retiro del banco. La app buscará ese retiro por el total y, al marcar uno como pagado, se marcan todos.</p>
@@ -947,6 +962,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeObs();
     subscribeNotas();
     subscribeDiario();
+    subscribeNotasMes();
     subscribeActivos();
   }
   $("tabs").addEventListener("click", e => {
@@ -2595,9 +2611,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const act = o.clave==="diot" ? "diot" : o.clave==="imss" ? "pago-imss" : o.aut==="SAT" ? "impuestos-sat" : "impuestos-sateg";
     if(!(d && d.presentada) && k.y===year && (estados[act]||{})[k.m]==="done"){ st = "presentada"; porTablero = true; }
     if(d && d.presentada){ st = (+d.aPagar>0 && !d.pagada) ? "porpagar" : (+d.aPagar>0 ? "pagada" : "presentada"); }
+    if(d && d.revisadaOk && st!=="porpagar") st = "correcta";
     return {d, calc, st, porTablero, visible: o.siempre || Math.abs(calc)>0.009 || !!d || (o.clave==="diot" && k.diot.rows.length>0) || (o.clave==="imss" && k.nom.sueldos>0)};
   }
-  const ST_TXT = {sinpres:"Sin presentar", porpagar:"Por pagar", pagada:"Pagada", presentada:"Presentada"};
+  const ST_TXT = {sinpres:"Sin presentar", porpagar:"Por pagar", pagada:"Pagada", presentada:"Presentada", correcta:"Correcta"};
+  const ST_IMSS = {sinpres:"Sin línea de captura", porpagar:"Cuotas por pagar", pagada:"Cuotas pagadas", presentada:"Cuotas registradas", correcta:"Correctas"};
 
   // --- lectura de acuses y líneas de captura ---
   function esPdfImpuesto(t){ return /IMPUESTOS FEDERALES|OPERACIONES CON TERCEROS|AUTODETERMINACI|CUOTAS OBRERO PATRONALES|L[ií]neas de Captura para la Recepci|SATEG|GOBIERNO DEL ESTADO DE GUANAJUATO/i.test(t) && !/Estado de Cuenta\s+MAESTRA/i.test(t); }
@@ -2781,7 +2799,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const [aut, act] of [["SAT","impuestos-sat"],["SATEG","impuestos-sateg"]]){
       if(!actividades.some(a=>a.id===act)) continue;
       const vis = OBLIG.filter(o=>o.aut===aut && !o.info).map(o=>estadoOblig(o,k)).filter(e=>e.visible);
-      if(!vis.length || !vis.every(e=>e.st==="presentada"||e.st==="pagada")) continue;
+      if(!vis.length || !vis.every(e=>e.st==="presentada"||e.st==="pagada"||e.st==="correcta")) continue;
       if((estados[act]||{})[iMes]==="done") continue;
       estados[act] = Object.assign({}, estados[act]||{}, {[iMes]:"done"}); scheduleSave();
       toast(`${aut} de ${MESES[iMes-1].toLowerCase()} completo: lo marqué en el tablero.`);
@@ -2827,17 +2845,21 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const vers = d.versiones || [], totalDecl = vers.length ? r2(vers.reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0) - (+d.aFavor||0)) : null;
       const declarado = d.presentada && totalDecl!=null && o.clave!=="iva" && !esDiot ? `${f(totalDecl)}<div class="fsub" style="max-width:none">${vers.length+1} declaraciones</div>` : d.presentada ? (esDiot ? (d.ivaDiot!=null ? `IVA ${f(+d.ivaDiot)}` : "Presentada") : +d.aFavor ? `A favor ${f(+d.aFavor)}` : f(+d.aPagar||0)) : "—";
       const calcTxt = o.sinCalculo ? "—" : esDiot ? `IVA ${f(k.diot.iva)}` : o.clave==="iva" && k.ivaNeto<0 ? `A favor ${f(-k.ivaNeto)}` : f(e.calc);
-      const dif = d.presentada && !o.sinCalculo && totalDecl!=null && o.clave!=="iva" && !esDiot ? Math.abs(totalDecl - e.calc) : d.presentada && !o.sinCalculo ? (esDiot ? (d.ivaDiot!=null ? Math.abs(+d.ivaDiot - k.diot.iva) : 0) : o.clave==="iva" && k.ivaNeto<0 ? Math.abs((+d.aFavor||0) - (-k.ivaNeto)) : Math.abs((+d.aPagar||0) - e.calc)) : 0;
+      const dif = d.revisadaOk ? 0 : d.presentada && !o.sinCalculo && totalDecl!=null && o.clave!=="iva" && !esDiot ? Math.abs(totalDecl - e.calc) : d.presentada && !o.sinCalculo ? (esDiot ? (d.ivaDiot!=null ? Math.abs(+d.ivaDiot - k.diot.iva) : 0) : o.clave==="iva" && k.ivaNeto<0 ? Math.abs((+d.aFavor||0) - (-k.ivaNeto)) : Math.abs((+d.aPagar||0) - e.calc)) : 0;
       const docs = (d.archivos||[]).map((a,ix)=>`<button class="doc" data-dl="${esc(o.clave)}" data-ix="${ix}" title="Descargar ${esc(a.nombre)}">${({linea:"Línea de captura", declaracion:"Declaración", resumen:"Resumen SUA", cedula:"Cédula SUA", comprobante:"Comprobante de pago"})[a.tipo]||"Acuse"}</button>`).join("");
       const gp = d.presentada && +d.aPagar>0 ? grupoPago({...d, anio:k.y, mes:k.m, clave:o.clave}) : [], totGp = r2(gp.reduce((s,x)=>s+(+x.aPagar||0),0));
-      const banco = d.presentada && +d.aPagar>0 && !d.pagada ? (buscarPagoBanco(gp.length>1 ? totGp : +d.aPagar, `${k.y}-${String(k.m).padStart(2,"0")}-01`) || (gp.length>1 ? null : null)) : null;
+      const banco = d.presentada && +d.aPagar>0 && !d.pagada ? (buscarPagoBanco(gp.length>1 ? r2(gp.reduce((s,x)=>s+(+x.pagadoReal||+x.aPagar||0),0)) : (+d.pagadoReal || +d.aPagar), `${k.y}-${String(k.m).padStart(2,"0")}-01`) || (gp.length>1 ? null : null)) : null;
       const gpTxt = gp.length>1 ? `Se paga junto con ${gp.filter(x=>x.clave!==o.clave).map(x=>(OBLIG.find(y=>y.clave===x.clave)||{}).nombre||x.clave).join(", ")} · total ${f(totGp)}` : "";
       const imd = o.clave==="imss" && d.imssDet ? d.imssDet : null;
-      const det = [gpTxt, imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map(v=>`${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}`), e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
+      const comps = (d.compensaciones||[]).filter(x=>+x.monto>0);
+      const det = [d.revisadaOk ? `<strong>Revisada: correcta</strong>` : "", +d.recargos ? `Recargos pagados ${f(+d.recargos)}` : "", +d.actualizacion ? `Actualización ${f(+d.actualizacion)}` : "",
+        ...comps.map(x=>`Compensado con IVA a favor de ${MESES[+x.origen.slice(5)-1].toLowerCase()} ${x.origen.slice(0,4)}: ${f(+x.monto)}`), +d.pagadoReal ? `Se pagó ${f(+d.pagadoReal)} en el banco` : "",
+        d.nota ? `Nota: ${esc(d.nota)}` : "", gpTxt, imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map(v=>`${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}`), e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
         d.linea && d.linea.fechaLimite && !d.pagada && +d.aPagar>0 ? `Pagar antes del ${fechaCorta(d.linea.fechaLimite)} ${d.linea.fechaLimite.slice(0,4)}`:"", d.pagada&&d.fechaPago?`Pagada ${fechaCorta(d.fechaPago)} ${d.fechaPago.slice(0,4)}`:"", d.folioSUA?`Folio SUA ${esc(d.folioSUA)}`:"",
         o.clave==="imss" && d.pagada ? (d.contpaq ? "Registrado en CONTPAQi" : "Falta registrarlo en CONTPAQi") : "",
         banco ? `<strong>Encontré un retiro de ${f(banco.monto)} en ${esc(banco.cuenta)} el ${fechaCorta(banco.fecha)}</strong>` : ""].filter(Boolean).join(" · ");
-      const acts = canWrite ? [ !d.presentada && !e.porTablero ? `<button class="linkbtn" data-act="presentar" data-cl="${o.clave}">Marcar presentada</button>` : "",
+      const acts = canWrite ? [ !d.presentada && !e.porTablero ? `<button class="linkbtn" data-act="presentar" data-cl="${o.clave}">${o.clave==="imss"?"Registrar cuotas del mes":"Marcar presentada"}</button>` : "",
+        `<button class="linkbtn" data-act="detalle" data-cl="${o.clave}">Recargos, compensación y notas</button>`,
         d.presentada && +d.aPagar>0 && !d.pagada ? `<button class="linkbtn" data-act="pagar" data-cl="${o.clave}">Marcar pagada</button>` : "",
         d.pagada ? `<button class="linkbtn" data-act="despagar" data-cl="${o.clave}">Quitar pago</button>` : "",
         banco ? `<button class="linkbtn" data-act="pagarBanco" data-cl="${o.clave}" data-fecha="${banco.fecha}" data-banco="${esc(banco.cuenta)}">Marcar pagada con ese retiro</button>` : "",
@@ -2846,7 +2868,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         o.clave==="imss" && d.pagada ? `<button class="linkbtn" data-act="contpaq" data-cl="${o.clave}">${d.contpaq?"Quitar registro en CONTPAQi":"Marcar registrado en CONTPAQi"}</button>` : "",
         d.presentada && !(d.archivos||[]).length ? `<button class="linkbtn" data-act="despresentar" data-cl="${o.clave}">Quitar</button>` : ""].join("") : "";
       ctl += `<tr><td><span class="aut">${o.aut}</span><div><strong>${o.nombre}</strong></div>${det?`<div class="fsub" style="white-space:normal;max-width:none">${det}</div>`:""}${d.linea&&d.linea.referencia?`<div class="uuid">Ref. ${esc(d.linea.referencia)}</div>`:""}<div class="docs">${docs}</div><div class="acts">${acts}</div></td>
-        <td class="num">${calcTxt}</td><td class="num">${declarado}${dif>1 ? (()=>{ const neto = totalDecl!=null && o.clave!=="iva" && !esDiot ? totalDecl : (o.clave==="iva" && k.ivaNeto<0 ? null : (+d.aPagar||0)); if(neto==null || esDiot || o.sinCalculo) return `<span class="difw">Diferencia ${f(dif)}</span>`; return neto < e.calc ? `<span class="difw" style="color:var(--late-ink)">Declaraste de menos ${f(dif)}: falta complementaria</span>` : `<span class="difw">Declaraste de más ${f(dif)}${totalDecl!=null&&+d.aFavor?" (ya tienes saldo a favor)":""}</span>`; })() : ""}</td><td><span class="st ${e.st}">${ST_TXT[e.st]}</span></td></tr>`;
+        <td class="num">${calcTxt}</td><td class="num">${declarado}${dif>1 ? (()=>{ const neto = totalDecl!=null && o.clave!=="iva" && !esDiot ? totalDecl : (o.clave==="iva" && k.ivaNeto<0 ? null : (+d.aPagar||0)); if(neto==null || esDiot || o.sinCalculo) return `<span class="difw">Diferencia ${f(dif)}</span>`; return neto < e.calc ? `<span class="difw" style="color:var(--late-ink)">Declaraste de menos ${f(dif)}: falta complementaria</span>` : `<span class="difw">Declaraste de más ${f(dif)}${totalDecl!=null&&+d.aFavor?" (ya tienes saldo a favor)":""}</span>`; })() : ""}</td><td><span class="st ${e.st==="correcta"?"pagado":e.st}">${(o.clave==="imss"?ST_IMSS:ST_TXT)[e.st]}</span></td></tr>`;
     }
     ctl += `</tbody></table></div><div class="pairbar" style="padding:12px 14px">${(declaraciones.some(d=>d.anio===year&&d.mes===iMes&&(d.archivos||[]).length)) ? `<button class="btn sm" id="zipBtn">Descargar documentos del mes (.zip)</button>` : ""}${downloads?`<button class="btn sm primary" id="extractoBtn">Descargar extracto de impuestos ${year}</button>`:""}${canWrite?`<button class="linkbtn" id="extractoTpl">Cambiar formato del extracto</button><input type="file" id="extractoFile" accept=".xlsx" hidden>`:""}</div></div>`;
     // DIOT
@@ -2888,7 +2910,23 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       pz += `<tr><td><strong>${P.nombre}</strong><div class="fsub" style="white-space:normal;max-width:none">${P.nota}</div>${tabla}</td><td style="text-align:right;white-space:nowrap">${btns}</td></tr>`;
     }
     pz += `</tbody></table></div></div>`;
-    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${pz}${dt}`;
+    // Nota del mes
+    const notaImp = `<div class="bpanel" style="margin-top:16px"><h3>Notas de ${MESES[iMes-1].toLowerCase()}</h3><div style="padding:10px 14px"><textarea id="impNota" rows="3" ${canWrite?"":"disabled"} placeholder="Ej.: el IVA de este mes se pagó con saldo a favor de febrero; pendiente complementaria de ISN…" style="width:100%;font-family:inherit;font-size:14px;padding:8px 10px;border-radius:8px;border:1px solid var(--line-strong);background:var(--bg);color:var(--ink)">${esc(nmDe(year, iMes).impuestos||"")}</textarea></div></div>`;
+    // IVA a favor del año
+    const fav = ivaAFavor(year);
+    const tablaFav = `<div class="bpanel"><h3>IVA a favor ${year}<small>Lo que generó cada mes, lo que ya compensaste y lo que te queda. Las compensaciones las registras en cada impuesto con "Recargos, compensación y notas".</small></h3>${fav.length ? `<div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Mes</th><th class="num">Generado</th><th class="num">Compensado</th><th class="num">Saldo</th></tr></thead><tbody>
+      ${fav.map(x=>`<tr><td><strong>${MESES[x.m-1]}</strong>${x.usos.length?`<div class="fsub" style="max-width:none;white-space:normal">${x.usos.map(u=>`${esc(u.en)} ${f(u.monto)}`).join(" · ")}</div>`:""}</td><td class="num">${f(x.gen)}</td><td class="num">${x.apl?f(-x.apl):""}</td><td class="num"><strong>${f(x.saldo)}</strong></td></tr>`).join("")}
+      <tr><td><strong>Total</strong></td><td class="num">${f(fav.reduce((s,x)=>s+x.gen,0))}</td><td class="num">${f(-fav.reduce((s,x)=>s+x.apl,0))}</td><td class="num"><strong>${f(fav.reduce((s,x)=>s+x.saldo,0))}</strong></td></tr></tbody></table></div>` : `<div class="empty" style="padding:16px">Aún no hay IVA a favor en ${year}.</div>`}</div>`;
+    // Ingresos nominales: mes, acumulado y trimestres
+    let filasIng = "", acum = 0, trim = 0;
+    for(let m=1;m<=12;m++){
+      const km = calcMes(year, m, memo), ing = km.ingMes; acum = r2(acum + ing); trim = r2(trim + ing);
+      const bb = balanzas[mesKey(year, m)], c401 = bb ? bb.cuentas.find(c=>c.cuenta==="401-00-000") : null, bal = c401 ? r2(c401.abonos - c401.cargos) : null;
+      filasIng += `<tr><td>${MESES[m-1]}</td><td class="num">${f(ing)}</td><td class="num">${f(acum)}</td><td class="num">${bal==null?'<span class="fsub">—</span>':Math.abs(bal-ing)<=1?`${f(bal)} <span class="st pagado">Cuadra</span>`:`${f(bal)} <span class="st vencido">Revisar</span>`}</td></tr>`;
+      if(m%3===0){ filasIng += `<tr style="background:var(--group)"><td><strong>Trimestre ${m/3}</strong></td><td class="num"><strong>${f(trim)}</strong></td><td></td><td></td></tr>`; trim = 0; }
+    }
+    const tablaIng = `<div class="bpanel"><h3>Ingresos nominales ${year}<small>Facturas emitidas vigentes, por mes, acumulado y por trimestre, comparadas con la cuenta 401 de tu balanza.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Mes</th><th class="num">Ingresos del mes</th><th class="num">Acumulado</th><th class="num">Balanza (401)</th></tr></thead><tbody>${filasIng}<tr><td><strong>Total del año</strong></td><td class="num"><strong>${f(acum)}</strong></td><td></td><td></td></tr></tbody></table></div></div>`;
+    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}`;
   }
 
   $("imonths").addEventListener("click", e => { const b = e.target.closest("[data-imes]"); if(b){ iMes = +b.dataset.imes; renderImpuestos(); } });
@@ -2920,6 +2958,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const cl = b.dataset.cl, id = declId(year, iMes, cl), prev = declDe(year, iMes, cl) || {anio:year, mes:iMes, clave:cl};
     const d = {...prev}; delete d.id;
     if(b.dataset.act==="juntarPago"){ abrirJuntarPago(cl); return; }
+    if(b.dataset.act==="detalle"){ abrirDetalle(cl); return; }
     // Pagar, desmarcar o adjuntar comprobante aplica a todos los impuestos del mismo pago
     if(["pagar","pagarBanco","despagar"].includes(b.dataset.act) && prev.presentada){
       const grupo = grupoPago(prev);
@@ -2945,6 +2984,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   });
 
   $("ibody").addEventListener("change", async e => {
+    if(e.target.id==="impNota"){ guardarNM(year, iMes, {impuestos: e.target.value}); return; }
     const s = e.target.closest("[data-tipoop]"); if(!s) return;
     try{ setSaving("Guardando…"); await db.doc(`empresas/${empresa}/proveedores/${s.dataset.tipoop}`).set({...(proveedores[s.dataset.tipoop]||{}), tipoOp: s.value}); setSaving("Guardado"); }catch(err){ handleWriteError(err); }
   });
@@ -3245,7 +3285,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function renderBalanza(){
     $("yearLabel").textContent = year;
     if(bTab==="xml"){ renderXmlPolizas(); return; }
-    const res = m => { const b = balanzas[mesKey(year, m)]; if(!b) return null; const r = revisarBalanza(b); return {b, r, difs: r.filas.filter(x=>x.dif!=null && Math.abs(x.dif)>1).length}; };
+    const res = m => { const b = balanzas[mesKey(year, m)]; if(!b) return null; const r = revisarBalanza(b); return {b, r, difs: difsBalanza(r, year, m)}; };
     const meses = Array.from({length:12},(_,i)=>res(i+1));
     if(!blMes){ let u=-1; meses.forEach((x,i)=>{ if(x) u=i; }); blMes = (u>=0?u:(year===now.getFullYear()?now.getMonth()-1:0))+1; }
     $("blmonths").innerHTML = meses.map((x,i)=>{ const cls = !x ? "vacio" : x.difs ? "pend" : "ok"; const sub = !x ? "—" : x.difs ? `${x.difs} dif.` : "Cuadra";
@@ -3259,18 +3299,27 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     let grupo = "";
     for(const r of x.r.filas){
       if(r.grupo!==grupo){ grupo = r.grupo; t += `<tr class="grp"><td colspan="5" style="background:var(--group);font-weight:700;color:var(--muted);font-size:13px">${grupo}</td></tr>`; }
-      const st = r.dif==null ? `<span class="st na">Sin dato</span>` : Math.abs(r.dif)<=1 ? `<span class="st pagado">Cuadra</span>` : `<span class="st vencido">Revisar</span>`;
-      t += `<tr><td><strong>${esc(r.concepto)}</strong>${r.nota?`<div class="fsub" style="white-space:normal;max-width:none">${esc(r.nota)}</div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num">${r.dif==null?"—":Math.abs(r.dif)<=1?"":f(r.dif)}</td><td>${st}</td></tr>`;
+      const rev = (nmDe(year, blMes).balRev||{})[r.concepto];
+      const st = r.dif==null ? `<span class="st na">Sin dato</span>` : Math.abs(r.dif)<=1 ? `<span class="st pagado">Cuadra</span>` : rev ? `<span class="st pagado">Revisado</span>${canWrite?`<div><button class="linkbtn" data-balrev="${esc(r.concepto)}" style="font-size:12px">Quitar</button></div>`:""}` : `<span class="st vencido">Revisar</span>${canWrite?`<div><button class="linkbtn" data-balrev="${esc(r.concepto)}" style="font-size:12px">Marcar revisado</button></div>`:""}`;
+      t += `<tr><td><strong>${esc(r.concepto)}</strong>${r.nota?`<div class="fsub" style="white-space:normal;max-width:none">${esc(r.nota)}</div>`:""}${rev && rev.nota?`<div class="fsub" style="white-space:normal;max-width:none">Tu nota: ${esc(rev.nota)}</div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num">${r.dif==null?"—":Math.abs(r.dif)<=1?"":f(r.dif)}</td><td>${st}</td></tr>`;
     }
     t += `</tbody></table></div>`;
-    if(x.r.avisos.length) t += `<div style="padding:12px 14px;border-top:1px solid var(--line)"><strong>Para revisar también</strong><ul style="margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)">${x.r.avisos.map(a=>`<li>${esc(a)}</li>`).join("")}</ul></div>`;
+    const okA = nmDe(year, blMes).avisosOk || {}, avP = x.r.avisos.filter(a=>!okA[claveAviso(a)]), avR = x.r.avisos.filter(a=>okA[claveAviso(a)]);
+    if(x.r.avisos.length) t += `<div style="padding:12px 14px;border-top:1px solid var(--line)"><strong>Para revisar también</strong>${avP.length ? `<ul style="margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)">${avP.map(a=>`<li>${esc(a)}${canWrite?` <button class="linkbtn" data-avok="${esc(claveAviso(a))}" style="font-size:12px">Ya lo revisé</button>`:""}</li>`).join("")}</ul>` : `<div class="fsub" style="max-width:none">Ya revisaste todos los avisos.</div>`}
+      ${avR.length ? `<details style="margin-top:6px"><summary class="fsub" style="cursor:pointer;max-width:none">${avR.length} ${avR.length===1?"aviso revisado":"avisos revisados"}</summary><ul style="margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)">${avR.map(a=>`<li>${esc(a)}${canWrite?` <button class="linkbtn" data-avok="${esc(claveAviso(a))}" style="font-size:12px">Volver a mostrar</button>`:""}</li>`).join("")}</ul></details>` : ""}</div>`;
+    t += `<div style="padding:12px 14px;border-top:1px solid var(--line)"><label for="balNota" style="margin:0 0 6px;font-weight:700">Notas de ${MESES[blMes-1].toLowerCase()}</label><textarea id="balNota" rows="3" ${canWrite?"":"disabled"} placeholder="Lo que revisaste, lo que falta corregir en CONTPAQi, dudas…" style="width:100%;font-family:inherit;font-size:14px;padding:8px 10px;border-radius:8px;border:1px solid var(--line-strong);background:var(--bg);color:var(--ink)">${esc(nmDe(year, blMes).balanza||"")}</textarea></div>`;
     const hecho = (estados.balanza||{})[blMes]==="done";
     if(canWrite && actividades.some(a=>a.id==="balanza")) t += `<div class="pairbar" style="padding:12px 14px"><button class="btn sm ${hecho?"":"primary"}" id="balOk">${hecho?"Balanza revisada ✓":"Marcar balanza revisada"}</button></div>`;
     t += `</div>`;
     $("blbody").innerHTML = t;
   }
   $("blmonths").addEventListener("click", e => { const b = e.target.closest("[data-blmes]"); if(b){ blMes = +b.dataset.blmes; renderBalanza(); } });
+  $("blbody").addEventListener("change", e => { if(e.target.id==="balNota") guardarNM(year, blMes, {balanza: e.target.value}); });
   $("blbody").addEventListener("click", e => {
+    const br = e.target.closest("[data-balrev]");
+    if(br){ const rev = {...(nmDe(year, blMes).balRev||{})}; if(rev[br.dataset.balrev]) delete rev[br.dataset.balrev]; else rev[br.dataset.balrev] = {fecha: hoyISO}; guardarNM(year, blMes, {balRev: rev}).then(renderBalanza); return; }
+    const ak = e.target.closest("[data-avok]");
+    if(ak){ const ok = {...(nmDe(year, blMes).avisosOk||{})}; if(ok[ak.dataset.avok]) delete ok[ak.dataset.avok]; else ok[ak.dataset.avok] = hoyISO; guardarNM(year, blMes, {avisosOk: ok}).then(renderBalanza); return; }
     if(!e.target.closest("#balOk")) return;
     estados.balanza = Object.assign({}, estados.balanza||{}); if(estados.balanza[blMes]==="done") delete estados.balanza[blMes]; else estados.balanza[blMes] = "done";
     scheduleSave(); renderBalanza();
@@ -3862,7 +3911,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const k = calcMes(year, m, memo);
         for(const [aut, act] of [["SAT","impuestos-sat"],["SATEG","impuestos-sateg"]]){
           const vis = OBLIG.filter(o=>o.aut===aut && !o.info).map(o=>estadoOblig(o,k)).filter(e=>e.visible);
-          if(vis.length && vis.every(e=>e.st==="presentada"||e.st==="pagada") && vis.some(e=>e.d && e.d.presentada)) marcar(act, m);
+          if(vis.length && vis.every(e=>e.st==="presentada"||e.st==="pagada"||e.st==="correcta") && vis.some(e=>e.d && e.d.presentada)) marcar(act, m);
         }
         const dD = declDe(year, m, "diot"); if(dD && dD.presentada) marcar("diot", m);
         const dI = declDe(year, m, "imss"); if(dI && dI.pagada && dI.contpaq) marcar("pago-imss", m);
@@ -3870,7 +3919,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const pol = polizas[key] || {};
         for(const [k2, act] of [["iva","determinacion-iva"],["isn","determinacion-isn"],["imss","prov-imss"],["resumen","resumen-cuentas"]]) if(pol[k2]) marcar(act, m);
         // Balanza: sin diferencias
-        const b = balanzas[key]; if(b){ const rr = revisarBalanza(b); if(!rr.filas.some(x=>x.dif!=null && Math.abs(x.dif)>1)) marcar("balanza", m); }
+        const b = balanzas[key]; if(b){ const rr = revisarBalanza(b); if(!difsBalanza(rr, year, m)) marcar("balanza", m); }
         // Expediente
         const s = estadoExp(m); if(s.pol) marcar("polizas", m); if(licencias.length && s.inv) marcar("recopilar-invoices", m); if(s.drive) marcar("carpeta-final-drive", m);
       }
@@ -4339,7 +4388,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
               if(d && d.presentada){
                 const vers = d.versiones||[], tot = vers.length ? r2(vers.reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0) - (+d.aFavor||0)) : null;
                 const neto = o.clave==="iva" || o.info || o.sinCalculo ? null : (tot!=null ? tot : +d.aPagar||0);
-                pres = neto==null || Math.abs(neto - e.calc) <= 1 ? "OK" : neto < e.calc ? "MAL" : "REVISAR";
+                pres = d.revisadaOk || neto==null || Math.abs(neto - e.calc) <= 1 ? "OK" : neto < e.calc ? "MAL" : "REVISAR";
                 pago = +d.aPagar ? (d.pagada ? "OK" : "PENDIENTE") : "N/A";
               } else if(e.porTablero){ pres = "OK"; }
               else if(e.visible && Math.abs(e.calc)>0.009){ pres = "NO"; pago = "PENDIENTE"; }
@@ -4467,6 +4516,62 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       await guardarArchivo(`Saldos diarios ${empresaNombre} ${hoyISO}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
     }catch(e){ toast("No se pudo preparar el Excel."); }
   }
+
+  // ---------- Notas y revisiones por mes (impuestos y balanza) ----------
+  let notasMes = {}, unsubNM = null;
+  function subscribeNotasMes(){
+    if(unsubNM) unsubNM(); notasMes = {};
+    if(!db || !empresa) return;
+    unsubNM = db.collection(`empresas/${empresa}/notasMes`).onSnapshot(qs => { notasMes = Object.fromEntries(qs.docs.map(d=>[d.id, d.data()])); rerenderDatos(); }, () => {});
+  }
+  const nmDe = (y, m) => notasMes[mesKey(y, m)] || {};
+  async function guardarNM(y, m, cambios){
+    const key = mesKey(y, m), d = {...nmDe(y, m), ...cambios};
+    notasMes = {...notasMes, [key]: d};
+    try{ setSaving("Guardando…"); await db.doc(`empresas/${empresa}/notasMes/${key}`).set(d); setSaving("Guardado"); }catch(err){ handleWriteError(err); }
+  }
+  const claveAviso = t => normTxt(t).replace(/[^a-z0-9]/g,"").slice(0,90);
+  const difsBalanza = (rr, y, m) => { const rev = nmDe(y, m).balRev || {}; return rr.filas.filter(x=>x.dif!=null && Math.abs(x.dif)>1 && !rev[x.concepto]).length; };
+
+  // ---------- Detalle de una declaración: recargos, compensaciones, nota, revisada ----------
+  let detDe = null, detComps = [];
+  function ivaAFavor(y){
+    // Saldo a favor de IVA por mes de origen: lo que generó cada mes menos lo que ya compensaste
+    const filas = [];
+    for(let m=1;m<=12;m++){
+      const d = declDe(y, m, "iva"), gen = d && d.presentada ? r2(+d.aFavor||0) : 0, key = mesKey(y, m);
+      const usos = declaraciones.flatMap(x=>(x.compensaciones||[]).filter(c=>c.origen===key && +c.monto>0).map(c=>({en: `${(OBLIG.find(o=>o.clave===x.clave)||{}).nombre||x.clave} de ${MESES[x.mes-1].toLowerCase()}`, monto:+c.monto})));
+      const apl = r2(usos.reduce((s,u)=>s+u.monto,0));
+      if(gen || apl) filas.push({key, m, gen, apl, saldo: r2(gen - apl), usos});
+    }
+    return filas;
+  }
+  function pintarDetComps(){
+    const ops = ivaAFavor(year).filter(f=>f.saldo>0.009 || detComps.some(c=>c.origen===f.key));
+    $("detComps").innerHTML = detComps.map((c,i)=>`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select data-dc="${i}" data-k="origen" style="width:auto"><option value="">Saldo a favor de…</option>${ops.map(f=>`<option value="${f.key}" ${c.origen===f.key?"selected":""}>IVA ${MESES[f.m-1].toLowerCase()} (quedan ${money.format(f.saldo)})</option>`).join("")}</select><input data-dc="${i}" data-k="monto" type="number" step="0.01" min="0" value="${c.monto??""}" placeholder="Monto" style="max-width:130px"><button class="linkbtn" data-dcdel="${i}" aria-label="Quitar">×</button></div>`).join("") || `<div class="fsub" style="max-width:none">${ops.length ? "Sin compensaciones." : "No tienes saldos a favor de IVA registrados en el año."}</div>`;
+  }
+  function abrirDetalle(cl){
+    const d = declDe(year, iMes, cl) || {}; detDe = cl;
+    $("detTitulo").textContent = `${(OBLIG.find(o=>o.clave===cl)||{}).nombre||cl} · ${MESES[iMes-1]} ${year}`;
+    $("detRec").value = d.recargos ?? ""; $("detAct").value = d.actualizacion ?? ""; $("detReal").value = d.pagadoReal ?? ""; $("detNota").value = d.nota || ""; $("detOk").checked = !!d.revisadaOk;
+    detComps = (d.compensaciones||[]).map(c=>({...c})); pintarDetComps(); $("detDlg").showModal();
+  }
+  $("detComps").addEventListener("input", e => { const x = e.target.closest("[data-dc]"); if(!x) return; const c = detComps[+x.dataset.dc]; c[x.dataset.k] = x.dataset.k==="monto" ? (x.value===""?null:+x.value) : x.value; });
+  $("detComps").addEventListener("change", e => { const x = e.target.closest("select[data-dc]"); if(x){ detComps[+x.dataset.dc].origen = x.value; } });
+  $("detComps").addEventListener("click", e => { const x = e.target.closest("[data-dcdel]"); if(x){ detComps.splice(+x.dataset.dcdel, 1); pintarDetComps(); } });
+  $("detCompAdd").onclick = () => { detComps.push({origen:"", monto:null}); pintarDetComps(); };
+  $("detCancel").onclick = () => $("detDlg").close();
+  $("detGuardar").onclick = async () => {
+    const cl = detDe, id = declId(year, iMes, cl), prev = declDe(year, iMes, cl) || {anio:year, mes:iMes, clave:cl};
+    const d = {...prev}; delete d.id;
+    const num = v => v==="" || v==null ? null : r2(+v);
+    d.recargos = num($("detRec").value); d.actualizacion = num($("detAct").value); d.pagadoReal = num($("detReal").value);
+    d.nota = $("detNota").value.trim(); d.revisadaOk = $("detOk").checked;
+    d.compensaciones = detComps.filter(c=>c.origen && +c.monto>0).map(c=>({origen:c.origen, monto:r2(+c.monto)}));
+    const sumComp = r2(d.compensaciones.reduce((s,c)=>s+c.monto,0)); d.compensacion = sumComp || null;
+    try{ setSaving("Guardando…"); await escribirDecl(id, d); declaraciones = [...declaraciones.filter(x=>x.id!==id), {id, ...d}]; setSaving("Guardado"); $("detDlg").close(); revisarImpuestosTablero(); renderImpuestos(); }
+    catch(err){ handleWriteError(err); }
+  };
 
   // ---------- Arranque ----------
   render();
