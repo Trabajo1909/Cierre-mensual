@@ -2752,7 +2752,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const {it, archivo} of entradas){
       const id = declId(it.anio, it.mes, it.clave), prev = declDe(it.anio, it.mes, it.clave) || {};
       let d = {...prev, anio: it.anio, mes: it.mes, clave: it.clave, presentada: true}; delete d.id;
-      const misma = (a, b) => (a.operacion && b.operacion) ? a.operacion===b.operacion : (a.fechaPresentacion||"")===(b.fechaPresentacion||"");
+      const misma = (a, b) => mismaDeclaracion(a, b);
       const versiones = prev.versiones || [];
       const enHist = versiones.findIndex(v=>misma(v, it));
       if(prev.presentada && !misma(prev, it) && enHist<0 && it.fechaPresentacion && prev.fechaPresentacion && it.fechaPresentacion < prev.fechaPresentacion){
@@ -2846,7 +2846,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const declarado = d.presentada && totalDecl!=null && o.clave!=="iva" && !esDiot ? `${f(totalDecl)}<div class="fsub" style="max-width:none">${vers.length+1} declaraciones</div>` : d.presentada ? (esDiot ? (d.ivaDiot!=null ? `IVA ${f(+d.ivaDiot)}` : "Presentada") : +d.aFavor ? `A favor ${f(+d.aFavor)}` : f(+d.aPagar||0)) : "—";
       const calcTxt = o.sinCalculo ? "—" : esDiot ? `IVA ${f(k.diot.iva)}` : o.clave==="iva" && k.ivaNeto<0 ? `A favor ${f(-k.ivaNeto)}` : f(e.calc);
       const dif = d.revisadaOk ? 0 : d.presentada && !o.sinCalculo && totalDecl!=null && o.clave!=="iva" && !esDiot ? Math.abs(totalDecl - e.calc) : d.presentada && !o.sinCalculo ? (esDiot ? (d.ivaDiot!=null ? Math.abs(+d.ivaDiot - k.diot.iva) : 0) : o.clave==="iva" && k.ivaNeto<0 ? Math.abs((+d.aFavor||0) - (-k.ivaNeto)) : Math.abs((+d.aPagar||0) - e.calc)) : 0;
-      const docs = (d.archivos||[]).map((a,ix)=>`<button class="doc" data-dl="${esc(o.clave)}" data-ix="${ix}" title="Descargar ${esc(a.nombre)}">${({linea:"Línea de captura", declaracion:"Declaración", resumen:"Resumen SUA", cedula:"Cédula SUA", comprobante:"Comprobante de pago"})[a.tipo]||"Acuse"}</button>`).join("");
+      const docs = (d.archivos||[]).map((a,ix)=>`<span style="display:inline-flex;align-items:center;gap:2px"><button class="doc" data-dl="${esc(o.clave)}" data-ix="${ix}" title="Descargar ${esc(a.nombre)}">${({linea:"Línea de captura", declaracion:"Declaración", resumen:"Resumen SUA", cedula:"Cédula SUA", comprobante:"Comprobante de pago"})[a.tipo]||"Acuse"}</button>${canWrite?`<button class="linkbtn" data-deldoc="${esc(o.clave)}" data-ix="${ix}" title="Quitar ${esc(a.nombre)}" aria-label="Quitar ${esc(a.nombre)}" style="text-decoration:none;font-size:15px;padding:0 4px">×</button>`:""}</span>`).join("");
       const gp = d.presentada && +d.aPagar>0 ? grupoPago({...d, anio:k.y, mes:k.m, clave:o.clave}) : [], totGp = r2(gp.reduce((s,x)=>s+(+x.aPagar||0),0));
       const banco = d.presentada && +d.aPagar>0 && !d.pagada ? (buscarPagoBanco(gp.length>1 ? r2(gp.reduce((s,x)=>s+(+x.pagadoReal||+x.aPagar||0),0)) : (+d.pagadoReal || +d.aPagar), `${k.y}-${String(k.m).padStart(2,"0")}-01`) || (gp.length>1 ? null : null)) : null;
       const gpTxt = gp.length>1 ? `Se paga junto con ${gp.filter(x=>x.clave!==o.clave).map(x=>(OBLIG.find(y=>y.clave===x.clave)||{}).nombre||x.clave).join(", ")} · total ${f(totGp)}` : "";
@@ -2854,7 +2854,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const comps = (d.compensaciones||[]).filter(x=>+x.monto>0);
       const det = [d.revisadaOk ? `<strong>Revisada: correcta</strong>` : "", +d.recargos ? `Recargos pagados ${f(+d.recargos)}` : "", +d.actualizacion ? `Actualización ${f(+d.actualizacion)}` : "",
         ...comps.map(x=>`Compensado con IVA a favor de ${MESES[+x.origen.slice(5)-1].toLowerCase()} ${x.origen.slice(0,4)}: ${f(+x.monto)}`), +d.pagadoReal ? `Se pagó ${f(+d.pagadoReal)} en el banco` : "",
-        d.nota ? `Nota: ${esc(d.nota)}` : "", gpTxt, imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map(v=>`${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}`), e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
+        d.nota ? `Nota: ${esc(d.nota)}` : "", gpTxt, imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map((v,vi)=>`${[...vers.slice(0,vi), ...vers.slice(vi+1), d].some(o2=>mismaDeclaracion(v, o2)) ? '<strong style="color:var(--late-ink)">Parece repetida:</strong> ' : ""}${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}${v.operacion?` (op. ${esc(v.operacion)})`:""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}${canWrite?` <button class="linkbtn" data-delver="${esc(o.clave)}" data-i="${vi}" style="font-size:12px">quitar</button>`:""}`), vers.length && d.presentada ? `Actual: ${/COMPLEM/i.test(d.tipoDecl||"")?"complementaria":"normal"}${d.operacion?` (op. ${esc(d.operacion)})`:""}${canWrite?` <button class="linkbtn" data-delactual="${esc(o.clave)}" style="font-size:12px">quitar</button>`:""}` : "", e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
         d.linea && d.linea.fechaLimite && !d.pagada && +d.aPagar>0 ? `Pagar antes del ${fechaCorta(d.linea.fechaLimite)} ${d.linea.fechaLimite.slice(0,4)}`:"", d.pagada&&d.fechaPago?`Pagada ${fechaCorta(d.fechaPago)} ${d.fechaPago.slice(0,4)}`:"", d.folioSUA?`Folio SUA ${esc(d.folioSUA)}`:"",
         o.clave==="imss" && d.pagada ? (d.contpaq ? "Registrado en CONTPAQi" : "Falta registrarlo en CONTPAQi") : "",
         banco ? `<strong>Encontré un retiro de ${f(banco.monto)} en ${esc(banco.cuenta)} el ${fechaCorta(banco.fecha)}</strong>` : ""].filter(Boolean).join(" · ");
@@ -2944,6 +2944,19 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("ibody").addEventListener("click", async e => {
     const dl = e.target.closest("[data-dl]");
     if(dl){ const d = declDe(year, iMes, dl.dataset.dl); const a = d && (d.archivos||[])[+dl.dataset.ix]; if(a) descargarAsset(a); return; }
+    const dd = e.target.closest("[data-deldoc]"), dv = e.target.closest("[data-delver]"), da = e.target.closest("[data-delactual]");
+    if(dd || dv || da){
+      const cl = (dd||dv||da).dataset[dd?"deldoc":dv?"delver":"delactual"], id = declId(year, iMes, cl), prev = declDe(year, iMes, cl); if(!prev) return;
+      const d = {...prev}; delete d.id;
+      if(dd){ const a = (d.archivos||[])[+dd.dataset.ix]; if(!a || !await confirmar(`¿Quitar el documento "${a.nombre}"? Los importes registrados no cambian; si fue un acuse duplicado, quita también la declaración repetida.`)) return; d.archivos = d.archivos.filter((_,i)=>i!==+dd.dataset.ix); }
+      if(dv){ const v = (d.versiones||[])[+dv.dataset.i]; if(!v || !await confirmar(`¿Quitar la declaración ${/COMPLEM/i.test(v.tipoDecl)?"complementaria":"normal"} del ${v.fechaPresentacion||"—"} por ${money.format(+v.aFavor ? -v.aFavor : +v.aPagar||0)}? Ya no contará en lo declarado.`)) return; d.versiones = d.versiones.filter((_,i)=>i!==+dv.dataset.i); }
+      if(da){ if(!await confirmar("¿Quitar la declaración más reciente? La anterior quedará como la actual.")) return;
+        const vs = [...(d.versiones||[])]; const ult = vs.pop();
+        for(const k of ["tipoDecl","fechaPresentacion","operacion","aPagar","aFavor","pagada","fechaPago","bancoPago","impuesto","actualizacion","recargos","compensacion","pagadoAntes","linea"]){ if(ult && ult[k]!=null && ult[k]!=="") d[k] = ult[k]; else delete d[k]; }
+        d.versiones = vs; d.presentada = !!ult; }
+      try{ setSaving("Guardando…"); await escribirDecl(id, d); declaraciones = [...declaraciones.filter(x=>x.id!==id), {id, ...d}]; setSaving("Guardado"); revisarImpuestosTablero(); renderImpuestos(); }catch(err){ handleWriteError(err); }
+      return;
+    }
     if(e.target.closest("#zipBtn")){
       const docs = declaraciones.filter(d=>d.anio===year&&d.mes===iMes).flatMap(d=>d.archivos||[]);
       const unicos = [...new Map(docs.map(a=>[a.id,a])).values()];
@@ -3028,6 +3041,16 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }catch(err){ toast("No se pudo preparar el resumen."); }
   }
   // Impuestos que se pagan en una sola línea de captura o un solo retiro
+  // Dos registros son la misma declaración si comparten número de operación, la fecha de presentación,
+  // o el mismo tipo e importes (por ejemplo, la línea de captura y el acuse del SATEG con fechas distintas)
+  function mismaDeclaracion(a, b){
+    if(a.operacion && b.operacion && a.operacion===b.operacion) return true;
+    if(a.operacion && b.operacion && a.operacion!==b.operacion && (a.fechaPresentacion||"")!==(b.fechaPresentacion||"")) return false;
+    if(a.fechaPresentacion && b.fechaPresentacion && a.fechaPresentacion===b.fechaPresentacion) return true;
+    const imp = x => x.aPagar!=null || x.aFavor!=null;
+    if(imp(a) && imp(b) && r2(+a.aPagar||0)===r2(+b.aPagar||0) && r2(+a.aFavor||0)===r2(+b.aFavor||0) && /COMPLEM/i.test(a.tipoDecl||"")===/COMPLEM/i.test(b.tipoDecl||"")) return true;
+    return !a.fechaPresentacion || !b.fechaPresentacion ? (a.fechaPresentacion||"")===(b.fechaPresentacion||"") : false;
+  }
   let juntarDe = null;
   function abrirJuntarPago(cl){
     const base = declDe(year, iMes, cl); if(!base) return; juntarDe = cl;
