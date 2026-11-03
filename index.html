@@ -4313,9 +4313,21 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     unsubSD = db.collection(`empresas/${empresa}/saldosDiarios`).onSnapshot(qs => { saldosD = qs.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))); if(vista==="bancos" && bTab2==="diario") renderDiario(); if(vista==="tablero") render(); }, () => {});
   }
   document.querySelectorAll("[data-btab2]").forEach(b=>b.onclick = () => { bTab2 = b.dataset.btab2; renderBancos(); });
-  const ultimoSaldo = (cta, hasta) => { const xs = saldosD.filter(s=>s.cuenta===cta && (!hasta || s.fecha<=hasta)); return xs.length ? xs[xs.length-1] : null; };
+  // Saldos que salen de los estados de cuenta subidos: saldo al cierre de cada día con movimientos
+  function saldosDeEdo(cta){
+    const out = {};
+    for(const c of concs.filter(x=>x.cuenta===cta && (x.edoSubido || (x.banco||[]).length))){
+      let s = +c.saldoInicialBanco || 0; const movs = (c.banco||[]).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
+      if(!movs.length){ const fin = new Date(Date.UTC(c.anio, c.mes, 0)).toISOString().slice(0,10); out[fin < hoyISO ? fin : hoyISO] = r2(s); continue; }
+      for(const m of movs){ s = r2(s + (m.tipo==="dep" ? +m.monto : -(+m.monto + (+m.comision||0)))); out[m.fecha] = s; }
+    }
+    return Object.entries(out).map(([fecha, saldo])=>({cuenta:cta, fecha, saldo, origen:"edo"}));
+  }
+  const todosSaldos = cta => { const man = saldosD.filter(s=>s.cuenta===cta), fechasMan = new Set(man.map(s=>s.fecha));
+    return [...man, ...saldosDeEdo(cta).filter(s=>!fechasMan.has(s.fecha))].sort((a,b)=>a.fecha.localeCompare(b.fecha)); };
+  const ultimoSaldo = (cta, hasta) => { const xs = todosSaldos(cta).filter(s=>!hasta || s.fecha<=hasta); return xs.length ? xs[xs.length-1] : null; };
   function resumenSaldosHoy(){
-    if(!cuentasB.length || !saldosD.length) return "";
+    if(!cuentasB.length || !cuentasB.some(c=>ultimoSaldo(c.id))) return "";
     const hoy = hoyISO, partes = cuentasB.map(c=>{ const s = ultimoSaldo(c.id); return s ? `${esc(c.nombre)} ${money.format(+s.saldo)}${s.fecha!==hoy?` <span class="fsub">(${fechaCorta(s.fecha)})</span>`:""}` : null; }).filter(Boolean);
     const faltan = cuentasB.filter(c=>{ const s = ultimoSaldo(c.id); return !s || s.fecha!==hoy; }).length;
     return `Saldos: ${partes.join(" · ")}${faltan ? ` · <strong style="color:var(--wip-ink)">falta capturar hoy</strong>` : ""}`;
@@ -4324,13 +4336,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const el = $("bdiario"), f = money.format;
     if(!dFecha) dFecha = hoyISO;
     if(!cuentasB.length){ el.innerHTML = `<div class="empty">Primero agrega tus cuentas de banco en Conciliación.</div>`; return; }
-    const ant = c => { const xs = saldosD.filter(s=>s.cuenta===c && s.fecha<dFecha); return xs.length ? xs[xs.length-1] : null; };
+    const ant = c => { const xs = todosSaldos(c).filter(s=>s.fecha<dFecha); return xs.length ? xs[xs.length-1] : null; };
     const del = c => saldosD.find(s=>s.cuenta===c && s.fecha===dFecha);
     // Tarjetas con lo último de cada banco
     const ult = cuentasB.map(c=>({c, s: ultimoSaldo(c.id)}));
     const total = r2(ult.reduce((s,x)=>s+(x.s ? +x.s.saldo : 0),0));
-    let html = `<div class="kpis">${ult.map(({c,s})=>{ const p = s ? saldosD.filter(x=>x.cuenta===c.id && x.fecha<s.fecha).slice(-1)[0] : null, dv = s && p ? r2(s.saldo - p.saldo) : null;
-      return `<div class="kpi"><span>${esc(c.nombre)}</span><b>${s ? f(+s.saldo) : "—"}</b><small>${s ? `${s.fecha===hoyISO?"Hoy":fechaCorta(s.fecha)}${dv!=null?` · ${dv>=0?"+":"−"}${f(Math.abs(dv))} vs. día anterior`:""}` : "Sin capturar"}</small></div>`; }).join("")}
+    let html = `<div class="kpis">${ult.map(({c,s})=>{ const p = s ? todosSaldos(c.id).filter(x=>x.fecha<s.fecha).slice(-1)[0] : null, dv = s && p ? r2(s.saldo - p.saldo) : null;
+      return `<div class="kpi"><span>${esc(c.nombre)}</span><b>${s ? f(+s.saldo) : "—"}</b><small>${s ? `${s.fecha===hoyISO?"Hoy":fechaCorta(s.fecha)}${s.origen==="edo"?" · según estado de cuenta":""}${dv!=null?` · ${dv>=0?"+":"−"}${f(Math.abs(dv))} vs. día anterior`:""}` : "Sin capturar"}</small></div>`; }).join("")}
       <div class="kpi"><span>Total disponible</span><b>${f(total)}</b><small>Suma del último saldo de cada banco</small></div></div>`;
     // Captura
     html += `<div class="bpanel" style="margin-bottom:16px"><h3>Captura del día<small>Escribe el saldo que ves en cada banco y, si quieres, los movimientos del día. La app revisa que cuadre contra el saldo anterior.</small></h3>
@@ -4352,10 +4364,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }
     html += `</tbody></table></div>${canWrite?`<div class="pairbar" style="padding:12px 14px"><button class="btn primary sm" id="dGuardar">Guardar saldos del ${fechaCorta(dFecha)}</button></div>`:""}</div>`;
     // Historial últimos 30 registros
-    const fechas = [...new Set(saldosD.map(s=>s.fecha))].sort().reverse().slice(0, 30);
+    const fechas = [...new Set(cuentasB.flatMap(c=>todosSaldos(c.id).map(s=>s.fecha)))].sort().reverse().slice(0, 30);
     html += `<div class="bpanel"><h3>Historial<small>Últimos días capturados. Toca una fecha para verla o corregirla.</small></h3>${fechas.length ? `<div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Fecha</th>${cuentasB.map(c=>`<th class="num">${esc(c.nombre)}</th>`).join("")}<th class="num">Total</th><th class="num">Cambio</th></tr></thead><tbody>
       ${fechas.map((fx,i)=>{ const tot = r2(cuentasB.reduce((s,c)=>{ const x = ultimoSaldo(c.id, fx); return s + (x ? +x.saldo : 0); },0)); const fa = fechas[i+1]; const totA = fa ? r2(cuentasB.reduce((s,c)=>{ const x = ultimoSaldo(c.id, fa); return s + (x ? +x.saldo : 0); },0)) : null;
-        return `<tr><td><button class="linkbtn" data-dfecha="${fx}">${fechaCorta(fx)} ${fx.slice(0,4)}</button></td>${cuentasB.map(c=>{ const x = saldosD.find(s=>s.cuenta===c.id && s.fecha===fx); return `<td class="num">${x ? f(+x.saldo) : '<span class="fsub">—</span>'}${x && (x.movs||[]).length ? `<div class="fsub">${x.movs.length} mov.</div>` : ""}</td>`; }).join("")}<td class="num"><strong>${f(tot)}</strong></td><td class="num">${totA!=null ? `${tot-totA>=0?"+":"−"}${f(Math.abs(tot-totA))}` : ""}</td></tr>`; }).join("")}
+        return `<tr><td><button class="linkbtn" data-dfecha="${fx}">${fechaCorta(fx)} ${fx.slice(0,4)}</button></td>${cuentasB.map(c=>{ const x = todosSaldos(c.id).find(s=>s.fecha===fx); return `<td class="num">${x ? f(+x.saldo) : '<span class="fsub">—</span>'}${x && x.origen==="edo" ? '<div class="fsub">estado de cuenta</div>' : x && (x.movs||[]).length ? `<div class="fsub">${x.movs.length} mov.</div>` : ""}</td>`; }).join("")}<td class="num"><strong>${f(tot)}</strong></td><td class="num">${totA!=null ? `${tot-totA>=0?"+":"−"}${f(Math.abs(tot-totA))}` : ""}</td></tr>`; }).join("")}
       </tbody></table></div>` : `<div class="empty" style="padding:16px">Aún no hay saldos capturados.</div>`}</div>`;
     el.innerHTML = html;
     $("statusLine").innerHTML = resumenSaldosHoy() || "Captura cada mañana el saldo de tus bancos.";
