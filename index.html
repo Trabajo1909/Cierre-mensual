@@ -399,6 +399,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
 
 <dialog id="afDlg" style="width:min(560px,94vw)">
   <h2 id="afTitulo">Registrar activo fijo</h2>
+  <label for="afFac">Tomar datos de una factura (opcional)</label><input id="afFac" list="afFacLista" autocomplete="off" placeholder="Escribe proveedor, folio o concepto"><datalist id="afFacLista"></datalist>
   <label for="afDesc">Descripción</label><input id="afDesc" autocomplete="off" placeholder="Por ejemplo: Laptop ThinkPad P16s">
   <label for="afCat">Tipo de activo</label><select id="afCat"></select>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
@@ -4240,8 +4241,20 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("afMoi").value = a ? a.moi : desde ? (+desde.subtotal||0) : ""; $("afCta").value = a ? (a.cta||"") : `${CAT_AF[cat].cta}-01-000`;
     $("afTasaC").value = a ? a.tasaC : CAT_AF[cat].t; $("afTasaF").value = a ? a.tasaF : CAT_AF[cat].t;
     $("afProv").value = a ? (a.prov||"") : desde ? `${desde.nombre}${desde.folio?` · folio ${desde.folio}`:""}` : ""; $("afMismoMes").checked = a ? !!a.mismoMes : false;
+    // Lista de facturas recibidas para elegir de cuál sale el activo
+    const fs = facturas.filter(x=>x.tipo==="recibida" && vigente(x)).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
+    afFacMap = {}; $("afFacLista").innerHTML = fs.map(x=>{ const et = `${x.fecha} · ${x.nombre} · ${x.folio?`F-${x.folio} · `:""}${money.format(+x.subtotal||0)} · ${String(x.conceptos||"").slice(0,50)}`; afFacMap[et] = x; return `<option value="${esc(et)}"></option>`; }).join("");
+    $("afFac").value = desde ? Object.keys(afFacMap).find(k=>afFacMap[k]===desde) || "" : "";
     $("afDlg").showModal(); $("afDesc").focus();
   }
+  let afFacMap = {};
+  $("afFac").addEventListener("change", () => {
+    const x = afFacMap[$("afFac").value]; if(!x) return; afDesdeFactura = x;
+    if(!$("afDesc").value) $("afDesc").value = String(x.conceptos||"").slice(0,80);
+    $("afFecha").value = x.fecha; $("afUso").value = x.fecha; $("afMoi").value = +x.subtotal||0;
+    $("afProv").value = `${x.nombre}${x.folio?` · folio ${x.folio}`:""}`;
+    toast("Tomé fecha, monto (sin IVA) y proveedor de la factura. Revisa el tipo de activo.");
+  });
   $("afCat").onchange = () => { const c = CAT_AF[$("afCat").value]; $("afTasaC").value = c.t; $("afTasaF").value = c.t; if(c.cta) $("afCta").value = `${c.cta}-01-000`; };
   $("afCancel").onclick = () => $("afDlg").close();
   $("afOk").onclick = async () => {
