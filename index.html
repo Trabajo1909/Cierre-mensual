@@ -2734,10 +2734,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!(d && d.presentada) && k.y===year && (estados[act]||{})[k.m]==="done"){ st = "presentada"; porTablero = true; }
     if(d && d.presentada){ st = (+d.aPagar>0 && !d.pagada) ? "porpagar" : (+d.aPagar>0 ? "pagada" : "presentada"); }
     if(d && d.revisadaOk && st!=="porpagar") st = "correcta";
-    return {d, calc, st, porTablero, visible: o.siempre || Math.abs(calc)>0.009 || !!d || (o.clave==="diot" && k.diot.rows.length>0) || (o.clave==="imss" && k.nom.sueldos>0)};
+    // No aplica: para este mes, o para todos los meses de esta empresa
+    const curE = empresas.find(e=>e.id===empresa) || {}, noEmp = (curE.noAplica||[]).includes(o.clave);
+    if(!(d && d.presentada) && (noEmp || (d && d.noAplica))) st = "noaplica";
+    return {d, calc, st, porTablero, noEmp, visible: o.siempre || Math.abs(calc)>0.009 || !!d || (o.clave==="diot" && k.diot.rows.length>0) || (o.clave==="imss" && k.nom.sueldos>0)};
   }
-  const ST_TXT = {sinpres:"Sin presentar", porpagar:"Por pagar", pagada:"Pagada", presentada:"Presentada", correcta:"Correcta"};
-  const ST_IMSS = {sinpres:"Sin línea de captura", porpagar:"Cuotas por pagar", pagada:"Cuotas pagadas", presentada:"Cuotas registradas", correcta:"Correctas"};
+  const ST_TXT = {sinpres:"Sin presentar", porpagar:"Por pagar", pagada:"Pagada", presentada:"Presentada", correcta:"Correcta", noaplica:"No aplica"};
+  const ST_IMSS = {sinpres:"Sin línea de captura", porpagar:"Cuotas por pagar", pagada:"Cuotas pagadas", presentada:"Cuotas registradas", correcta:"Correctas", noaplica:"No aplica"};
 
   // --- lectura de acuses y líneas de captura ---
   function esPdfImpuesto(t){ return /IMPUESTOS FEDERALES|OPERACIONES CON TERCEROS|AUTODETERMINACI|CUOTAS OBRERO PATRONALES|L[ií]neas de Captura para la Recepci|SATEG|GOBIERNO DEL ESTADO DE GUANAJUATO/i.test(t) && !/Estado de Cuenta\s+MAESTRA/i.test(t); }
@@ -2921,7 +2924,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const [aut, act] of [["SAT","impuestos-sat"],["SATEG","impuestos-sateg"]]){
       if(!actividades.some(a=>a.id===act)) continue;
       const vis = OBLIG.filter(o=>o.aut===aut && !o.info).map(o=>estadoOblig(o,k)).filter(e=>e.visible);
-      if(!vis.length || !vis.every(e=>e.st==="presentada"||e.st==="pagada"||e.st==="correcta")) continue;
+      if(!vis.length || !vis.every(e=>e.st==="presentada"||e.st==="pagada"||e.st==="correcta"||e.st==="noaplica")) continue;
       if((estados[act]||{})[iMes]==="done") continue;
       estados[act] = Object.assign({}, estados[act]||{}, {[iMes]:"done"}); scheduleSave();
       toast(`${aut} de ${MESES[iMes-1].toLowerCase()} completo: lo marqué en el tablero.`);
@@ -2974,7 +2977,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const gpTxt = gp.length>1 ? `Se paga junto con ${gp.filter(x=>x.clave!==o.clave).map(x=>(OBLIG.find(y=>y.clave===x.clave)||{}).nombre||x.clave).join(", ")} · total ${f(totGp)}` : "";
       const imd = o.clave==="imss" && d.imssDet ? d.imssDet : null;
       const comps = (d.compensaciones||[]).filter(x=>+x.monto>0);
-      const det = [o.siempre && !d.presentada && !e.porTablero && Math.abs(e.calc)<0.01 ? `<span style="color:var(--wip-ink)">Aunque dé $0, hay que presentarla en ceros.</span>` : "", d.revisadaOk ? `<strong>Revisada: correcta</strong>` : "", +d.recargos ? `Recargos pagados ${f(+d.recargos)}` : "", +d.actualizacion ? `Actualización ${f(+d.actualizacion)}` : "",
+      const det = [o.siempre && !d.presentada && !e.porTablero && e.st!=="noaplica" && Math.abs(e.calc)<0.01 ? `<span style="color:var(--wip-ink)">Aunque dé $0, hay que presentarla en ceros.</span>` : "", d.revisadaOk ? `<strong>Revisada: correcta</strong>` : "", +d.recargos ? `Recargos pagados ${f(+d.recargos)}` : "", +d.actualizacion ? `Actualización ${f(+d.actualizacion)}` : "",
         ...comps.map(x=>`Compensado con IVA a favor de ${MESES[+x.origen.slice(5)-1].toLowerCase()} ${x.origen.slice(0,4)}: ${f(+x.monto)}`), +d.pagadoReal ? `Se pagó ${f(+d.pagadoReal)} en el banco` : "",
         d.nota ? `Nota: ${esc(d.nota)}` : "", gpTxt, imd ? `IMSS ${f(imd.imss)}${imd.rcv?` · RCV ${f(imd.rcv)}`:""}${imd.inf?` · INFONAVIT ${f(imd.inf)}`:""}${imd.recargos?` · recargos ${f(imd.recargos)}`:""} · patronal ${f(imd.patronal)} · obrera ${f(imd.obrera)}` : "", ...vers.map((v,vi)=>`${[...vers.slice(0,vi), ...vers.slice(vi+1), d].some(o2=>mismaDeclaracion(v, o2)) ? '<strong style="color:var(--late-ink)">Parece repetida:</strong> ' : ""}${/COMPLEM/i.test(v.tipoDecl)?"Complementaria":"Normal"} ${v.fechaPresentacion?fechaCorta(v.fechaPresentacion)+" "+v.fechaPresentacion.slice(0,4):""}${v.operacion?` (op. ${esc(v.operacion)})`:""}: ${+v.aFavor?`a favor ${f(+v.aFavor)}`:f(+v.aPagar||0)}${v.pagada?" (pagada)":""}${canWrite?` <button class="linkbtn" data-delver="${esc(o.clave)}" data-i="${vi}" style="font-size:12px">quitar</button>`:""}`), vers.length && d.presentada ? `Actual: ${/COMPLEM/i.test(d.tipoDecl||"")?"complementaria":"normal"}${d.operacion?` (op. ${esc(d.operacion)})`:""}${canWrite?` <button class="linkbtn" data-delactual="${esc(o.clave)}" style="font-size:12px">quitar</button>`:""}` : "", e.porTablero?"Marcada como lista en el tablero":"", d.fechaPresentacion?`Presentada ${fechaCorta(d.fechaPresentacion)} ${d.fechaPresentacion.slice(0,4)}`:"", d.tipoDecl && /COMPLEM/.test(d.tipoDecl)?"complementaria":"", d.operacion?`Op. ${esc(d.operacion)}`:"",
         d.linea && d.linea.fechaLimite && !d.pagada && +d.aPagar>0 ? `Pagar antes del ${fechaCorta(d.linea.fechaLimite)} ${d.linea.fechaLimite.slice(0,4)}`:"", d.pagada&&d.fechaPago?`Pagada ${fechaCorta(d.fechaPago)} ${d.fechaPago.slice(0,4)}`:"", d.folioSUA?`Folio SUA ${esc(d.folioSUA)}`:"",
@@ -2982,6 +2985,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         banco ? `<strong>Encontré un retiro de ${f(banco.monto)} en ${esc(banco.cuenta)} el ${fechaCorta(banco.fecha)}</strong>` : ""].filter(Boolean).join(" · ");
       const acts = canWrite ? [ !d.presentada && !e.porTablero ? `<button class="linkbtn" data-act="presentar" data-cl="${o.clave}">${o.clave==="imss"?"Registrar cuotas del mes":"Marcar presentada"}</button>` : "",
         `<button class="linkbtn" data-act="detalle" data-cl="${o.clave}">Recargos, compensación y notas</button>`,
+        !d.presentada && e.st!=="noaplica" ? `<button class="linkbtn" data-act="noaplica" data-cl="${o.clave}">No aplica este mes</button> <button class="linkbtn" data-act="noaplicaEmp" data-cl="${o.clave}">No aplica a esta empresa</button>` : "",
+        e.st==="noaplica" ? `<button class="linkbtn" data-act="${e.noEmp?"siaplicaEmp":"siaplica"}" data-cl="${o.clave}">${e.noEmp?"Sí aplica a esta empresa":"Sí aplica este mes"}</button>` : "",
         d.presentada && +d.aPagar>0 && !d.pagada ? `<button class="linkbtn" data-act="pagar" data-cl="${o.clave}">Marcar pagada</button>` : "",
         d.pagada ? `<button class="linkbtn" data-act="despagar" data-cl="${o.clave}">Quitar pago</button>` : "",
         banco ? `<button class="linkbtn" data-act="pagarBanco" data-cl="${o.clave}" data-fecha="${banco.fecha}" data-banco="${esc(banco.cuenta)}">Marcar pagada con ese retiro</button>` : "",
@@ -2990,7 +2995,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         o.clave==="imss" && d.pagada ? `<button class="linkbtn" data-act="contpaq" data-cl="${o.clave}">${d.contpaq?"Quitar registro en CONTPAQi":"Marcar registrado en CONTPAQi"}</button>` : "",
         d.presentada && !(d.archivos||[]).length ? `<button class="linkbtn" data-act="despresentar" data-cl="${o.clave}">Quitar</button>` : ""].join("") : "";
       ctl += `<tr><td><span class="aut">${o.aut}</span><div><strong>${o.nombre}</strong></div>${det?`<div class="fsub" style="white-space:normal;max-width:none">${det}</div>`:""}${d.linea&&d.linea.referencia?`<div class="uuid">Ref. ${esc(d.linea.referencia)}</div>`:""}<div class="docs">${docs}</div><div class="acts">${acts}</div></td>
-        <td class="num">${calcTxt}</td><td class="num">${declarado}${dif>1 ? (()=>{ const neto = totalDecl!=null && o.clave!=="iva" && !esDiot ? totalDecl : (o.clave==="iva" && k.ivaNeto<0 ? null : (+d.aPagar||0)); if(neto==null || esDiot || o.sinCalculo) return `<span class="difw">Diferencia ${f(dif)}</span>`; return neto < e.calc ? `<span class="difw" style="color:var(--late-ink)">Declaraste de menos ${f(dif)}: falta complementaria</span>` : `<span class="difw">Declaraste de más ${f(dif)}${totalDecl!=null&&+d.aFavor?" (ya tienes saldo a favor)":""}</span>`; })() : ""}</td><td><span class="st ${e.st==="correcta"?"pagado":e.st}">${(o.clave==="imss"?ST_IMSS:ST_TXT)[e.st]}</span></td></tr>`;
+        <td class="num">${calcTxt}</td><td class="num">${declarado}${dif>1 ? (()=>{ const neto = totalDecl!=null && o.clave!=="iva" && !esDiot ? totalDecl : (o.clave==="iva" && k.ivaNeto<0 ? null : (+d.aPagar||0)); if(neto==null || esDiot || o.sinCalculo) return `<span class="difw">Diferencia ${f(dif)}</span>`; return neto < e.calc ? `<span class="difw" style="color:var(--late-ink)">Declaraste de menos ${f(dif)}: falta complementaria</span>` : `<span class="difw">Declaraste de más ${f(dif)}${totalDecl!=null&&+d.aFavor?" (ya tienes saldo a favor)":""}</span>`; })() : ""}</td><td><span class="st ${e.st==="correcta"?"pagado":e.st==="noaplica"?"na":e.st}">${(o.clave==="imss"?ST_IMSS:ST_TXT)[e.st]}</span></td></tr>`;
     }
     ctl += `</tbody></table></div><div class="pairbar" style="padding:12px 14px">${(declaraciones.some(d=>d.anio===year&&d.mes===iMes&&(d.archivos||[]).length)) ? `<button class="btn sm" id="zipBtn">Descargar documentos del mes (.zip)</button>` : ""}${downloads?`<button class="btn sm primary" id="extractoBtn">Descargar extracto de impuestos ${year}</button>`:""}${canWrite?`<button class="linkbtn" id="extractoTpl">Cambiar formato del extracto</button><input type="file" id="extractoFile" accept=".xlsx" hidden>`:""}</div></div>`;
     // DIOT
@@ -3109,6 +3114,18 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const d = {...prev}; delete d.id;
     if(b.dataset.act==="juntarPago"){ abrirJuntarPago(cl); return; }
     if(b.dataset.act==="detalle"){ abrirDetalle(cl); return; }
+    if(b.dataset.act==="noaplicaEmp" || b.dataset.act==="siaplicaEmp"){
+      const cur = empresas.find(x=>x.id===empresa) || {}, set = new Set(cur.noAplica||[]);
+      if(b.dataset.act==="noaplicaEmp"){ if(!await confirmar(`¿${(OBLIG.find(o=>o.clave===cl)||{}).nombre||cl} no aplica a ${cur.nombre||"esta empresa"}? Ya no te lo pediré en ningún mes.`)) return; set.add(cl); } else set.delete(cl);
+      cur.noAplica = [...set];
+      try{ await db.doc(`empresas/${empresa}`).update({noAplica: cur.noAplica}); }catch(err){ handleWriteError(err); }
+      revisarImpuestosTablero(); renderImpuestos(); return;
+    }
+    if(b.dataset.act==="noaplica" || b.dataset.act==="siaplica"){
+      const d2 = {...(declDe(year, iMes, cl) || {anio:year, mes:iMes, clave:cl})}; delete d2.id; d2.noAplica = b.dataset.act==="noaplica";
+      try{ setSaving("Guardando…"); await escribirDecl(id, d2); declaraciones = [...declaraciones.filter(x=>x.id!==id), {id, ...d2}]; setSaving("Guardado"); }catch(err){ handleWriteError(err); }
+      revisarImpuestosTablero(); renderImpuestos(); return;
+    }
     // Pagar, desmarcar o adjuntar comprobante aplica a todos los impuestos del mismo pago
     if(["pagar","pagarBanco","despagar"].includes(b.dataset.act) && prev.presentada){
       const grupo = grupoPago(prev);
@@ -4131,7 +4148,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const k = calcMes(year, m, memo);
         for(const [aut, act] of [["SAT","impuestos-sat"],["SATEG","impuestos-sateg"]]){
           const vis = OBLIG.filter(o=>o.aut===aut && !o.info).map(o=>estadoOblig(o,k)).filter(e=>e.visible);
-          if(vis.length && vis.every(e=>e.st==="presentada"||e.st==="pagada"||e.st==="correcta") && vis.some(e=>e.d && e.d.presentada)) marcar(act, m);
+          if(vis.length && vis.every(e=>e.st==="presentada"||e.st==="pagada"||e.st==="correcta"||e.st==="noaplica") && vis.some(e=>e.d && e.d.presentada)) marcar(act, m);
         }
         const dD = declDe(year, m, "diot"); if(dD && dD.presentada) marcar("diot", m);
         const dI = declDe(year, m, "imss"); if(dI && dI.pagada && dI.contpaq) marcar("pago-imss", m);
@@ -4622,7 +4639,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
                 const neto = o.clave==="iva" || o.info || o.sinCalculo ? null : (tot!=null ? tot : +d.aPagar||0);
                 pres = d.revisadaOk || neto==null || Math.abs(neto - e.calc) <= 1 ? "OK" : neto < e.calc ? "MAL" : "REVISAR";
                 pago = +d.aPagar ? (d.pagada ? "OK" : "PENDIENTE") : "N/A";
-              } else if(e.porTablero){ pres = "OK"; }
+              } else if(e.st==="noaplica"){ pres = "N/A"; pago = "N/A"; }
+              else if(e.porTablero){ pres = "OK"; }
               else if(e.visible && Math.abs(e.calc)>0.009){ pres = "NO"; pago = "PENDIENTE"; }
               const tieneDato = d && d.presentada, cP = colP[m] && pr.getRow(r).getCell(colP[m]), cG = colG[m] && pr.getRow(r).getCell(colG[m]);
               if(cP && (tieneDato || e.porTablero || !txt(cP.value))) cP.value = pres;
@@ -5552,7 +5570,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       render(); return;
     }
     db.collection("empresas").onSnapshot(qs => {
-      empresas = qs.docs.map(d => ({id: d.id, nombre: (d.data().nombre || d.id)}));
+      empresas = qs.docs.map(d => ({...d.data(), id: d.id, nombre: (d.data().nombre || d.id)}));
+      if(facLoaded && vista==="impuestos") renderImpuestos();
       if(!empresas.length){ loadedEmpresa = true; renderTabs(); $("statusLine").textContent = "Agrega tu primera empresa para empezar."; $("sheet").innerHTML = '<div class="empty">Todavía no hay empresas. Usa <strong>+ Agregar empresa</strong>.</div>'; return; }
       if(!empresa || !empresas.some(e=>e.id===empresa)){
         let pref = null; try{ pref = localStorage.getItem("cierre-empresa"); }catch(_){}
