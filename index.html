@@ -2562,7 +2562,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function parseBancoPdf(L, file){
     const {lineas, todo} = L;
     if(/soycedi\.com|Cedi\w* App SAPI/i.test(todo) && !/BBVA MEXICO/i.test(todo)) return parseCediPdf(L, file);
-    if(!/BBVA/.test(todo)){ toast(`${file.name}: por ahora sé leer estados de cuenta en PDF de BBVA y CEDI.`); return null; }
+    if(/MP Agregador|mercadopago\.com|ESTADO DE SALDOS Y MOVIMIENTOS/i.test(todo) && /Cust id/i.test(todo)) return parseMercadoPagoPdf(L, file);
+    if(!/BBVA/.test(todo)){ toast(`${file.name}: por ahora sé leer estados de cuenta en PDF de BBVA, CEDI y Mercado Pago.`); return null; }
     const per = todo.match(/DEL\s+(\d{2})\/(\d{2})\/(\d{4})\s+AL\s+(\d{2})\/(\d{2})\/(\d{4})/);
     if(!per){ toast(`${file.name}: no encontré el periodo del estado de cuenta.`); return null; }
     const anioFin = +per[6], mesFin = +per[5];
@@ -5440,6 +5441,48 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(egresos) avisos.push(`${egresos} notas de crédito (egresos) todavía no se toman en cuenta.`);
     if(xs.length) avisos.push("Los XML no dicen si están cancelados: sube después el reporte de AdminXML o marca las canceladas a mano.");
     return {docs, comps, noms, aviso: avisos.join(" ")};
+  }
+
+  // --- Estado de cuenta de Mercado Pago en PDF ---
+  function parseMercadoPagoPdf(L, file){
+    const amt = /^\$\s*-?[\d,]+\.\d{2}$/, val = s => +String(s).replace(/[$,\s]/g,"");
+    const T = sinAcento(L.todo).toUpperCase().replace(/\s+/g," ");
+    const pm = T.match(/DEL\s+\d{1,2}\s+AL\s+\d{1,2}\s+DE\s+([A-Z]+)\s+DE\s+(\d{4})/);
+    const saldoIni = (L.todo.match(/Saldo inicial:?\s*\$\s*(-?[\d,]+\.\d{2})/i)||[])[1], saldoFin = (L.todo.match(/Saldo final:?\s*\$\s*(-?[\d,]+\.\d{2})/i)||[])[1];
+    const ent = (L.todo.match(/Entradas:?\s*\$\s*(-?[\d,]+\.\d{2})/i)||[])[1], sal = (L.todo.match(/Salidas:?\s*\$\s*(-?[\d,]+\.\d{2})/i)||[])[1];
+    const filas = [];
+    // Renglones: los que traen la fecha; la descripción puede venir en renglones de arriba o de abajo
+    for(const l of L.lineas){
+      const it = l.items.map(i=>({...i, s:i.s.trim()})).filter(i=>i.s);
+      const fe = it.find(i=>/^\d{2}-\d{2}-\d{4}$/.test(i.s));
+      if(fe){
+        const montos = it.filter(i=>amt.test(i.s)).sort((a,b)=>a.x-b.x), idOp = (it.find(i=>/^\d{9,}$/.test(i.s))||{}).s || "";
+        if(montos.length < 2) continue;
+        const [d,m,y] = fe.s.split("-");
+        filas.push({p: l.p, y: l.y, fecha: `${y}-${m}-${d}`, valor: val(montos[0].s), saldo: val(montos[1].s), idOp, desc: it.filter(i=>!amt.test(i.s) && i!==fe && i.s!==idOp).map(i=>i.s)});
+      }
+    }
+    for(const l of L.lineas){
+      if(l.items.some(i=>/^\d{2}-\d{2}-\d{4}$/.test(i.s.trim())) || l.items.some(i=>amt.test(i.s.trim()))) continue;
+      const txt = l.items.filter(i=>i.x>80 && i.x<210).map(i=>i.s).join(" ").trim(); if(!txt || /^(Descripci|Fecha|ID de la|operaci)/i.test(txt)) continue;
+      const cand = filas.filter(f=>f.p===l.p && Math.abs(f.y - l.y) <= 16).sort((a,b)=>Math.abs(a.y-l.y)-Math.abs(b.y-l.y))[0];
+      if(cand) (l.y > cand.y ? cand.desc.unshift(txt) : cand.desc.push(txt));
+    }
+    if(!filas.length && !pm){ toast(`${file.name}: no encontré movimientos en el estado de cuenta de Mercado Pago.`); return null; }
+    const ids = new Set();
+    const movs = filas.map((f,i)=>{ let id = `mp-${f.idOp||i}-${f.fecha}`; while(ids.has(id)) id += "x"; ids.add(id);
+      const desc = f.desc.join(" ").replace(/\s+/g," ").trim();
+      return {id, fecha: f.fecha, tipo: f.valor>=0 ? "dep" : "ret", monto: r2(Math.abs(f.valor)), comision: 0, nombre: desc || "Mercado Pago", concepto: f.idOp ? `Op. ${f.idOp}` : ""}; });
+    // Revisión: cada saldo debe ser el anterior más el movimiento, y los totales deben coincidir con el resumen
+    let s = saldoIni!=null ? val(saldoIni) : null, rotos = 0;
+    filas.forEach(f=>{ if(s!=null && Math.abs(r2(s + f.valor) - f.saldo) > 0.01) rotos++; s = f.saldo; });
+    const sE = r2(filas.filter(f=>f.valor>0).reduce((a,f)=>a+f.valor,0)), sS = r2(filas.filter(f=>f.valor<0).reduce((a,f)=>a+f.valor,0)), avisos = [];
+    if(ent && Math.abs(sE - val(ent))>0.01) avisos.push(`entradas ${money.format(sE)} contra ${money.format(val(ent))}`);
+    if(sal && Math.abs(sS - val(sal))>0.01) avisos.push(`salidas ${money.format(sS)} contra ${money.format(val(sal))}`);
+    if(rotos) avisos.push(`${rotos} saldos que no siguen la secuencia`);
+    if(avisos.length) toast(`${file.name}: revisa los movimientos, leí ${avisos.join(", ")}.`);
+    const mes = pm && MES_NOMBRE[pm[1]] ? MES_NOMBRE[pm[1]] : (movs[0] ? +movs[0].fecha.slice(5,7) : null), anio = pm ? +pm[2] : (movs[0] ? +movs[0].fecha.slice(0,4) : null);
+    return {movs, saldoInicial: saldoIni!=null ? val(saldoIni) : null, periodo: {anio, mes}, sinMovs: !movs.length};
   }
 
   // ---------- Arranque ----------
