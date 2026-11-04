@@ -1389,6 +1389,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         }
         const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
         const arr = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:"", raw:true});
+        if(arr.slice(0,12).some(row=>row.some(x=>/Balanza de comprobaci/i.test(String(x))))){ balPdfs.push({xlsx: arr, file}); continue; }
         if(arr.slice(0,8).some(row=>row.some(x=>/Impreso de p[oó]lizas/i.test(String(x))))){ polXlsx.push({arr, name:file.name}); continue; }
         const kind = detectarBanco(arr);
         if(kind){ bancoFiles.push({kind, arr, name:file.name}); continue; }
@@ -3300,10 +3301,34 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const sumas = (L.todo.match(/Sumas Iguales:?\s*([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/i)||[]).slice(1).map(numMx);
     return {anio, mes, cuentas, sumas};
   }
+  // Balanza de comprobación exportada a Excel desde CONTPAQi
+  function parseBalanzaXlsx(arr){
+    const S = x => String(x ?? "").trim();
+    const textoIni = arr.slice(0,12).map(r=>r.map(S).join(" ")).join(" ");
+    const corte = textoIni.match(/al\s+(\d{1,2})\/([A-Za-z]{3})\/(\d{4})/i) || textoIni.match(/al\s+(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(!corte) return null;
+    const anio = +corte[3], mes = isNaN(+corte[2]) ? MES_ABR[corte[2].toLowerCase()] : +corte[2]; if(!mes) return null;
+    // Columnas: busca los encabezados Deudor / Acreedor / Cargos / Abonos
+    let iD = [], iA = [], iC = -1, iB = -1;
+    for(const r of arr.slice(0,15)){ r.forEach((x,i)=>{ const t = sinAcento(S(x)).toUpperCase(); if(t==="DEUDOR") iD.push(i); if(t==="ACREEDOR") iA.push(i); if(t==="CARGOS") iC = i; if(t==="ABONOS") iB = i; }); }
+    const num = x => typeof x==="number" ? x : (S(x) ? numMx(S(x)) : 0);
+    const cuentas = [];
+    for(const r of arr){
+      const iCod = r.findIndex(x=>/^\d{3}-\d{2}-\d{3}$/.test(S(x)) || /^\d{8}$/.test(S(x))); if(iCod<0) continue;
+      const cod = S(r[iCod]).length===8 ? `${S(r[iCod]).slice(0,3)}-${S(r[iCod]).slice(3,5)}-${S(r[iCod]).slice(5)}` : S(r[iCod]);
+      const nombre = S(r.slice(iCod+1).find(x=>S(x) && isNaN(+S(x).replace(/,/g,""))) || "");
+      let si, ca, ab, sf;
+      if(iC>=0 && iB>=0 && iD.length>=2 && iA.length>=2){ si = num(r[iD[0]]) - num(r[iA[0]]); ca = num(r[iC]); ab = num(r[iB]); sf = num(r[iD[1]]) - num(r[iA[1]]); }
+      else { const ns = r.slice(iCod+1).filter(x=>typeof x==="number" || /^-?[\d,]+\.\d{2}$/.test(S(x))).map(num); if(ns.length<4) continue; [si, ca, ab, sf] = [ns[0], ns[ns.length-3], ns[ns.length-2], ns[ns.length-1]]; if(!/^[156]/.test(cod)){ si = -si; sf = -sf; } }
+      cuentas.push({cuenta: cod, nombre, si: r2(si), cargos: r2(ca), abonos: r2(ab), sf: r2(sf)});
+    }
+    if(!cuentas.length) return null;
+    return {anio, mes, cuentas, sumas: []};
+  }
   async function guardarBalanzas(lista){
     const hechos = [];
-    for(const {L, file} of lista){
-      const b = parseBalanzaPdf(L);
+    for(const {L, file, xlsx} of lista){
+      const b = xlsx ? parseBalanzaXlsx(xlsx) : parseBalanzaPdf(L);
       if(!b){ toast(`${file.name}: no pude leer la balanza.`); continue; }
       const id = mesKey(b.anio, b.mes);
       blMes = b.mes; balanzas = {...balanzas, [id]: b};
