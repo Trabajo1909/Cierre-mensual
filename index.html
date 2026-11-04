@@ -2563,7 +2563,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const {lineas, todo} = L;
     if(/soycedi\.com|Cedi\w* App SAPI/i.test(todo) && !/BBVA MEXICO/i.test(todo)) return parseCediPdf(L, file);
     if(/MP Agregador|mercadopago\.com|ESTADO DE SALDOS Y MOVIMIENTOS/i.test(todo) && /Cust id/i.test(todo)) return parseMercadoPagoPdf(L, file);
-    if(!/BBVA/.test(todo)){ toast(`${file.name}: por ahora sé leer estados de cuenta en PDF de BBVA, CEDI y Mercado Pago.`); return null; }
+    if(/Banamex|BANCO NACIONAL DE MEXICO/i.test(todo) && /DETALLE DE OPERACIONES/i.test(todo)) return parseBanamexPdf(L, file);
+    if(!/BBVA/.test(todo)){ toast(`${file.name}: por ahora sé leer estados de cuenta en PDF de BBVA, Banamex, CEDI y Mercado Pago.`); return null; }
     const per = todo.match(/DEL\s+(\d{2})\/(\d{2})\/(\d{4})\s+AL\s+(\d{2})\/(\d{2})\/(\d{4})/);
     if(!per){ toast(`${file.name}: no encontré el periodo del estado de cuenta.`); return null; }
     const anioFin = +per[6], mesFin = +per[5];
@@ -5483,6 +5484,58 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(avisos.length) toast(`${file.name}: revisa los movimientos, leí ${avisos.join(", ")}.`);
     const mes = pm && MES_NOMBRE[pm[1]] ? MES_NOMBRE[pm[1]] : (movs[0] ? +movs[0].fecha.slice(5,7) : null), anio = pm ? +pm[2] : (movs[0] ? +movs[0].fecha.slice(0,4) : null);
     return {movs, saldoInicial: saldoIni!=null ? val(saldoIni) : null, periodo: {anio, mes}, sinMovs: !movs.length};
+  }
+
+  // --- Estado de cuenta de Banamex en PDF (Cuenta Negocios) ---
+  function parseBanamexPdf(L, file){
+    const MESA = {ENE:1,FEB:2,MAR:3,ABR:4,MAY:5,JUN:6,JUL:7,AGO:8,SEP:9,OCT:10,NOV:11,DIC:12};
+    const T = sinAcento(L.todo).toUpperCase();
+    const corte = T.match(/ESTADO DE CUENTA AL\s+\d{1,2}\s+DE\s+([A-Z]+)\s+DE\s+(\d{4})/);
+    if(!corte || !MES_NOMBRE[corte[1]]){ toast(`${file.name}: no encontré la fecha de corte del estado de cuenta.`); return null; }
+    const anio = +corte[2], mesCorte = MES_NOMBRE[corte[1]];
+    const num = s => +String(s).replace(/[$,\s]/g,""), esNum = s => /^\$?-?[\d,]+\.\d{2}$/.test(String(s).trim());
+    let cols = null, dentro = false, cur = null, saldoIni = null; const movs = [];
+    for(const l of L.lineas){
+      const tx = sinAcento(l.texto).toUpperCase();
+      if(/DETALLE DE OPERACIONES/.test(tx)){ dentro = true; continue; }
+      if(/SALDO MINIMO REQUERIDO|COMISIONES COBRADAS|CADENA ORIGINAL|GRAFICO TRANSACCIONAL/.test(tx)){ dentro = false; continue; }
+      if(!dentro) continue;
+      if(/ESTADO DE CUENTA AL|^CLIENTE:|^PAGINA:|\.OD\.\d/.test(tx)) continue;
+      if(/^FECHA\b.*CONCEPTO.*RETIROS.*DEPOSITOS.*SALDO/.test(tx)){
+        const pos = k => (l.items.find(i=>sinAcento(i.s).toUpperCase().trim()===k)||{}).x;
+        cols = {dep: pos("DEPOSITOS"), sal: pos("SALDO")}; continue;
+      }
+      if(!cols) continue;
+      const it = l.items.map(i=>({...i, s:i.s.trim()})).filter(i=>i.s);
+      const fe = it.find(i=>i.x < 50 && /^\d{2}\s+[A-Z]{3}$/i.test(i.s));
+      const montos = it.filter(i=>i.x > 250 && esNum(i.s));
+      const texto = it.filter(i=>i!==fe && !montos.includes(i) && i.x >= 45 && i.x < 260).map(i=>i.s).join(" ");
+      if(fe && /SALDO ANTERIOR/i.test(texto)){ const s = montos.find(m=>m.x >= cols.sal - 30); if(s) saldoIni = num(s.s); continue; }
+      if(fe){ const [d, m] = fe.s.toUpperCase().split(/\s+/); cur = {fecha: `${anio}-${String(MESA[m]||mesCorte).padStart(2,"0")}-${d.padStart(2,"0")}`, lineas: []}; }
+      if(!cur) continue;
+      if(texto) cur.lineas.push(texto);
+      const imp = montos.filter(m=>m.x < cols.sal - 30);
+      if(imp.length){
+        const mo = imp[0], tipo = mo.x >= cols.dep - 25 ? "dep" : "ret", sal = montos.find(m=>m.x >= cols.sal - 30);
+        const ls = cur.lineas.filter(x=>!/^(SUC|CAJA|HORA)\b/i.test(x));
+        movs.push({fecha: cur.fecha, tipo, monto: r2(num(mo.s)), saldo: sal ? num(sal.s) : null, nombre: ls.slice(0,2).join(" ").replace(/\s+/g," ").trim(),
+          concepto: ls.slice(2).filter(x=>/REF|RASTREO|F-\d|TARJETA|T\.C\./i.test(x)).join(" ").replace(/\s+/g," ").slice(0,160)});
+        cur = null;
+      }
+    }
+    if(saldoIni==null){ const sa = L.todo.match(/Saldo Anterior\s*\$?([\d,]+\.\d{2})/i); if(sa) saldoIni = num(sa[1]); }
+    // Revisión contra el resumen y la secuencia de saldos
+    const avisos = []; let s = saldoIni, rotos = 0;
+    movs.forEach(m=>{ if(s!=null && m.saldo!=null && Math.abs(r2(s + (m.tipo==="dep"?m.monto:-m.monto)) - m.saldo) > 0.01) rotos++; if(m.saldo!=null) s = m.saldo; });
+    const dep = (L.todo.match(/\(\s*\+\s*\)\s*\d+\s*Dep[oó]sitos?\s*\$?([\d,]+\.\d{2})/i)||[])[1], ret = (L.todo.match(/\(\s*-\s*\)\s*\d+\s*Retiros?\s*\$?([\d,]+\.\d{2})/i)||[])[1];
+    const sD = r2(movs.filter(m=>m.tipo==="dep").reduce((a,m)=>a+m.monto,0)), sR = r2(movs.filter(m=>m.tipo==="ret").reduce((a,m)=>a+m.monto,0));
+    if(dep && Math.abs(sD - num(dep))>0.01) avisos.push(`depósitos ${money.format(sD)} contra ${money.format(num(dep))}`);
+    if(ret && Math.abs(sR - num(ret))>0.01) avisos.push(`retiros ${money.format(sR)} contra ${money.format(num(ret))}`);
+    if(rotos) avisos.push(`${rotos} saldos que no siguen la secuencia`);
+    if(avisos.length) toast(`${file.name}: revisa los movimientos, leí ${avisos.join(", ")}.`);
+    const ids = new Set();
+    const out = movs.map((m,i)=>{ let id = `bnmx-${m.fecha}-${m.tipo}-${Math.round(m.monto*100)}`; while(ids.has(id)) id += "x"; ids.add(id); return {id, fecha: m.fecha, tipo: m.tipo, monto: m.monto, comision: 0, nombre: m.nombre || "Banamex", concepto: m.concepto}; });
+    return {movs: out, saldoInicial: saldoIni, periodo: {anio, mes: mesCorte}, sinMovs: !out.length};
   }
 
   // ---------- Arranque ----------
