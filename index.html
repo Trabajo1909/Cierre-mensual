@@ -4816,6 +4816,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         add({key: `${tab}-${f.uuid}-${x.fecha}-${x.monto}`, tipo: tab==="egresos" ? "Egresos" : "Ingresos", fecha: x.fecha, concepto: `PAGO ${folioDe(f)?folioDe(f)+" ":""}${f.nombre}`, ref: refDe(f), f, ct, lin, bk, sinPago: x.sinPago, ya: null});
       }
     }
+    // Cuentas que cambiaste a mano en una póliza (por ejemplo, pagada por un tercero y no por el banco)
+    const camb = ((contaCfg.cambios||{})[mk]) || {};
+    for(const p of out){ const cp = camb[p.key]; if(!cp) continue; p.lin.forEach((l,i)=>{ if(cp[i]){ l.orig = l.c; l.c = cp[i]; l.falta = false; l.cambiada = true; } }); }
     // Cuadre: si cargos y abonos no cuadran por centavos, ajusta la línea mayor
     for(const p of out){ const ca = r2(p.lin.reduce((s,l)=>s+(+l.ca||0),0)), ab = r2(p.lin.reduce((s,l)=>s+(+l.ab||0),0)); p.dif = r2(ca - ab);
       if(Math.abs(p.dif) > 0 && Math.abs(p.dif) <= 0.05){ const l = p.lin.find(l=>(p.dif>0 ? l.ab : l.ca)); if(l){ if(p.dif>0) l.ab = r2(l.ab + p.dif); else l.ca = r2(l.ca - p.dif); p.dif = 0; } } }
@@ -4850,11 +4853,16 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         <div class="sheet" style="border:none;border-radius:0"><table class="pt" style="min-width:0;width:100%"><thead><tr><th>Cuenta</th><th class="num">Cargo</th><th class="num">Abono</th></tr></thead><tbody>
         ${p.lin.map((l,i)=>{ const ok = l.c && esDetalle(l.c);
           const sel = l.falta || !ok ? (l.falta==="gasto" || (!ok && /^(5|6|7)/.test(l.c||"")) ? `<select data-coset="gasto" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["5","6","7","15"], l.c)}</select>` : l.falta==="prov" ? `<select data-coset="prov" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["201","205"], l.c)}</select>` : l.falta==="cli" ? `<select data-coset="cli" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["105"], l.c)}</select>` : `<span class="falta">${l.c?`${esc(l.c)} no existe en tu catálogo`:"Falta cuenta"}</span>`) : "";
-          return `<tr><td>${ok?`<strong>${l.c}</strong> ${esc(ctaN(l.c))}`:""}${sel}${ok && ["gasto","prov","cli"].some(t=>p.ct[t]===l.c) ? ` <button class="linkbtn" data-cocambia="${["gasto","prov","cli"].find(t=>p.ct[t]===l.c)}" data-id="${esc(p.ct.id)}" style="font-size:12px">cambiar</button>` : ""}</td><td class="num">${l.ca?f(l.ca):""}</td><td class="num">${l.ab?f(l.ab):""}</td></tr>`; }).join("")}
+          const editando = coEdit && coEdit.key===p.key && coEdit.i===i;
+          const editor = editando ? `<div style="margin-top:6px;display:grid;gap:6px"><input id="coEditBuscar" placeholder="Buscar cuenta por número o nombre" value="${esc(coEdit.q||"")}" autocomplete="off"><select id="coEditSel" size="6" style="width:100%">${catalogo.filter(k=>esDetalle(k.c) && (!coEdit.q || normTxt(k.c+" "+k.n).includes(normTxt(coEdit.q)))).slice(0,300).map(k=>`<option value="${k.c}" ${k.c===l.c?"selected":""}>${k.c} ${esc(k.n)}</option>`).join("")}</select>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" data-coeditok="${esc(p.key)}" data-i="${i}">Usar esta cuenta solo en esta póliza</button><button class="linkbtn" data-coeditno>Cancelar</button></div></div>` : "";
+          return `<tr><td>${ok?`<strong>${l.c}</strong> ${esc(ctaN(l.c))}`:""}${l.cambiada?` <span class="st na" style="font-size:11px">Cambiada (antes ${esc(l.orig||"—")})</span> <button class="linkbtn" data-codeshacer="${esc(p.key)}" data-i="${i}" style="font-size:12px">deshacer</button>`:""}${sel}${ok && !l.cambiada && ["gasto","prov","cli"].some(t=>p.ct[t]===l.c) ? ` <button class="linkbtn" data-cocambia="${["gasto","prov","cli"].find(t=>p.ct[t]===l.c)}" data-id="${esc(p.ct.id)}" style="font-size:12px">cambiar para este ${p.f.tipo==="emitida"?"cliente":"proveedor"}</button>` : ""} ${canWrite && !editando ? `<button class="linkbtn" data-coedit="${esc(p.key)}" data-i="${i}" style="font-size:12px">cambiar en esta póliza</button>` : ""}${editor}</td><td class="num">${l.ca?f(l.ca):""}</td><td class="num">${l.ab?f(l.ab):""}</td></tr>`; }).join("")}
         <tr><td><strong>Sumas</strong>${Math.abs(p.dif)>0.009?` <span class="difw">No cuadra por ${f(Math.abs(p.dif))}</span>`:""}</td><td class="num"><strong>${f(p.lin.reduce((s,l)=>s+(+l.ca||0),0))}</strong></td><td class="num"><strong>${f(p.lin.reduce((s,l)=>s+(+l.ab||0),0))}</strong></td></tr></tbody></table></div></div>`;
     }
     $("cobody").innerHTML = html;
   }
+  let coEdit = null;
+  $("cobody").addEventListener("input", e => { if(e.target.id==="coEditBuscar" && coEdit){ coEdit.q = e.target.value; const pos = e.target.selectionStart; renderConta(); const inp = $("coEditBuscar"); if(inp){ inp.focus(); inp.setSelectionRange(pos, pos); } } });
   $("ctabs").addEventListener("click", e => { const b = e.target.closest("[data-cotab]"); if(b){ coTab = b.dataset.cotab; renderConta(); } });
   $("cmonths2").addEventListener("click", e => { const b = e.target.closest("[data-comes]"); if(b){ coMes = +b.dataset.comes; renderConta(); } });
   async function guardarCfgConta(cambios){ contaCfg = {...contaCfg, ...cambios}; try{ await db.doc(`empresas/${empresa}/catalogo/config`).set(contaCfg); }catch(err){ handleWriteError(err); } renderConta(); }
@@ -4869,6 +4877,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("cobody").addEventListener("click", async e => {
     const cb = e.target.closest("[data-cocambia]");
     if(cb){ const id = cb.dataset.id, t = {...(terceros[id]||{})}; t[cb.dataset.cocambia] = ""; terceros = {...terceros, [id]: {...t, [cb.dataset.cocambia]: "__elegir"}}; renderConta(); return; }
+    const ed = e.target.closest("[data-coedit]"); if(ed){ coEdit = {key: ed.dataset.coedit, i: +ed.dataset.i, q: ""}; renderConta(); return; }
+    if(e.target.closest("[data-coeditno]")){ coEdit = null; renderConta(); return; }
+    const ok = e.target.closest("[data-coeditok]");
+    if(ok){ const v = ($("coEditSel")||{}).value; if(!v){ toast("Elige una cuenta de la lista."); return; }
+      const mk = mesKey(year, coMes), cambios = {...(contaCfg.cambios||{})}, delMes = {...(cambios[mk]||{})}, deP = {...(delMes[ok.dataset.coeditok]||{})};
+      deP[ok.dataset.i] = v; delMes[ok.dataset.coeditok] = deP; cambios[mk] = delMes; coEdit = null; guardarCfgConta({cambios}); return; }
+    const dz = e.target.closest("[data-codeshacer]");
+    if(dz){ const mk = mesKey(year, coMes), cambios = {...(contaCfg.cambios||{})}, delMes = {...(cambios[mk]||{})}, deP = {...(delMes[dz.dataset.codeshacer]||{})};
+      delete deP[dz.dataset.i]; delMes[dz.dataset.codeshacer] = deP; cambios[mk] = delMes; guardarCfgConta({cambios}); return; }
     if(e.target.closest("#coTxt")) return exportConta("txt");
     if(e.target.closest("#coXls")) return exportConta("xlsx");
     if(e.target.closest("#coCfg")){ abrirCfgConta(); return; }
