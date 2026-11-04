@@ -248,6 +248,11 @@ table.decl td.num{text-align:right;white-space:nowrap}
 table.expl td{padding:8px 12px;font-size:13px;border-bottom:1px solid var(--line);vertical-align:top}
 table.expl td.num{text-align:right;white-space:nowrap}
 table.expl tr.grp td{background:var(--group);font-weight:700;color:var(--muted)}
+.ayuda{display:inline-grid;place-items:center;width:17px;height:17px;margin-left:5px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:700 11px/1 "Public Sans",system-ui,sans-serif;cursor:help;vertical-align:middle;padding:0;flex:none}
+.ayuda:hover,.ayuda:focus-visible{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#tipBox{position:fixed;z-index:200;max-width:min(360px,90vw);background:var(--ink);color:var(--bg);padding:10px 12px;border-radius:10px;font:500 13px/1.45 "Public Sans",system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25);pointer-events:none;white-space:normal;text-align:left}
+#tipBox[hidden]{display:none}
+.guia{font:600 13px "Public Sans",system-ui,sans-serif;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer;margin-left:10px;vertical-align:middle}
 .note{margin:14px 2px 0;color:var(--muted);font-size:13px;max-width:72ch}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw}
 .toast.show{opacity:1}
@@ -272,7 +277,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
       <h1>
-        <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span>
+        <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
           <button id="prevYear" aria-label="Año anterior">‹</button>
           <button id="nextYear" aria-label="Año siguiente">›</button>
@@ -415,6 +420,13 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <label for="bajaMotivo">Motivo</label><select id="bajaMotivo"><option>Venta</option><option>Robo o pérdida</option><option>Obsolescencia o daño</option><option>Donación</option><option>Otro</option></select>
   <label for="bajaPrecio">Precio de venta, si aplica (sin IVA)</label><input id="bajaPrecio" type="number" step="0.01" min="0">
   <div class="dlg-actions"><button class="btn" id="bajaCancel">Cancelar</button><button class="btn primary" id="bajaOk">Dar de baja</button></div>
+</dialog>
+
+<div id="tipBox" role="tooltip" hidden></div>
+<dialog id="guiaDlg" style="width:min(640px,94vw)">
+  <h2 id="guiaTitulo">Cómo funciona</h2>
+  <div id="guiaTexto" style="font-size:14px;line-height:1.6;max-height:65vh;overflow:auto"></div>
+  <div class="dlg-actions"><button class="btn primary" id="guiaCerrar">Entendido</button></div>
 </dialog>
 
 <dialog id="diotVerDlg" style="width:min(900px,96vw)">
@@ -4978,6 +4990,152 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("csheet").addEventListener("click", e => { const r = e.target.closest("[data-ter]"); if(!r) return; abiertosT.has(r.dataset.ter) ? abiertosT.delete(r.dataset.ter) : abiertosT.add(r.dataset.ter); renderCuentas(); });
   $("cBuscar").addEventListener("input", () => renderCuentas());
   $("fBuscar").addEventListener("input", () => renderFacturas());
+
+  // ---------- Ayuda: ⓘ en cada concepto y guía por sección ----------
+  const AYUDA = [
+    // Tablero
+    [/^actividad$/, "Cada tarea de tu cierre mensual. Toca una celda para cambiarla: pendiente → en proceso → terminada → no aplica. Muchas se marcan solas cuando la sección correspondiente queda completa."],
+    // Facturas
+    [/^provision$/, "Si ya registraste la provisión de esta factura PPD en CONTPAQi. Las PUE no se provisionan (van directo al gasto o ingreso), por eso salen como N/A."],
+    [/^cxc\/cxp$|^cxc$|^cxp$/, "Si ya la tienes en tu control de cuentas por cobrar o por pagar."],
+    // Cuentas
+    [/^por cobrar en|^por pagar en/, "Suma del saldo pendiente de las facturas vigentes: total de cada factura menos los cobros o pagos que registraste en Cuentas."],
+    [/^vencido en/, "Facturas con saldo cuya fecha de vencimiento (15 días hábiles después de la factura) ya pasó."],
+    [/sin complemento$/, "Facturas PPD con pago registrado pero sin complemento de pago. Los complementos se revisan solos al subir el reporte de complementos de AdminXML."],
+    [/^facturas del mes$/, "Cuántas facturas vigentes se emitieron (por cobrar) o recibieron (por pagar) en el mes, según tus reportes de AdminXML."],
+    [/^monto facturado en el mes$/, "Suma del total (con IVA) de las facturas vigentes del mes."],
+    [/^cobrado \/ pagado en el mes$/, "Cobros y pagos que registraste en Cuentas con fecha de este mes. Si una factura se pagó y no lo registraste, no aparece aquí."],
+    [/^saldo pendiente al cierre$/, "Lo que se debía el último día del mes: total de cada factura menos lo cobrado o pagado HASTA esa fecha. Por eso cuadra con tu balanza (105 clientes y 201 proveedores)."],
+    [/^facturas vencidas al cierre$|^monto vencido al cierre$/, "Facturas con saldo al cierre del mes cuyo vencimiento (15 días hábiles) ya había pasado en esa fecha."],
+    [/^flujo neto del mes/, "Lo cobrado menos lo pagado en el mes, según tus registros en Cuentas."],
+    [/^(cliente|proveedor)$/, "Toca una fila para ver sus pagos y complementos. En la vista por cliente o proveedor, toca para ver todas sus facturas pagadas y pendientes."],
+    [/^facturado \d{4}$/, "Suma de las facturas vigentes del año de este cliente o proveedor."],
+    [/^saldo$/, "Lo que falta por cobrar o pagar: total menos los cobros o pagos registrados en Cuentas."],
+    [/^vence$|^vencimiento$/, "Fecha de la factura más 15 días hábiles."],
+    // Bancos
+    [/^saldo inicial en estado de cuenta$/, "Saldo con el que empieza el mes según tu estado de cuenta. Si el archivo no lo trae, lo puedes escribir."],
+    [/^depositos del estado de cuenta$/, "Suma de los depósitos del estado de cuenta del mes."],
+    [/^retiros del estado de cuenta$/, "Suma de los retiros del estado de cuenta (sin comisiones)."],
+    [/^comisiones del estado de cuenta$/, "Comisiones del banco del mes (en CEDI, $5.00 + $0.80 de IVA por cada retiro)."],
+    [/^saldo final en estado de cuenta$/, "Saldo inicial + depósitos − retiros − comisiones. Debe ser igual al saldo final de tu estado de cuenta."],
+    [/depositos no considerados en estado de cuenta/, "Depósitos que ya registraste en contabilidad pero el banco todavía no refleja (por ejemplo, un depósito en tránsito). Solo entran los que tú marcas como partida en conciliación."],
+    [/retiros no considerados en estado de cuenta/, "Retiros registrados en contabilidad que el banco todavía no cobra (por ejemplo, un cheque en tránsito). Solo entran los que tú marcas."],
+    [/depositos no considerados en contabilidad/, "Depósitos que salen en el banco pero no están en tu auxiliar. Solo entran los que tú marcas como partida en conciliación."],
+    [/retiros no considerados en contabilidad/, "Retiros del banco que no están en tu auxiliar. Solo entran los que tú marcas."],
+    [/^saldo conciliado$/, "Saldo del banco ajustado con las partidas en conciliación. Debe ser igual al saldo de tu contabilidad."],
+    [/^saldo en contabilidad/, "Saldo final de la cuenta de bancos en tu auxiliar de CONTPAQi."],
+    [/^diferencia$/, "Saldo conciliado menos saldo en contabilidad. En $0 y sin nada por revisar, el mes queda conciliado."],
+    [/^por revisar/, "Movimientos que no encontraron pareja. No entran a la carátula hasta que tú decidas: emparejarlos, corregirlos en CONTPAQi o marcarlos como partida en conciliación."],
+    [/^partidas en conciliacion$/, "Lo que entra a la carátula como partida en conciliación. Solo lo que tú marcaste o capturaste a mano."],
+    [/^total disponible$/, "Suma del último saldo conocido de cada banco: el que capturaste a mano o, si no, el de tu último estado de cuenta."],
+    // Impuestos
+    [/^ingresos nominales del mes$/, "Facturas emitidas vigentes del mes (subtotal sin IVA)."],
+    [/^ingresos de periodos anteriores$/, "Ingresos nominales de enero al mes anterior."],
+    [/^total de ingresos nominales$/, "Ingresos acumulados del año hasta este mes."],
+    [/^coeficiente de utilidad$/, "El de tu última declaración anual. Lo capturas tú; con él se estima la utilidad para el pago provisional de ISR."],
+    [/^utilidad fiscal estimada$/, "Ingresos acumulados × coeficiente de utilidad."],
+    [/^isr al 30%$/, "Utilidad fiscal estimada × 30%."],
+    [/^pagos provisionales anteriores$/, "ISR provisional que ya pagaste en los meses anteriores del año."],
+    [/^cantidad a pagar$/, "ISR al 30% menos pagos provisionales anteriores."],
+    [/^isr retenido por sueldos$/, "ISR retenido en los recibos de nómina con IMSS del mes (reporte de nóminas de AdminXML)."],
+    [/^isr retenido por asimilados$/, "ISR retenido en los recibos de asimilados a salarios del mes (sin IMSS)."],
+    [/^actos gravados al 16%/, "Base de lo que cobraste en el mes: facturas PUE del mes + cobros de facturas PPD (según tus cobros registrados o, si no, los complementos)."],
+    [/^iva a cargo al 16%$/, "IVA de lo que cobraste en el mes (IVA trasladado cobrado)."],
+    [/^actos pagados al 16%/, "Base de lo que pagaste en el mes: facturas PUE del mes + pagos de facturas PPD (según tus pagos registrados o los complementos), más proveedores sin factura que agregaste en la DIOT."],
+    [/^iva acreditable$/, "IVA de lo que pagaste en el mes. Es el mismo criterio de tu DIOT y de la cuenta 118 de tu balanza."],
+    [/^iva retenido por clientes$/, "IVA que tus clientes te retuvieron en las facturas cobradas en el mes."],
+    [/^otras cantidades a cargo/, "IVA que tú retuviste a tus proveedores (honorarios, RESICO) en los pagos del mes. Se suma a tu IVA a cargo."],
+    [/^iva retenido$/, "IVA que retuviste a proveedores en los pagos del mes; se entera en la declaración de retenciones."],
+    [/^isr retenido a personas fisicas$/, "ISR retenido a personas físicas por honorarios en los pagos del mes."],
+    [/^isr retenido a resico$/, "ISR retenido a proveedores del RESICO (1.25%) en los pagos del mes."],
+    [/^cedular honorarios$/, "Impuesto cedular estatal retenido a personas físicas por honorarios, tomado de la factura que se está pagando."],
+    [/^cedular resico$/, "Impuesto cedular estatal retenido a proveedores del RESICO, tomado de la factura que se está pagando, en proporción a lo pagado."],
+    [/^nomina total/, "Total de percepciones de los recibos de nómina del mes (sueldos y asimilados)."],
+    [/^tasa de impuesto sobre nomina$/, "Tasa estatal del ISN (3% por default); la puedes cambiar."],
+    [/^impuesto sobre nomina$/, "Nómina total × tasa del ISN."],
+    [/^calculado$/, "Lo que calculó la app con tus facturas, complementos, pagos y nóminas."],
+    [/^declarado$/, "Lo que dicen tus acuses o declaraciones. Con complementarias, suma lo pagado en todas."],
+    [/^estatus$/, "Sin presentar · Por pagar · Pagada · Presentada · Correcta (la revisaste tú). En IMSS: sin línea, cuotas por pagar o pagadas."],
+    [/^determinacion de iva$/, "Póliza para cerrar el IVA del mes en CONTPAQi: cancela el IVA trasladado cobrado (208) y el acreditable pagado (118) contra el IVA a favor o por pagar."],
+    [/^determinacion de isn$/, "Póliza del gasto por ISN contra el ISN por pagar."],
+    [/^provision imss/, "Póliza de las cuotas patronales del mes (la obrera ya va a la 211 con cada nómina), tomadas de la línea de captura del SIPARE."],
+    [/^resumen de cuentas por cobrar y por pagar$/, "El resumen del mes para imprimir: facturado, cobrado, pagado y saldos al cierre."],
+    [/^diot de /, "Lo que pagaste a cada proveedor en el mes, con el mismo criterio que tu IVA acreditable. Se redondea a pesos y el IVA nunca supera el 16% de la base, como exige el SAT."],
+    [/^base 16%$/, "Valor de lo pagado al 16% (sin IVA), redondeado a pesos."],
+    [/^iva 16%$/, "IVA de lo pagado al proveedor en el mes."],
+    [/^tasa 0%$/, "Valor de lo pagado a tasa 0%."],
+    [/^exento$/, "Valor de lo pagado exento de IVA."],
+    [/^tipo de operacion$/, "85 Otros · 03 Servicios profesionales · 06 Arrendamiento · 02 Enajenación de bienes. La app lo recuerda por proveedor."],
+    [/^proveedores sin factura$/, "Para quien no te factura pero te da un comprobante válido, como el estado de cuenta timbrado del banco (comisiones). Entra a la DIOT y, si lo marcas, a tu IVA acreditable."],
+    [/^iva a favor \d{4}$/, "Saldo a favor de IVA por mes: lo que generó cada declaración, menos lo que compensaste en otros impuestos (lo registras en 'Recargos, compensación y notas')."],
+    [/^ingresos nominales \d{4}$/, "Ingresos de cada mes, acumulado y por trimestre, comparados con la cuenta 401 de tu balanza."],
+    [/^generado$/, "IVA a favor que dio la declaración de ese mes."],
+    [/^compensado$/, "Lo que ya usaste de ese saldo a favor para pagar otros impuestos."],
+    // Balanza
+    [/^cargos contra abonos del mes$/, "En tu balanza, la suma de cargos y de abonos de las cuentas de mayor debe ser igual."],
+    [/^saldos deudores contra acreedores$/, "La suma de saldos deudores debe ser igual a la de acreedores."],
+    [/^ingresos facturados del mes$/, "Cuenta 401 (abonos − cargos del mes) contra tus facturas emitidas vigentes del mes."],
+    [/^iva trasladado cobrado$/, "Cuenta 208 contra el IVA de lo que cobraste en el mes."],
+    [/^iva acreditable pagado$/, "Cuenta 118 contra el IVA de lo que pagaste en el mes, sin el IVA que retuviste a proveedores."],
+    [/^iva (a favor|por pagar) de /, "La subcuenta del mes en 113-01 (a favor) o 213-01 (por pagar) contra el resultado de tu cálculo de IVA."],
+    [/^isr retenido por sueldos y asimilados$/, "Cuentas 216-01 y 216-02 contra el ISR retenido en tus recibos de nómina del mes."],
+    [/^imss obrero retenido$/, "Cuenta 216-11 contra el IMSS obrero retenido en los recibos de nómina del mes."],
+    [/^sueldos y salarios/, "Cuentas 601-01 y 601-09 contra las percepciones de nómina con IMSS."],
+    [/^provision de isn$/, "Cuenta 213-04 contra el ISN calculado del mes."],
+    [/^provision imss patronal$/, "Cuenta 211-01 contra las cuotas IMSS patronales de la línea del SUA."],
+    [/^ingresos acumulados del ano$/, "Saldo de la 401 contra tus ingresos nominales acumulados."],
+    [/^clientes$/, "Saldo de la 105 contra lo que te debían al cierre del mes (Cuentas)."],
+    [/^proveedores$/, "Saldo de la 201 contra lo que debías al cierre del mes (Cuentas)."],
+    [/^banco /, "Saldo de la cuenta de bancos contra el saldo en contabilidad de tu conciliación de ese mes."],
+    [/^iva pendiente de pago \(119\)$/, "Cuenta 119 contra el IVA de las facturas PPD de proveedores que aún no pagas al cierre."],
+    [/^iva trasladado no cobrado \(209\)$/, "Cuenta 209 contra el IVA de las facturas PPD a clientes que aún no cobras al cierre."],
+    // Activo fijo
+    [/^inversion original$/, "Monto original de la inversión (sin IVA) de los activos vigentes al cierre."],
+    [/^depreciacion acumulada$/, "Depreciación en línea recta desde el mes siguiente al inicio de uso hasta el cierre."],
+    [/^valor en libros$/, "Inversión original menos depreciación acumulada."],
+    [/^depreciacion del mes$/, "Inversión × tasa anual / 12 de cada activo en uso."],
+    // Contabilidad
+    [/^cuenta$/, "Cuenta de tu catálogo de CONTPAQi. Las de proveedor, cliente y gasto la app las aprende de tus pólizas; si falta, la eliges y la recuerda."],
+  ];
+  const GUIA = {
+    tablero: "Tu lista de actividades del cierre, mes por mes. Toca una celda para cambiar su estado. La app marca en verde sola lo que ya se cumplió en las demás secciones (conciliaciones que cuadran, impuestos presentados, balanza sin diferencias, etc.). Arriba ves también saldos de bancos, notas pendientes y cancelaciones por revisar.",
+    facturas: "Qué subir: tus reportes de AdminXML (facturas emitidas, recibidas, complementos de pago y nóminas), en Excel, del año completo; la app no duplica nada (usa el UUID). Si una factura se canceló, la detecta y te deja la observación. Marca aquí si ya registraste la provisión (PPD) y si está en tu control. Sube también los acuses de cancelación del SAT.",
+    cuentas: "Qué hacer: registra aquí cada cobro o pago (fecha, monto). Con eso se calculan saldos, vencidos, IVA cobrado y pagado, DIOT y pólizas. Los complementos se revisan solos con el reporte de AdminXML. Usa 'Por cliente/proveedor' para ver todo lo de cada uno.",
+    bancos: "Conciliación: sube el estado de cuenta (Excel o PDF de CEDI, PDF de BBVA) y el auxiliar de CONTPAQi (Excel o PDF). La app empareja por monto y fecha; lo que no encuentra pareja va a 'Por revisar' para que tú decidas. Saldos del día: captura cada mañana el saldo de cada banco, o deja que la app lo tome de tus estados de cuenta.",
+    impuestos: "La app calcula cada mes ISR, IVA, retenciones, cedulares e ISN con tus facturas, cobros, pagos y nóminas. Sube tus acuses, declaraciones y líneas de captura (SAT, SATEG, SIPARE) en PDF: los lee solos, incluidas complementarias. Registra recargos, compensaciones con IVA a favor y notas en cada impuesto. Aquí también están la DIOT, las pólizas del mes, el IVA a favor y el extracto de impuestos.",
+    balanza: "Sube la balanza de comprobación de CONTPAQi en PDF de cada mes. La app la compara contra tus datos (movimientos del mes y saldos acumulados) y te deja observaciones. Lo que ya revisaste lo marcas como 'Revisado'. En 'XML contra pólizas' sube el reporte de Diarios y pólizas en Excel para ver qué XML faltan por registrar.",
+    dashboard: "Se arma solo con tus balanzas: dashboard del mes y comparativo del año, con explicación de cada cuenta. Descárgalo en PDF para presentarlo.",
+    expediente: "Pólizas impresas, invoices de licencias y la carpeta final del mes en .zip para Drive, más el respaldo completo de la app.",
+    notas: "Tus pendientes, preguntas para tu jefe y notas. Las abiertas se cuentan en el tablero.",
+    activos: "Registra tus activos fijos (la app detecta facturas con uso de CFDI de inversión). Calcula depreciación contable mensual, la póliza del mes y la deducción fiscal anual, y la compara contra tu balanza.",
+    conta: "Sube tu catálogo de cuentas y tus pólizas exportadas en .txt de CONTPAQi. La app arma las pólizas del mes (provisiones PPD, egresos e ingresos) con tus cuentas y tu formato, y te las da para importar en CONTPAQi o capturarlas a mano.",
+  };
+  function decorarAyuda(){
+    const raiz = document.querySelector(".wrap"); if(!raiz) return;
+    raiz.querySelectorAll("th, td:first-child, h3, .kpi > span, .stat > span, .rt td:first-child").forEach(el=>{
+      if(el.dataset.ay) return; el.dataset.ay = "1";
+      const crudo = el.childNodes[0] && el.childNodes[0].nodeType===3 && el.childNodes[0].textContent.trim() ? el.childNodes[0].textContent : (el.querySelector("strong") || el).textContent;
+      const txt = String(crudo||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").replace(/[:\s]+$/,"").trim();
+      if(!txt || txt.length>70) return;
+      const hit = AYUDA.find(([re])=>re.test(txt)); if(!hit) return;
+      const b = document.createElement("button"); b.type = "button"; b.className = "ayuda"; b.textContent = "i"; b.dataset.tip = hit[1]; b.setAttribute("aria-label", "Qué es: " + hit[1]);
+      if(el.tagName==="H3"){ const sm = el.querySelector("small"); sm ? el.insertBefore(b, sm) : el.appendChild(b); }
+      else { const destino = el.querySelector("strong") || el; destino.appendChild(b); }
+    });
+  }
+  let ayTimer = null;
+  new MutationObserver(()=>{ clearTimeout(ayTimer); ayTimer = setTimeout(decorarAyuda, 120); }).observe(document.querySelector(".wrap"), {childList:true, subtree:true});
+  const tip = $("tipBox");
+  const mostrarTip = b => { tip.textContent = b.dataset.tip; tip.hidden = false; const r = b.getBoundingClientRect(), w = tip.offsetWidth, hh = tip.offsetHeight;
+    let x = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width/2 - w/2)), y = r.bottom + 8; if(y + hh > window.innerHeight - 8) y = r.top - hh - 8; tip.style.left = x + "px"; tip.style.top = y + "px"; };
+  document.addEventListener("mouseover", e => { const b = e.target.closest(".ayuda"); if(b) mostrarTip(b); });
+  document.addEventListener("mouseout", e => { if(e.target.closest(".ayuda")) tip.hidden = true; });
+  document.addEventListener("focusin", e => { const b = e.target.closest(".ayuda"); if(b) mostrarTip(b); });
+  document.addEventListener("focusout", e => { if(e.target.closest(".ayuda")) tip.hidden = true; });
+  document.addEventListener("click", e => { const b = e.target.closest(".ayuda"); if(b){ e.preventDefault(); e.stopPropagation(); tip.hidden && b.dataset.tip ? mostrarTip(b) : (tip.hidden = !tip.hidden); return; } if(!tip.hidden) tip.hidden = true; }, true);
+  window.addEventListener("scroll", () => { tip.hidden = true; }, {passive:true});
+  $("guiaBtn").onclick = () => { $("guiaTitulo").textContent = `Cómo funciona: ${$("viewTitle").textContent}`; $("guiaTexto").textContent = GUIA[vista] || GUIA.tablero; $("guiaDlg").showModal(); };
+  $("guiaCerrar").onclick = () => $("guiaDlg").close();
 
   // ---------- Arranque ----------
   render();
