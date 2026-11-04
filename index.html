@@ -291,7 +291,9 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
       <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf,.txt,.xml,.zip" multiple hidden><input type="file" id="attachFile" accept="application/pdf,image/*,.heic,.heif" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
       <button class="btn" id="editBtn" aria-pressed="false">Editar lista</button>
       <button class="btn" id="addBtn">Agregar actividad</button>
+      <button class="btn" id="verXlsBtn" title="Ver el Excel sin descargarlo">Ver Excel</button>
       <button class="btn" id="xlsxBtn">Descargar Excel</button>
+      <button class="btn" id="verPdfBtn" title="Ver el PDF sin descargarlo">Ver PDF</button>
       <button class="btn primary" id="pdfBtn">Descargar PDF</button>
     </div>
   </header>
@@ -477,6 +479,15 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="verDlg" style="width:min(1000px,98vw);max-width:98vw;height:92vh;max-height:92vh;padding:0;display:none;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap">
+    <strong id="verTitulo" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></strong>
+    <button class="btn sm" id="verCompartir">Enviar</button><button class="btn sm primary" id="verDescargar">Descargar</button><button class="btn sm" id="verCerrar">Cerrar</button>
+  </div>
+  <div id="verTabs" style="display:flex;gap:6px;padding:6px 14px 0;flex-wrap:wrap"></div>
+  <div id="verCuerpo" style="flex:1;overflow:auto;padding:10px 14px;background:var(--bg)"></div>
 </dialog>
 
 <dialog id="polManDlg" style="width:min(820px,97vw)">
@@ -1189,8 +1200,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   let downloads = null;
   let captura = null;
+  let modoVer = false;
   async function guardarArchivo(filename, data){
     if(captura){ captura.push({filename, data}); return; }
+    if(modoVer){ modoVer = false; return verArchivo(filename, data); }
     if(!downloads){ toast("Las descargas no están disponibles en esta vista."); return; }
     try{ await downloads.save({filename, data}); }
     catch(e){
@@ -1311,9 +1324,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
     $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || !canWrite;
-    $("pdfBtn").style.display = v==="conta" || v==="directorio" || v==="documentos" ? "none" : $("pdfBtn").style.display;
-    $("xlsxBtn").style.display = v==="documentos" ? "none" : "";
-    $("xlsxBtn").style.display = v==="expediente" || v==="notas" ? "none" : ""; $("pdfBtn").style.display = v==="expediente" || v==="notas" ? "none" : "";
+    const sinPdf = ["expediente","notas","conta","directorio","documentos"].includes(v), sinXls = ["expediente","notas","documentos"].includes(v);
+    $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
+    $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt)" : "Subir reporte de AdminXML";
     try{ history.replaceState(null,"", "#"+v); }catch(_){}
     render();
@@ -3134,14 +3147,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const nuevo = {coeficiente: cfg.coeficiente, tasaISN: cfg.tasaISN, ...(e.target.id==="coefInput" ? {coeficiente: v} : {tasaISN: r2(v*1000)/100000})};
     try{ setSaving("Guardando…"); await db.doc(`empresas/${empresa}/impConfig/${year}`).set(nuevo); setSaving("Guardado"); }catch(err){ handleWriteError(err); }
   });
-  async function descargarAsset(a){
-    if(!downloads){ toast("Las descargas no están disponibles en esta vista."); return; }
-    try{ const resp = await fetch("/_blob/"+a.id); if(!resp.ok) throw 0; await guardarArchivo(a.nombre, await resp.blob()); }
+  async function descargarAsset(a, ver){
+    if(!ver && !downloads){ toast("Las descargas no están disponibles en esta vista."); return; }
+    try{ const resp = await fetch("/_blob/"+a.id); if(!resp.ok) throw 0; const bl = await resp.blob(); if(ver) return verArchivo(a.nombre, bl); await guardarArchivo(a.nombre, bl); }
     catch(e){ toast("No se pudo descargar el archivo."); }
   }
   $("ibody").addEventListener("click", async e => {
     const dl = e.target.closest("[data-dl]");
-    if(dl){ const d = declDe(year, iMes, dl.dataset.dl); const a = d && (d.archivos||[])[+dl.dataset.ix]; if(a) descargarAsset(a); return; }
+    if(dl){ const d = declDe(year, iMes, dl.dataset.dl); const a = d && (d.archivos||[])[+dl.dataset.ix]; if(a) descargarAsset(a, true); return; }
     const dd = e.target.closest("[data-deldoc]"), dv = e.target.closest("[data-delver]"), da = e.target.closest("[data-delactual]");
     if(dd || dv || da){
       const cl = (dd||dv||da).dataset[dd?"deldoc":dv?"delver":"delactual"], id = declId(year, iMes, cl), prev = declDe(year, iMes, cl); if(!prev) return;
@@ -5688,9 +5701,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const docs = docsDelMes(year, docMes), grupos = {}; docs.forEach(d=>(grupos[d.grupo] ||= []).push(d));
     $("statusLine").innerHTML = `${MESES[docMes-1]} ${year}: <strong>${docs.length}</strong> ${docs.length===1?"archivo guardado":"archivos guardados"} y los reportes que arma la app.`;
     const ctas = cuentasB.filter(c=>concDe(c.id, year, docMes));
-    const btn = (id, t, extra="") => `<button class="btn sm" data-gen="${id}" ${extra}>${t}</button>`;
+    const btn = (id, t, extra="") => `<span style="display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden"><button class="btn sm" style="border:none;border-radius:0" data-gen="${id}" data-ver="1" ${extra} title="Ver sin descargar">Ver</button><button class="btn sm" style="border:none;border-left:1px solid var(--line);border-radius:0" data-gen="${id}" ${extra}>${t}</button></span>`;
     let html = `<div class="pairbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="docZip">Descargar todo ${MESES[docMes-1].toLowerCase()} (.zip)</button><span class="fsub" style="max-width:none">La carpeta del mes con pólizas, conciliaciones, impuestos, acuses, cuentas, facturas, balanza y dashboard.</span></div>`;
-    html += `<div class="dgrid"><div class="bpanel"><h3>Archivos que subiste<small>Los originales, tal como los subiste a la app.</small></h3>${docs.length ? Object.entries(grupos).map(([g, xs])=>`<div style="padding:8px 14px"><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:4px">${esc(g)}</div>${xs.map((d,i)=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)"><div style="min-width:0"><div>${esc(d.nombre)}</div><div class="fsub" style="max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.nota||"")}</div></div><button class="btn sm" data-docdl="${esc(d.a.id)}">Descargar</button></div>`).join("")}</div>`).join("") : `<div class="empty" style="padding:16px">Aún no hay archivos guardados de este mes. Los acuses, estados de cuenta, auxiliares y balanzas que subas a partir de ahora se guardan aquí.</div>`}</div>
+    html += `<div class="dgrid"><div class="bpanel"><h3>Archivos que subiste<small>Los originales, tal como los subiste a la app.</small></h3>${docs.length ? Object.entries(grupos).map(([g, xs])=>`<div style="padding:8px 14px"><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:4px">${esc(g)}</div>${xs.map((d,i)=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)"><div style="min-width:0"><div>${esc(d.nombre)}</div><div class="fsub" style="max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.nota||"")}</div></div><span style="display:flex;gap:6px"><button class="btn sm" data-docver="${esc(d.a.id)}">Ver</button><button class="btn sm" data-docdl="${esc(d.a.id)}">Descargar</button></span></div>`).join("")}</div>`).join("") : `<div class="empty" style="padding:16px">Aún no hay archivos guardados de este mes. Los acuses, estados de cuenta, auxiliares y balanzas que subas a partir de ahora se guardan aquí.</div>`}</div>
       <div class="bpanel"><h3>Reportes que arma la app<small>Siempre con tus datos más recientes.</small></h3><div style="padding:10px 14px;display:grid;gap:12px">
         <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Bancos</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${ctas.length ? ctas.map(c=>btn(`conc-pdf-${c.id}`, `Conciliación ${esc(c.nombre)} (PDF)`) + btn(`conc-xlsx-${c.id}`, `${esc(c.nombre)} (Excel)`)).join("") : '<span class="fsub">Sin conciliaciones este mes.</span>'}${btn("saldos", "Saldos diarios (Excel)")}</div></div>
         <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Impuestos</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${btn("imp-pdf","Cálculo de impuestos (PDF)")}${btn("imp-xlsx","Cálculo (Excel)")}${btn("extracto",`Extracto de impuestos ${year}`)}</div></div>
@@ -5703,8 +5716,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("docmonths").addEventListener("click", e => { const b = e.target.closest("[data-docmes]"); if(b){ docMes = +b.dataset.docmes; renderDocumentos(); } });
   $("docbody").addEventListener("click", async e => {
     const dl = e.target.closest("[data-docdl]"); if(dl){ const d = docsDelMes(year, docMes).find(x=>x.a.id===dl.dataset.docdl); if(d) descargarAsset(d.a); return; }
+    const dv = e.target.closest("[data-docver]"); if(dv){ const d = docsDelMes(year, docMes).find(x=>x.a.id===dv.dataset.docver); if(d) descargarAsset(d.a, true); return; }
     if(e.target.closest("#docZip")){ if(typeof armarZip==="function"){ const prevV = vista; try{ await armarZip(docMes); } finally{ vista = prevV; renderDocumentos(); } } return; }
     const g = e.target.closest("[data-gen]"); if(!g) return; const k = g.dataset.gen, m = docMes; g.disabled = true;
+    if(g.dataset.ver) modoVer = true;
     try{
       if(k.startsWith("conc-")){ const [, fmt, ...id] = k.split("-"); await conEstado({cuentaSel: id.join("-"), bMes: m, vista:"bancos"}, ()=>exportBancos(fmt)); }
       else if(k==="saldos") await exportDiario();
@@ -5720,7 +5735,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       else if(k==="activos") await exportActivos("xlsx");
       else if(k==="directorio") await exportDirectorio();
     }catch(err){ console.error(err); toast("No se pudo preparar ese reporte."); }
-    finally{ g.disabled = false; }
+    finally{ g.disabled = false; modoVer = false; }
   });
 
   // ---------- Constancias y opiniones de cumplimiento de la empresa ----------
@@ -5756,7 +5771,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const fila = t => { const d = ultimo(t), v = d ? venceDF(d) : "", vencida = v && v < hoyISO;
       return `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap"><div style="min-width:0"><div style="font-weight:600">${TIPOS_DF[t]}</div>
         <div class="fsub" style="max-width:none">${d ? `${d.fecha?`Del ${fechaCorta(d.fecha)} ${d.fecha.slice(0,4)}`:`Subida el ${fechaCorta(d.subido)}`}${d.sentido?` · <strong style="color:${d.sentido==="Positiva"?"var(--done-ink)":"var(--late-ink)"}">${d.sentido}</strong>`:""}${v?` · ${vencida?`<strong style="color:var(--late-ink)">vencida, saca una nueva</strong>`:`vigente hasta ${fechaCorta(v)}`}`:""}${docsEmp.filter(x=>x.tipo===t).length>1?` · ${docsEmp.filter(x=>x.tipo===t).length} guardadas`:""}` : '<span class="falta">Sin subir</span>'}</div></div>
-        <div style="display:flex;gap:6px">${d?`<button class="btn sm" data-dfdl="${esc(d.id)}">Descargar</button>`:""}${docsEmp.filter(x=>x.tipo===t).length>1?`<button class="linkbtn" data-dfhist="${t}">anteriores</button>`:""}</div></div>`; };
+        <div style="display:flex;gap:6px">${d?`<button class="btn sm" data-dfver="${esc(d.id)}">Ver</button><button class="btn sm" data-dfdl="${esc(d.id)}">Descargar</button>`:""}${docsEmp.filter(x=>x.tipo===t).length>1?`<button class="linkbtn" data-dfhist="${t}">anteriores</button>`:""}</div></div>`; };
     const hist = el.dataset.hist || "";
     el.innerHTML = `<div class="bpanel" style="margin-bottom:16px"><h3>Documentos fiscales de la empresa<small>Constancias y opiniones de cumplimiento, siempre a la mano para el auditor o tus clientes.</small></h3>
       ${["csf","op-sat","op-imss","op-infonavit","op-estatal"].map(fila).join("")}${docsEmp.some(d=>d.tipo==="otro")?fila("otro"):""}
@@ -5769,6 +5784,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("docfiscal").addEventListener("click", async e => {
     if(e.target.closest("#dfSubir")){ $("dfFile").click(); return; }
     const dl = e.target.closest("[data-dfdl]"); if(dl){ const d = docsEmp.find(x=>x.id===dl.dataset.dfdl); if(d && d.asset) descargarAsset(d.asset); return; }
+    const dv = e.target.closest("[data-dfver]"); if(dv){ const d = docsEmp.find(x=>x.id===dv.dataset.dfver); if(d && d.asset) descargarAsset(d.asset, true); return; }
     const hi = e.target.closest("[data-dfhist]"); if(hi){ $("docfiscal").dataset.hist = $("docfiscal").dataset.hist===hi.dataset.dfhist ? "" : hi.dataset.dfhist; renderDocsFiscales(); return; }
     const del = e.target.closest("[data-dfdel]"); if(del){ if(!await confirmar("¿Borrar este documento?")) return; try{ await db.doc(`empresas/${empresa}/docsEmpresa/${del.dataset.dfdel}`).delete(); }catch(err){ handleWriteError(err); } return; }
   });
@@ -5808,7 +5824,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     toast("Te descargué el PDF y el XML para que los adjuntes.");
   }
   document.addEventListener("click", e => { const s = e.target.closest("[data-cfshare]"); if(s){ e.stopPropagation(); compartirCfdi(s.dataset.cfshare); } }, true);
-  document.addEventListener("click", e => { const b = e.target.closest("[data-cfdl]"); if(!b) return; e.stopPropagation(); const c = cfdiMap[String(b.dataset.cfdl).toUpperCase()]; const a = c && c[b.dataset.t]; if(a) descargarAsset(a); }, true);
+  document.addEventListener("click", e => { const b = e.target.closest("[data-cfdl]"); if(!b) return; e.stopPropagation(); const c = cfdiMap[String(b.dataset.cfdl).toUpperCase()]; const a = c && c[b.dataset.t]; if(a) descargarAsset(a, true); }, true);
   $("folderBtn").onclick = () => { if(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1)){ toast("En el iPad: en Archivos mantén presionada la carpeta → Comprimir, y sube el .zip con 'Subir reporte'."); return; } $("folderFile").click(); };
   // Subir una carpeta completa (en computadora)
   if($("folderFile")) $("folderFile").addEventListener("change", e => { const fs = [...e.target.files].filter(f=>/\.(xml|pdf)$/i.test(f.name)); e.target.value = ""; if(fs.length) importar(fs); });
@@ -5854,7 +5870,55 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     catch(err){ handleWriteError(err); }
   };
 
+  // ---------- Ver archivos sin descargarlos (PDF, Excel, XML, imágenes) ----------
+  let verActual = null;
+  async function verArchivo(nombre, data){
+    const blob = data instanceof Blob ? data : new Blob([data]);
+    verActual = {nombre, blob};
+    const dlg = $("verDlg"), cuerpo = $("verCuerpo"), tabs = $("verTabs");
+    $("verTitulo").textContent = nombre; tabs.innerHTML = ""; cuerpo.innerHTML = '<div class="empty">Abriendo…</div>';
+    dlg.style.display = "flex"; if(!dlg.open) dlg.showModal();
+    const ext = (nombre.split(".").pop()||"").toLowerCase();
+    try{
+      if(ext==="pdf" || blob.type==="application/pdf"){
+        await loadLibs("pdfjs");
+        const pdf = await pdfjsLib.getDocument({data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported:false}).promise;
+        cuerpo.innerHTML = ""; const ancho = Math.min(Math.max(cuerpo.clientWidth - 8, 280), 1100);
+        for(let i=1;i<=pdf.numPages;i++){
+          const pg = await pdf.getPage(i), v1 = pg.getViewport({scale:1}), dpr = Math.min(window.devicePixelRatio || 1, 2), vp = pg.getViewport({scale: (ancho / v1.width) * dpr});
+          const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; cv.style.width = (vp.width/dpr)+"px"; cv.style.maxWidth = "100%"; cv.style.display = "block"; cv.style.margin = "0 auto 12px"; cv.style.background = "#fff"; cv.style.boxShadow = "0 1px 4px rgba(0,0,0,.2)";
+          cuerpo.appendChild(cv); await pg.render({canvasContext: cv.getContext("2d"), viewport: vp}).promise;
+        }
+      } else if(["xlsx","xls","xlsm","csv"].includes(ext)){
+        await loadLibs("xlsx"); const wb = XLSX.read(await blob.arrayBuffer(), {type:"array", cellDates:true});
+        const pinta = n => { const ws = wb.Sheets[n]; cuerpo.innerHTML = `<div style="overflow:auto">${XLSX.utils.sheet_to_html(ws, {editable:false})}</div>`;
+          cuerpo.querySelectorAll("table").forEach(t=>{ t.className = "decl"; t.style.minWidth = "max-content"; t.style.background = "var(--surface)"; }); cuerpo.querySelectorAll("td").forEach(td=>{ td.style.whiteSpace = "nowrap"; td.style.padding = "4px 8px"; td.style.border = "1px solid var(--line)"; });
+          tabs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.hoja===n)); };
+        tabs.innerHTML = wb.SheetNames.length>1 ? wb.SheetNames.map(n=>`<button class="chip" data-hoja="${esc(n)}">${esc(n)}</button>`).join("") : "";
+        tabs.onclick = e => { const b = e.target.closest("[data-hoja]"); if(b) pinta(b.dataset.hoja); };
+        pinta(wb.SheetNames[0]);
+      } else if(["xml","txt"].includes(ext) || /xml|text/.test(blob.type)){
+        let t = await blob.text(); if(ext==="xml") t = t.replace(/>\s*</g, ">\n<");
+        cuerpo.innerHTML = `<pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;margin:0">${esc(t)}</pre>`;
+      } else if(/^image\//.test(blob.type) || ["png","jpg","jpeg","gif","webp","heic"].includes(ext)){
+        cuerpo.innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="${esc(nombre)}" style="max-width:100%;display:block;margin:0 auto">`;
+      } else if(ext==="zip"){
+        await loadLibs("zip"); const z = await JSZip.loadAsync(blob);
+        cuerpo.innerHTML = `<div class="fsub" style="max-width:none;margin-bottom:6px">Contenido de la carpeta:</div><ul style="font-size:13px">${Object.keys(z.files).filter(n=>!z.files[n].dir).map(n=>`<li>${esc(n)}</li>`).join("")}</ul>`;
+      } else cuerpo.innerHTML = `<div class="empty">No puedo mostrar este tipo de archivo aquí. Descárgalo para abrirlo.</div>`;
+    }catch(err){ console.error(err); cuerpo.innerHTML = `<div class="empty">No pude mostrar el archivo. Descárgalo para abrirlo.</div>`; }
+  }
+  $("verCerrar").onclick = () => { $("verDlg").close(); };
+  $("verDlg").addEventListener("close", () => { $("verDlg").style.display = "none"; verActual = null; });
+  $("verDescargar").onclick = async () => { if(!verActual) return; if(!downloads){ toast("Las descargas no están disponibles en esta vista."); return; } try{ await downloads.save({filename: verActual.nombre, data: verActual.blob}); }catch(_){ toast("No se pudo descargar el archivo."); } };
+  $("verCompartir").onclick = async () => { if(!verActual) return; const f = new File([verActual.blob], verActual.nombre, {type: verActual.blob.type || "application/octet-stream"});
+    if(navigator.canShare && navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f], title: verActual.nombre}); }catch(_){} } else $("verDescargar").click(); };
+  // "Ver PDF" y "Ver Excel" de cada sección: arman el mismo archivo que la descarga, pero lo muestran
+  $("verPdfBtn").onclick = () => { modoVer = true; $("pdfBtn").click(); setTimeout(()=>{ modoVer = false; }, 30000); };
+  $("verXlsBtn").onclick = () => { modoVer = true; $("xlsxBtn").click(); setTimeout(()=>{ modoVer = false; }, 30000); };
+
   // ---------- Arranque ----------
+
   render();
   (async () => {
     const [d, u, dl, as] = await Promise.all([claude.use("db"), claude.use("user"), claude.use("downloads"), claude.use("assets")]);
