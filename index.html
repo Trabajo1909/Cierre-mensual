@@ -1083,15 +1083,35 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       return;
     }
     const b = e.target.closest(".cell"); if(!b || !canWrite) return;
-    const a = b.dataset.a, m = b.dataset.m;
-    const cur = (estados[a]||{})[m] || "";
-    const next = CICLO[(CICLO.indexOf(cur)+1)%CICLO.length];
-    estados[a] = Object.assign({}, estados[a]||{});
-    if(next) estados[a][m] = next; else delete estados[a][m];
-    const keep = document.activeElement === b;
-    render(); scheduleSave();
-    if(keep){ const nb = document.querySelector(`.cell[data-a="${CSS.escape(a)}"][data-m="${m}"]`); nb && nb.focus(); }
+    abrirEstMenu(b);
   });
+  // Menú para elegir el estado de una celda de un solo toque
+  const ESTADOS_MENU = [["", "Pendiente", "var(--surface)", "var(--line-strong)"], ["wip", "En proceso", "var(--wip-fill)", "var(--wip)"], ["done", "Terminado", "var(--done-fill)", "var(--done)"], ["na", "No aplica", "var(--na-fill)", "var(--na-ink)"]];
+  function ponerEstado(a, m, v, todoElAnio){
+    estados[a] = Object.assign({}, estados[a]||{});
+    const meses = todoElAnio ? Array.from({length:12},(_,i)=>String(i+1)) : [String(m)];
+    meses.forEach(mm=>{ if(v) estados[a][mm] = v; else delete estados[a][mm]; });
+    render(); scheduleSave();
+    const nb = document.querySelector(`.cell[data-a="${CSS.escape(a)}"][data-m="${m}"]`); nb && nb.focus();
+  }
+  function abrirEstMenu(b){
+    const a = b.dataset.a, m = b.dataset.m, cur = (estados[a]||{})[m] || "";
+    let mn = $("estMenu");
+    if(!mn){ mn = document.createElement("div"); mn.id = "estMenu"; mn.setAttribute("role","menu");
+      mn.style.cssText = "position:fixed;z-index:150;background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.18);padding:6px;min-width:190px;font:500 14px 'Public Sans',system-ui,sans-serif";
+      document.body.appendChild(mn); }
+    mn.innerHTML = ESTADOS_MENU.map(([v, t, bg, bd])=>`<button type="button" role="menuitemradio" aria-checked="${v===cur}" data-ev="${v}" style="display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:none;border-radius:7px;background:${v===cur?"var(--today)":"transparent"};color:var(--ink);font:inherit;cursor:pointer;text-align:left"><span style="width:18px;height:18px;border-radius:5px;background:${bg};border:1.5px solid ${bd};flex:none"></span>${t}${v===cur?' <span style="margin-left:auto">✓</span>':""}</button>`).join("")
+      + `<label style="display:flex;gap:8px;align-items:center;padding:8px 10px 4px;border-top:1px solid var(--line);margin-top:4px;font-size:13px;color:var(--muted);cursor:pointer"><input type="checkbox" id="estTodo" style="width:auto"> Aplicar a todos los meses</label>`;
+    const r = b.getBoundingClientRect(); mn.hidden = false;
+    const w = mn.offsetWidth, hh = mn.offsetHeight;
+    mn.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left)) + "px";
+    mn.style.top = (r.bottom + hh + 8 > window.innerHeight ? Math.max(8, r.top - hh - 6) : r.bottom + 6) + "px";
+    mn.onclick = ev => { const it = ev.target.closest("[data-ev]"); if(!it) return; const todo = $("estTodo").checked; mn.hidden = true; ponerEstado(a, m, it.dataset.ev, todo); };
+    setTimeout(()=>{ const f = mn.querySelector('[aria-checked="true"]') || mn.querySelector("[data-ev]"); f && f.focus(); }, 0);
+  }
+  document.addEventListener("click", e => { const mn = $("estMenu"); if(mn && !mn.hidden && !e.target.closest("#estMenu") && !e.target.closest(".cell")) mn.hidden = true; });
+  document.addEventListener("keydown", e => { const mn = $("estMenu"); if(mn && !mn.hidden && e.key==="Escape") mn.hidden = true; });
+  window.addEventListener("scroll", () => { const mn = $("estMenu"); if(mn) mn.hidden = true; }, {passive:true, capture:true});
 
   $("prevYear").onclick = () => { flush(); year--; mesSel = null; subscribeYear(); };
   $("nextYear").onclick = () => { flush(); year++; mesSel = null; subscribeYear(); };
