@@ -288,7 +288,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
     </div>
     <div class="actions">
       <span class="saving" id="saving" aria-live="polite"></span>
-      <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf,.txt" multiple hidden><input type="file" id="attachFile" accept="application/pdf,image/*,.heic,.heif" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
+      <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf,.txt,.xml,.zip" multiple hidden><input type="file" id="attachFile" accept="application/pdf,image/*,.heic,.heif" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
       <button class="btn" id="editBtn" aria-pressed="false">Editar lista</button>
       <button class="btn" id="addBtn">Agregar actividad</button>
       <button class="btn" id="xlsxBtn">Descargar Excel</button>
@@ -1406,8 +1406,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     try{
       await loadLibs("xlsx");
       const byId = Object.fromEntries(facturas.map(f=>[f.id,f]));
-      const docs = [], comps = [], bancoFiles = [], impPdfs = [], noms = [], balPdfs = [], polXlsx = [], canceladas = [], acusesCan = [], txtRes = [];
+      const docs = [], comps = [], bancoFiles = [], impPdfs = [], noms = [], balPdfs = [], polXlsx = [], canceladas = [], acusesCan = [], txtRes = [], xmlFiles = [];
       for(const file of files){
+        if(/\.(xml|zip)$/i.test(file.name)){ xmlFiles.push(file); continue; }
         if(/\.txt$/i.test(file.name) || file.type==="text/plain"){
           const txt = new TextDecoder("windows-1252").decode(await file.arrayBuffer());
           const res = await importarTxtContpaq(txt, file.name);
@@ -1430,7 +1431,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(arr.slice(0,8).some(row=>row.some(x=>/Impreso de p[oó]lizas/i.test(String(x))))){ polXlsx.push({arr, name:file.name}); continue; }
         const kind = detectarBanco(arr);
         if(kind){ bancoFiles.push({kind, arr, name:file.name}); continue; }
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:"", raw:true}).map(o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[String(k).replace(/\s+/g," ").trim(), v])));
+        // El encabezado puede no estar en el primer renglón (algunos reportes de AdminXML traen título arriba)
+        const hdrRow = Math.max(0, arr.slice(0,15).findIndex(rw=>rw.some(x=>String(x).trim()==="UUID")));
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:"", raw:true, range: hdrRow}).map(o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[String(k).replace(/\s+/g," ").trim(), v])));
         if(!rows.length) continue;
         const cols = Object.keys(rows[0]);
         if(cols.includes("TotalPercepciones") && cols.includes("UUID")){
@@ -1443,7 +1446,27 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           }
           continue;
         }
-        const tipo = cols.includes("Nombre Receptor") ? "emitida" : (cols.includes("Nombre Emisor") ? "recibida" : null);
+        const ambas = cols.includes("Nombre Receptor") && cols.includes("Nombre Emisor");
+        let tipo = ambas ? null : cols.includes("Nombre Receptor") ? "emitida" : (cols.includes("Nombre Emisor") ? "recibida" : null);
+        if(ambas){
+          // Reporte con emisor y receptor: decide por la carpeta del XML o por el RFC de la empresa
+          const rutas = rows.map(rw=>String(rw["Archivo XML"]||"")).join(" ");
+          if(/emitid/i.test(file.name) && !/recibid/i.test(file.name)) tipo = "emitida";
+          else if(/recibid/i.test(file.name) && !/emitid/i.test(file.name)) tipo = "recibida";
+          else if(/\\Emitidas\\/i.test(rutas) && !/\\Recibidas\\/i.test(rutas)) tipo = "emitida";
+          else if(/\\Recibidas\\/i.test(rutas) && !/\\Emitidas\\/i.test(rutas)) tipo = "recibida";
+          else {
+            const cur = empresas.find(e=>e.id===empresa) || {}; let mi = String(cur.rfc||"").toUpperCase();
+            if(!mi){ const c = {}; rows.forEach(rw=>[rw["RFC Emisor"], rw["RFC Receptor"]].forEach(x=>{ x = String(x||"").toUpperCase(); if(x) c[x]=(c[x]||0)+1; })); mi = Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0] || ""; }
+            const nE = rows.filter(rw=>String(rw["RFC Emisor"]||"").toUpperCase()===mi).length; tipo = nE > rows.length/2 ? "emitida" : "recibida";
+          }
+          const cur = empresas.find(e=>e.id===empresa) || {}, rfcEmp = String(rows.map(rw=>tipo==="emitida" ? rw["RFC Emisor"] : rw["RFC Receptor"]).find(Boolean)||"").toUpperCase();
+          if(rfcEmp){
+            if(cur.rfc && String(cur.rfc).toUpperCase()!==rfcEmp){ if(!await confirmar(`Este reporte es del RFC ${rfcEmp}, pero ${cur.nombre} tiene el RFC ${cur.rfc}. ¿Subirlo de todos modos a ${cur.nombre}? Si no, cancela y elige la empresa correcta arriba.`)) continue; }
+            else if(!cur.rfc){ if(!await confirmar(`Este reporte es del RFC ${rfcEmp}. ¿Ese es el RFC de ${cur.nombre||"la empresa seleccionada"}? Si no, cancela, elige (o agrega) la empresa correcta arriba y vuelve a subirlo.`)) continue;
+              try{ await db.doc(`empresas/${empresa}`).update({rfc: rfcEmp}); cur.rfc = rfcEmp; }catch(_){} }
+          }
+        }
         if(!tipo || !cols.includes("UUID")){ toast(`${file.name} no parece un reporte de AdminXML.`); continue; }
         if(cols.includes("IdDocumento") && cols.includes("ImpPagado")){
           for(const row of rows){
@@ -1458,14 +1481,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           }
           continue;
         }
+        let egresosRep = 0;
         for(const row of rows){
           const uuid = String(row["UUID"]||"").trim().toUpperCase();
           if(!/^[0-9A-F-]{36}$/.test(uuid)){ ignoradas++; continue; }
-          const fecha = parseFecha(row["Fecha Emision"]);
+          const tcRow = String(row["TipoComprobante"]||"").trim().toUpperCase();
+          if(/^E/.test(tcRow)){ egresosRep++; continue; } if(/^[PNT]/.test(tcRow)) continue;
+          const fecha = parseFecha(row["Fecha Emision"] || row["FechaEmisionXML"] || row["Fecha Emisión"]);
           docs.push({tipo, uuid, fecha, anio: +fecha.slice(0,4)||null, mes: +fecha.slice(5,7)||null,
             folio: String(row["Folio"]||"").trim(),
             nombre: String(row[tipo==="emitida"?"Nombre Receptor":"Nombre Emisor"]||"").trim(),
-            rfc: String(row["RFC Emisor"]||row["RFC Receptor"]||"").trim(),
+            rfc: String((ambas ? (tipo==="emitida" ? row["RFC Receptor"] : row["RFC Emisor"]) : (row["RFC Emisor"]||row["RFC Receptor"]))||"").trim(),
             metodo: String(row["Metodo de Pago"]||"").trim().toUpperCase(),
             total: Math.round((+row["Total"]||0)*100)/100,
             estadoSAT: String(row["Estado SAT"]||"").trim(),
@@ -1474,7 +1500,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
             isrRet: r2(+row["ISR Retenido"]||0), ivaRet: r2(+row["IVA Retenido"]||0), impLoc: r2(+row["ImpLoc Total Retenidos"]||0),
             regimen: String(row[tipo==="emitida"?"RegimenFiscalReceptor":"RegimenFiscal"]||"").slice(0,3), uso: String(row["UsoCFDI"]||"").slice(0,3), formaPago: String(row["FormaDePago"]||"").slice(0,2)});
         }
+        if(egresosRep) setTimeout(()=>toast(`${file.name}: ${egresosRep} notas de crédito (egresos) todavía no se toman en cuenta.`), 3800);
       }
+      if(xmlFiles.length){ const rx = await leerXmlsCfdi(xmlFiles); docs.push(...rx.docs); comps.push(...rx.comps); noms.push(...rx.noms); if(rx.aviso) setTimeout(()=>toast(rx.aviso), 3500); }
       let i = 0; const totalW = docs.length + comps.length;
       const compById = Object.fromEntries(complementos.map(c=>[c.id,c]));
       let compN = 0;
@@ -5343,6 +5371,75 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       }
       await guardarArchivo(`Directorio ${empresaNombre}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
     }catch(e){ toast("No se pudo preparar el Excel."); }
+  }
+
+  // ---------- XML de CFDI (sueltos o en .zip) ----------
+  async function leerXmlsCfdi(files){
+    const textos = [];
+    for(const f of files){
+      if(/\.zip$/i.test(f.name)){ await loadLibs("zip"); const z = await JSZip.loadAsync(f); for(const n of Object.keys(z.files)) if(/\.xml$/i.test(n) && !z.files[n].dir) textos.push(await z.file(n).async("string")); }
+      else textos.push(await f.text());
+    }
+    const P = new DOMParser(), xs = [];
+    for(const t of textos){ try{ const d = P.parseFromString(t, "application/xml"); if(d.getElementsByTagNameNS("*","Comprobante")[0]) xs.push(d); }catch(_){} }
+    const el = (n, raiz) => (raiz||null) && raiz.getElementsByTagNameNS("*", n)[0] || null, els = (n, raiz) => [...raiz.getElementsByTagNameNS("*", n)];
+    const at = (e, a) => e ? (e.getAttribute(a) ?? "") : "";
+    // RFC de la empresa: el guardado, o el que aparece en todos los XML
+    const cur = empresas.find(e=>e.id===empresa) || {};
+    let miRfc = String(cur.rfc||"").toUpperCase();
+    if(!miRfc && xs.length){ const c = {}; xs.forEach(d=>{ const s = new Set([at(el("Emisor",d),"Rfc"), at(el("Receptor",d),"Rfc")].map(x=>x.toUpperCase())); s.forEach(x=>c[x]=(c[x]||0)+1); });
+      miRfc = Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0] || "";
+      if(miRfc){
+        if(!await confirmar(`Estos XML son del RFC ${miRfc}. ¿Ese es el RFC de ${cur.nombre||"la empresa seleccionada"}? Si no, cancela, elige (o agrega) la empresa correcta en las pestañas de arriba y vuelve a subirlos.`)) return {docs:[], comps:[], noms:[], aviso:"No subí los XML: elige primero la empresa correcta."};
+        try{ await db.doc(`empresas/${empresa}`).update({rfc: miRfc}); cur.rfc = miRfc; }catch(_){} } }
+    const docs = [], comps = [], noms = []; let otros = 0, egresos = 0;
+    const num = v => r2(+v||0);
+    for(const d of xs){
+      const C = el("Comprobante", d), E = el("Emisor", d), R = el("Receptor", d), T = el("TimbreFiscalDigital", d);
+      const uuid = at(T,"UUID").toUpperCase(); if(!/^[0-9A-F-]{36}$/.test(uuid)) continue;
+      const eR = at(E,"Rfc").toUpperCase(), rR = at(R,"Rfc").toUpperCase();
+      const tipo = eR===miRfc ? "emitida" : rR===miRfc ? "recibida" : null; if(!tipo){ otros++; continue; }
+      const tc = at(C,"TipoDeComprobante"), fecha = at(C,"Fecha").slice(0,10), otro = tipo==="emitida" ? R : E;
+      if(tc==="P"){
+        for(const pg of els("Pago", d).filter(x=>x.parentNode && /Pagos$/.test(x.parentNode.localName))){
+          const fp = at(pg,"FechaPago").slice(0,10);
+          for(const dr of els("DoctoRelacionado", pg)){
+            let ivaB = 0, iva = 0, isr = 0;
+            els("TrasladoDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="002" && Math.abs(+at(t,"TasaOCuotaDR")-0.16)<0.0001){ ivaB += +at(t,"BaseDR")||0; iva += +at(t,"ImporteDR")||0; } });
+            els("RetencionDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="001") isr += +at(t,"ImporteDR")||0; });
+            comps.push({tipo, uuid, doc: at(dr,"IdDocumento").toUpperCase(), fechaPago: fp || fecha, impPagado: num(at(dr,"ImpPagado")), saldoInsoluto: num(at(dr,"ImpSaldoInsoluto")),
+              parcialidad: +at(dr,"NumParcialidad")||1, estadoSAT: "Vigente", nombre: at(otro,"Nombre"), ivaBase: r2(ivaB), iva: r2(iva), isrRet: r2(isr), regimen: at(E,"RegimenFiscal")});
+          }
+        }
+        continue;
+      }
+      if(tc==="N"){
+        if(tipo!=="emitida"){ otros++; continue; }
+        const N = el("Nomina", d), Pe = el("Percepciones", d), ded = els("Deduccion", d);
+        const fp = at(N,"FechaPago") || fecha;
+        noms.push({uuid, fechaPago: fp, anio: +fp.slice(0,4), mes: +fp.slice(5,7), nombre: at(R,"Nombre"), percepciones: num(at(N,"TotalPercepciones")), exento: num(at(Pe,"TotalExento")),
+          isr: r2(ded.filter(x=>at(x,"TipoDeduccion")==="002").reduce((s,x)=>s+(+at(x,"Importe")||0),0)), imss: r2(ded.filter(x=>at(x,"TipoDeduccion")==="001").reduce((s,x)=>s+(+at(x,"Importe")||0),0)), estadoSAT: "Vigente"});
+        continue;
+      }
+      if(tc!=="I"){ if(tc==="E") egresos++; else otros++; continue; }
+      // Impuestos del comprobante (nivel Comprobante, no los de cada concepto)
+      const imp = [...C.children].find(x=>x.localName==="Impuestos");
+      let ivaBase = 0, iva = 0, iva0 = 0, ivaEx = 0, isrRet = 0, ivaRet = 0;
+      if(imp){ els("Traslado", imp).forEach(t=>{ if(at(t,"Impuesto")!=="002") return; if(at(t,"TipoFactor")==="Exento"){ ivaEx += +at(t,"Base")||0; return; } const tasa = +at(t,"TasaOCuota"); if(Math.abs(tasa-0.16)<0.0001){ ivaBase += +at(t,"Base")||0; iva += +at(t,"Importe")||0; } else if(tasa===0) iva0 += +at(t,"Base")||0; });
+        els("Retencion", imp).forEach(t=>{ if(at(t,"Impuesto")==="001") isrRet += +at(t,"Importe")||0; if(at(t,"Impuesto")==="002") ivaRet += +at(t,"Importe")||0; }); }
+      const loc = el("ImpuestosLocales", d);
+      docs.push({tipo, uuid, fecha, anio: +fecha.slice(0,4), mes: +fecha.slice(5,7), folio: [at(C,"Serie"), at(C,"Folio")].filter(Boolean).join("-"),
+        nombre: at(otro,"Nombre"), rfc: (tipo==="emitida" ? rR : eR), metodo: at(C,"MetodoPago").toUpperCase(), total: num(at(C,"Total")), estadoSAT: "Vigente",
+        conceptos: els("Concepto", d).map(c=>at(c,"Descripcion")).join(" | ").replace(/\s+/g," ").slice(0,160),
+        subtotal: r2((+at(C,"SubTotal")||0) - (+at(C,"Descuento")||0)), ivaBase: r2(ivaBase), iva: r2(iva), iva0Base: r2(iva0), ivaExBase: r2(ivaEx), isrRet: r2(isrRet), ivaRet: r2(ivaRet), impLoc: num(at(loc,"TotaldeRetenciones")),
+        regimen: tipo==="emitida" ? at(R,"RegimenFiscalReceptor") : at(E,"RegimenFiscal"), uso: at(R,"UsoCFDI"), formaPago: at(C,"FormaPago")});
+    }
+    const avisos = [];
+    if(!xs.length) avisos.push("No encontré XML de CFDI en los archivos.");
+    if(otros) avisos.push(`${otros} XML no son de ${cur.nombre||"esta empresa"} (RFC ${miRfc||"desconocido"}) o no se usan; los ignoré.`);
+    if(egresos) avisos.push(`${egresos} notas de crédito (egresos) todavía no se toman en cuenta.`);
+    if(xs.length) avisos.push("Los XML no dicen si están cancelados: sube después el reporte de AdminXML o marca las canceladas a mano.");
+    return {docs, comps, noms, aviso: avisos.join(" ")};
   }
 
   // ---------- Arranque ----------
