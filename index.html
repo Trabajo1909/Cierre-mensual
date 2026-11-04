@@ -272,7 +272,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
@@ -315,6 +315,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
       <div class="seg" aria-label="Tipo de factura"><button data-tipo="emitida" aria-pressed="true">Emitidas</button><button data-tipo="recibida" aria-pressed="false">Recibidas</button></div>
       <label class="check inline"><input type="checkbox" id="soloPend"> Mostrar solo pendientes</label>
       <input id="fBuscar" type="search" placeholder="Buscar proveedor o cliente, RFC o folio" style="max-width:280px" aria-label="Buscar factura">
+      <button class="btn sm" id="folderBtn" type="button" title="Sube la carpeta de AdminXML con los XML y PDF">Subir carpeta de XML y PDF</button><input type="file" id="folderFile" webkitdirectory multiple hidden>
     </div>
     <div class="months" id="months"></div>
     <p class="fsum" id="fsum"></p>
@@ -335,6 +336,12 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vDocumentos" hidden>
+    <div id="docfiscal"></div>
+    <div class="months" id="docmonths"></div>
+    <div id="docbody"></div>
   </section>
 
   <section id="vDirectorio" hidden>
@@ -470,6 +477,20 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="polManDlg" style="width:min(820px,97vw)">
+  <h2 id="pmTitulo">Póliza</h2>
+  <div style="display:grid;grid-template-columns:140px 160px 1fr;gap:0 10px">
+    <div><label for="pmTipo">Tipo</label><select id="pmTipo"><option>Diario</option><option>Egresos</option><option>Ingresos</option></select></div>
+    <div><label for="pmFecha">Fecha</label><input id="pmFecha" type="date"></div>
+    <div><label for="pmConcepto">Concepto</label><input id="pmConcepto" autocomplete="off" placeholder="Ej.: NOMINA QUINCENA 1 OCTUBRE"></div>
+  </div>
+  <label>Movimientos</label>
+  <div style="overflow:auto;max-height:46vh"><table class="decl" style="width:100%;min-width:640px"><thead><tr><th style="width:44%">Cuenta</th><th>Referencia</th><th class="num">Cargo</th><th class="num">Abono</th><th></th></tr></thead><tbody id="pmLineas"></tbody></table></div>
+  <datalist id="pmCtas"></datalist>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:8px"><button class="linkbtn" id="pmAdd">+ Agregar movimiento</button><div id="pmSumas" style="font-weight:700"></div></div>
+  <div class="dlg-actions"><button class="linkbtn" id="pmBorrar" style="margin-right:auto">Borrar póliza</button><button class="btn" id="pmCancel">Cancelar</button><button class="btn primary" id="pmOk">Guardar</button></div>
 </dialog>
 
 <dialog id="contaCfgDlg" style="width:min(560px,94vw)">
@@ -842,7 +863,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -891,6 +912,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="activos"){ renderActivos(); return; }
     if(vista==="conta"){ renderConta(); return; }
     if(vista==="directorio"){ renderDirectorio(); return; }
+    if(vista==="documentos"){ renderDocumentos(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1038,6 +1060,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeConta();
     subscribeDiotManual();
     subscribeDirectorio();
+    subscribeDocsEmpresa();
+    subscribeCfdi();
+    subscribePolApp();
     subscribeActivos();
   }
   $("tabs").addEventListener("click", e => {
@@ -1278,15 +1303,16 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || !canWrite;
-    $("pdfBtn").style.display = v==="conta" || v==="directorio" ? "none" : $("pdfBtn").style.display;
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || !canWrite;
+    $("pdfBtn").style.display = v==="conta" || v==="directorio" || v==="documentos" ? "none" : $("pdfBtn").style.display;
+    $("xlsxBtn").style.display = v==="documentos" ? "none" : "";
     $("xlsxBtn").style.display = v==="expediente" || v==="notas" ? "none" : ""; $("pdfBtn").style.display = v==="expediente" || v==="notas" ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt)" : "Subir reporte de AdminXML";
     try{ history.replaceState(null,"", "#"+v); }catch(_){}
@@ -1339,7 +1365,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const f of rows){
       const v = vigente(f);
       t += `<tr class="${v?"":"canc"}"><td>${fechaCorta(f.fecha)}</td>
-        <td><div class="fname" title="${esc(f.nombre)}">${esc(f.nombre||"—")}</div><div class="fsub" title="${esc(f.conceptos||"")}">${v?esc(f.conceptos||""):f.canceladaManual?"Marcada como cancelada por ti":"Cancelada en el SAT"}</div>${!v && f.canceladaManual && canWrite && !f.acuseCancel ? `<button class="btn sm" data-descancelar="${esc(f.id)}" style="margin-top:4px;opacity:1">Fue un error: volver a vigente</button>` : ""}${!v ? (f.acuseCancel ? `<div class="fsub" style="max-width:none;opacity:1"><span class="st pagado">Acuse de cancelación</span> <button class="linkbtn" data-acusedl="${esc(f.id)}">${esc(f.acuseCancel.nombre)}</button>${f.acuseCancel.fecha?` · cancelada el ${fechaCorta(f.acuseCancel.fecha)} ${f.acuseCancel.fecha.slice(0,4)}`:""}</div>` : `<div class="fsub" style="max-width:none;opacity:1"><span class="st parcial">Falta acuse de cancelación</span>${canWrite?` <button class="linkbtn" data-acuseup="${esc(f.id)}">Subir acuse</button>`:""}</div>`) : ""}${v && canWrite ? `<button class="linkbtn" data-cancelar="${esc(f.id)}" style="font-size:11px">Marcar como cancelada</button>` : ""}</td>
+        <td><div class="fname" title="${esc(f.nombre)}">${esc(f.nombre||"—")}</div><div class="fsub" title="${esc(f.conceptos||"")}">${v?esc(f.conceptos||""):f.canceladaManual?"Marcada como cancelada por ti":"Cancelada en el SAT"}</div>${botonesCfdi(f.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(f.uuid)}</div>` : ""}${!v && f.canceladaManual && canWrite && !f.acuseCancel ? `<button class="btn sm" data-descancelar="${esc(f.id)}" style="margin-top:4px;opacity:1">Fue un error: volver a vigente</button>` : ""}${!v ? (f.acuseCancel ? `<div class="fsub" style="max-width:none;opacity:1"><span class="st pagado">Acuse de cancelación</span> <button class="linkbtn" data-acusedl="${esc(f.id)}">${esc(f.acuseCancel.nombre)}</button>${f.acuseCancel.fecha?` · cancelada el ${fechaCorta(f.acuseCancel.fecha)} ${f.acuseCancel.fecha.slice(0,4)}`:""}</div>` : `<div class="fsub" style="max-width:none;opacity:1"><span class="st parcial">Falta acuse de cancelación</span>${canWrite?` <button class="linkbtn" data-acuseup="${esc(f.id)}">Subir acuse</button>`:""}</div>`) : ""}${v && canWrite ? `<button class="linkbtn" data-cancelar="${esc(f.id)}" style="font-size:11px">Marcar como cancelada</button>` : ""}</td>
         <td>${f.folio?`<div>${esc(f.folio)}</div>`:""}<div class="uuid" title="${esc(f.uuid)}">${esc(String(f.uuid).slice(0,8))}…</div></td>
         <td><span class="mp ${f.metodo==="PPD"?"ppd":""}">${esc(f.metodo||"—")}</span></td>
         <td class="num">${money.format(+f.total||0)}</td>`;
@@ -1429,6 +1455,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const docs = [], comps = [], bancoFiles = [], impPdfs = [], noms = [], balPdfs = [], polXlsx = [], canceladas = [], acusesCan = [], txtRes = [], xmlFiles = [];
       for(const file of files){
         if(/\.(xml|zip)$/i.test(file.name)){ xmlFiles.push(file); continue; }
+        if(/\.pdf$/i.test(file.name) && /[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/.test(file.name)){ xmlFiles.push(file); continue; }
         if(/\.txt$/i.test(file.name) || file.type==="text/plain"){
           const txt = new TextDecoder("windows-1252").decode(await file.arrayBuffer());
           const res = await importarTxtContpaq(txt, file.name);
@@ -1439,10 +1466,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           const L = await leerPdf(file); if(!L) continue;
           if(/Balanza de comprobaci/i.test(L.todo)){ balPdfs.push({L, file}); continue; }
           if(/(acuse|solicitud|estatus|fecha y hora|fecha)\s+de\s+(la\s+)?cancelaci[oó]n/i.test(L.todo) && !/Estado de cuenta|Movimientos|Saldo inicial/i.test(L.todo) && /[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/i.test(L.todo) && !/IMPUESTOS FEDERALES|OPERACIONES CON TERCEROS/i.test(L.todo)){ acusesCan.push({L, file}); continue; }
-          if(/Auxiliares del Cat/i.test(L.todo)){ bancoFiles.push({kind:"aux", arr: auxPdfAFilas(L), name:file.name}); continue; }
+          if(/Auxiliares del Cat/i.test(L.todo)){ bancoFiles.push({kind:"aux", arr: auxPdfAFilas(L), name:file.name, file}); continue; }
           if(esPdfImpuesto(L.todo)){ impPdfs.push({L, file}); continue; }
           const movsPdf = parseBancoPdf(L, file);
-          if(movsPdf) bancoFiles.push({kind:"pdf", ...movsPdf, name:file.name});
+          if(movsPdf) bancoFiles.push({kind:"pdf", ...movsPdf, name:file.name, file});
           continue;
         }
         const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
@@ -1450,7 +1477,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(arr.slice(0,12).some(row=>row.some(x=>/Balanza de comprobaci/i.test(String(x))))){ balPdfs.push({xlsx: arr, file}); continue; }
         if(arr.slice(0,8).some(row=>row.some(x=>/Impreso de p[oó]lizas/i.test(String(x))))){ polXlsx.push({arr, name:file.name}); continue; }
         const kind = detectarBanco(arr);
-        if(kind){ bancoFiles.push({kind, arr, name:file.name}); continue; }
+        if(kind){ bancoFiles.push({kind, arr, name:file.name, file}); continue; }
         // El encabezado puede no estar en el primer renglón (algunos reportes de AdminXML traen título arriba)
         const hdrRow = Math.max(0, arr.slice(0,15).findIndex(rw=>rw.some(x=>String(x).trim()==="UUID")));
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:"", raw:true, range: hdrRow}).map(o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[String(k).replace(/\s+/g," ").trim(), v])));
@@ -1999,9 +2026,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const cta = cuentasB.find(c=>c.id===cuentaSel);
     const cambios = {}; let ultimo = null;
     const base = (y,m) => cambios[mesKey(y,m)] ||= {...(concDe(cuentaSel,y,m)||{}), id: concId(cuentaSel,y,m), cuenta: cuentaSel, anio:y, mes:m};
+    // Guarda el archivo original para poder descargarlo después desde Documentos
+    const guardarOriginal = async (f, tipo, meses) => {
+      if(!assets || !f.file || !meses.length) return;
+      try{ const up = await assets.upload(f.file); const reg = {id: up.id, nombre: f.name, tipo, subido: hoyISO};
+        for(const [y,m] of meses){ const d = base(y,m); d.archivos = [...(d.archivos||[]).filter(a=>a.tipo!==tipo), reg]; } }catch(_){}
+    };
     for(const f of files){
       if(f.kind==="edo" || f.kind==="pdf"){
         const movs = f.kind==="pdf" ? f.movs : parseEdo(f.arr); const grupos = {};
+        const mesesF = new Set(movs.map(m=>m.fecha.slice(0,7))); if(f.periodo && f.periodo.anio) mesesF.add(mesKey(f.periodo.anio, f.periodo.mes));
+        await guardarOriginal(f, "edo", [...mesesF].map(k=>k.split("-").map(Number)));
         if(f.kind==="pdf" && f.periodo && f.saldoInicial!=null){ const b0 = base(f.periodo.anio, f.periodo.mes); b0.saldoInicialBanco = f.saldoInicial; b0.edoSubido = true; if(!movs.length){ b0.banco = []; ultimo = [f.periodo.anio, f.periodo.mes]; } }
         for(const m of movs){ (grupos[m.fecha.slice(0,7)] ||= []).push(m); }
         for(const k of Object.keys(grupos)){ const [y,m] = k.split("-").map(Number); base(y,m).banco = grupos[k]; base(y,m).edoSubido = true; ultimo = [y,m]; }
@@ -2010,6 +2045,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(!a.periodo){ toast(`${f.name}: no encontré el periodo del auxiliar. ¿Es el auxiliar de CONTPAQi?`); continue; }
         if(!a.movs.length) toast(`${f.name}: leí el auxiliar de ${MESES[a.periodo.mes-1].toLowerCase()}, pero no encontré movimientos.`);
         else if(a.varias) toast(`El auxiliar traía varias cuentas; usé la ${a.cuentaUsada || "primera"} para ${cta.nombre}.`);
+        await guardarOriginal(f, "aux", [[a.periodo.anio, a.periodo.mes]]);
         const d = base(a.periodo.anio, a.periodo.mes);
         d.aux = a.movs; d.saldoInicialAux = a.saldoInicial; d.saldoFinalAux = a.saldoFinal; d.auxSubido = true; ultimo = [a.periodo.anio, a.periodo.mes];
       }
@@ -3435,6 +3471,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const b = xlsx ? parseBalanzaXlsx(xlsx) : parseBalanzaPdf(L);
       if(!b){ toast(`${file.name}: no pude leer la balanza.`); continue; }
       const id = mesKey(b.anio, b.mes);
+      if(assets && file){ try{ const up = await assets.upload(file); b.archivoAsset = {id: up.id, nombre: file.name}; }catch(_){} }
       blMes = b.mes; balanzas = {...balanzas, [id]: b};
       await conReintento(()=>db.doc(`empresas/${empresa}/balanzas/${id}`).set({...b, archivo: file.name, subido: hoyISO}));
       balanzas = {...balanzas, [id]: b}; hechos.push(`balanza de ${MESES[b.mes-1].toLowerCase()}`);
@@ -4848,7 +4885,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   // ---------- Contabilidad automática (pólizas para CONTPAQi) ----------
   let catalogo = [], terceros = {}, contaCfg = {}, unsubCat = null, unsubTer = null, unsubCC = null, coTab = "provProv", coMes = null;
-  const CO_TABS = [["provProv","Provisión proveedores"],["provCli","Provisión clientes"],["egresos","Egresos"],["ingresos","Ingresos"]];
+  const CO_TABS = [["provProv","Provisión proveedores"],["provCli","Provisión clientes"],["egresos","Egresos"],["ingresos","Ingresos"],["manual","Pólizas a mano"]];
   const CTA_DEF = {iva119:"119-01-000", iva118:"118-01-000", iva209:"209-01-000", iva208:"208-01-000", ingresos:"401-01-000",
     retIsrResico:"216-12-004", retIvaResico:"216-12-006", retCedResico:"216-12-005", retIsrHon:"213-07-004", retIvaHon:"213-07-003", retCedHon:"213-07-005", ivaRetCli:"113-01-000", isrRetCli:"113-02-000"};
   const CTA_NOM = {iva119:"IVA pendiente de pago", iva118:"IVA acreditable pagado", iva209:"IVA trasladado no cobrado", iva208:"IVA trasladado cobrado", ingresos:"Ingresos",
@@ -4922,7 +4959,24 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function retCtas(f){ const resico = String(f.regimen||"").startsWith("626"); return {isr: ctaCfg(resico?"retIsrResico":"retIsrHon"), iva: ctaCfg(resico?"retIvaResico":"retIvaHon"), ced: ctaCfg(resico?"retCedResico":"retCedHon")}; }
 
   // --- Arma las pólizas del mes ---
-  function polizasMes(y, m, tab){
+  function polizasBase(y, m, tab){
+    if(tab==="manual"){ const mk = mesKey(y, m);
+      return polApp.filter(p=>String(p.fecha).slice(0,7)===mk).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))).map(p=>{ const lin = (p.lin||[]).map(l=>({c:l.c, ca:+l.ca||0, ab:+l.ab||0}));
+        const ca = r2(lin.reduce((s,l)=>s+l.ca,0)), ab = r2(lin.reduce((s,l)=>s+l.ab,0)); return {key:`manual-${p.id}`, id:p.id, manual:true, tipo:p.tipo, fecha:p.fecha, concepto:p.concepto, ref:p.ref||"", lin, ct:{}, dif:r2(ca-ab), ya:null}; }); }
+    return polizasMesSinNum(y, m, tab);
+  }
+  // Numeración única por tipo de póliza en todo el mes: provisiones, egresos, ingresos y pólizas a mano
+  function todasPolizas(y, m){
+    const mk = mesKey(y, m), excl = new Set(((contaCfg.excluir||{})[mk]||[])), res = {}, sig = {};
+    for(const [tab] of CO_TABS){ res[tab] = polizasBase(y, m, tab); }
+    for(const [tab] of CO_TABS) for(const p of res[tab]){
+      if(sig[p.tipo]==null) sig[p.tipo] = ((contaCfg.inicios||{})[mk]||{})[p.tipo] || siguienteNum(mk, p.tipo);
+      if(!excl.has(p.key) && !p.ya){ p.num = sig[p.tipo]++; } else p.num = null;
+    }
+    return res;
+  }
+  function polizasMes(y, m, tab){ return todasPolizas(y, m)[tab]; }
+  function polizasMesSinNum(y, m, tab){
     const mk = mesKey(y, m), out = [], add = (p) => out.push(p);
     const enMes = x => String(x).slice(0,7)===mk;
     const R = (() => { try{ return conciliarXml(); }catch(_){ return null; } })();
@@ -4975,9 +5029,6 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // Cuadre: si cargos y abonos no cuadran por centavos, ajusta la línea mayor
     for(const p of out){ const ca = r2(p.lin.reduce((s,l)=>s+(+l.ca||0),0)), ab = r2(p.lin.reduce((s,l)=>s+(+l.ab||0),0)); p.dif = r2(ca - ab);
       if(Math.abs(p.dif) > 0 && Math.abs(p.dif) <= 0.05){ const l = p.lin.find(l=>(p.dif>0 ? l.ab : l.ca)); if(l){ if(p.dif>0) l.ab = r2(l.ab + p.dif); else l.ca = r2(l.ca - p.dif); p.dif = 0; } } }
-    // Numeración: empieza en el número que configures para el mes
-    const ini = ((contaCfg.inicios||{})[mk]||{})[out[0] ? out[0].tipo : ""] || siguienteNum(mk, out[0] ? out[0].tipo : "");
-    out.forEach((p,i)=>{ p.num = ini + i; });
     return out;
   }
 
@@ -4995,21 +5046,23 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const nuevas = ps.filter(p=>!p.ya), faltan = ps.filter(p=>p.lin.some(l=>l.falta || (l.c && !esDetalle(l.c))) || Math.abs(p.dif)>0.009);
     $("statusLine").innerHTML = `${ps.length} ${ps.length===1?"póliza":"pólizas"} de ${CO_TABS.find(x=>x[0]===coTab)[1].toLowerCase()} en ${MESES[coMes-1].toLowerCase()}${faltan.length?` · <strong style="color:var(--wip-ink)">${faltan.length} con cuentas por completar</strong>`:""}.`;
     const tipoP = ps[0] ? ps[0].tipo : (coTab==="egresos"?"Egresos":coTab==="ingresos"?"Ingresos":"Diario"), ini = ((contaCfg.inicios||{})[mesKey(year, coMes)]||{})[tipoP] || siguienteNum(mesKey(year, coMes), tipoP);
+    const todasN = Object.values(todasPolizas(year, coMes)).flat().filter(p=>p.num!=null).length;
     const opts = (pref, sel) => `<option value="">Elige cuenta…</option>${catalogo.filter(k=>pref.some(p=>k.c.startsWith(p)) && esDetalle(k.c)).map(k=>`<option value="${k.c}" ${k.c===sel?"selected":""}>${k.c} ${esc(k.n)}</option>`).join("")}`;
-    let html = `<div class="pairbar" style="margin:0 0 12px;flex-wrap:wrap;gap:10px;align-items:center"><label style="margin:0;font-weight:600">Empezar ${tipoP==="Diario"?"los Diarios":tipoP==="Egresos"?"los Egresos":"los Ingresos"} de ${MESES[coMes-1].toLowerCase()} en el número</label><input type="number" id="coIni" min="1" value="${ini}" style="width:90px">
-      ${downloads?`<button class="btn primary sm" id="coTxt">Descargar para importar en CONTPAQi (.txt)</button><button class="btn sm" id="coXls">Descargar en Excel (captura manual)</button>`:""}<button class="linkbtn" id="coCfg">Cuentas generales</button></div>`;
-    if(!ps.length) html += `<div class="empty">No hay movimientos para esta póliza en ${MESES[coMes-1].toLowerCase()}.</div>`;
+    let html = `<div class="pairbar" style="margin:0 0 8px;flex-wrap:wrap;gap:10px;align-items:center">${coTab!=="manual"?`<label style="margin:0;font-weight:600">Empezar ${tipoP==="Diario"?"los Diarios":tipoP==="Egresos"?"los Egresos":"los Ingresos"} de ${MESES[coMes-1].toLowerCase()} en el número</label><input type="number" id="coIni" min="1" value="${ini}" style="width:90px">`:`${canWrite?`<button class="btn primary sm" id="coNueva">Nueva póliza</button>`:""}`}
+      ${downloads?`<button class="btn sm" id="coTxt">Descargar solo esta pestaña (.txt)</button><button class="btn sm" id="coXls">En Excel</button>`:""}<button class="linkbtn" id="coCfg">Cuentas generales</button></div>
+      ${downloads?`<div class="pairbar" style="margin:0 0 14px"><button class="btn primary" id="coTodo">Descargar TODAS las pólizas de ${MESES[coMes-1].toLowerCase()} para CONTPAQi (.txt)</button><span class="fsub" style="max-width:none">${todasN} pólizas con numeración seguida por tipo: un solo archivo para importar.</span></div>`:""}`;
+    if(!ps.length) html += coTab==="manual" ? `<div class="empty">Aquí capturas cualquier otra póliza (nómina, IMSS, impuestos, reembolsos, traspasos, depreciación…) con tu catálogo, desde el iPad. Toca <strong>Nueva póliza</strong>.</div>` : `<div class="empty">No hay movimientos para esta póliza en ${MESES[coMes-1].toLowerCase()}.</div>`;
     for(const p of ps){
       const inc = !excl.has(p.key) && !p.ya;
-      html += `<div class="bpanel" style="margin-bottom:12px;${inc?"":"opacity:.6"}"><h3 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label class="check" style="margin:0"><input type="checkbox" data-coinc="${esc(p.key)}" ${inc?"checked":""}><span>${p.tipo} ${inc?p.num:""}</span></label><span style="font-weight:600">${fechaCorta(p.fecha)} · ${esc(p.concepto)}</span>
-        ${p.ya?`<span class="st pagado">Ya está en tus pólizas (${esc(p.ya)})</span>`:""}${p.sinPago?`<span class="st parcial">PUE sin pago registrado: se usa la fecha de la factura</span>`:""}${p.bk && p.bk.supuesto?`<span class="st parcial">Banco supuesto: ${esc(p.bk.nombre)}</span>`:""}<small>Ref. ${esc(p.ref)}</small></h3>
+      html += `<div class="bpanel" style="margin-bottom:12px;${inc?"":"opacity:.6"}"><h3 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label class="check" style="margin:0"><input type="checkbox" data-coinc="${esc(p.key)}" ${inc?"checked":""}><span>${p.tipo} ${inc&&p.num!=null?p.num:""}</span></label><span style="font-weight:600">${fechaCorta(p.fecha)} · ${esc(p.concepto)}</span>
+        ${p.ya?`<span class="st pagado">Ya está en tus pólizas (${esc(p.ya)})</span>`:""}${p.manual && canWrite?`<button class="linkbtn" data-coman="${esc(p.id)}">Editar</button> <button class="linkbtn" data-codup="${esc(p.id)}">Duplicar</button>`:""}${p.sinPago?`<span class="st parcial">PUE sin pago registrado: se usa la fecha de la factura</span>`:""}${p.bk && p.bk.supuesto?`<span class="st parcial">Banco supuesto: ${esc(p.bk.nombre)}</span>`:""}<small>Ref. ${esc(p.ref)}</small></h3>
         <div class="sheet" style="border:none;border-radius:0"><table class="pt" style="min-width:0;width:100%"><thead><tr><th>Cuenta</th><th class="num">Cargo</th><th class="num">Abono</th></tr></thead><tbody>
         ${p.lin.map((l,i)=>{ const ok = l.c && esDetalle(l.c);
-          const sel = l.falta || !ok ? (l.falta==="gasto" || (!ok && /^(5|6|7)/.test(l.c||"")) ? `<select data-coset="gasto" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["5","6","7","15"], l.c)}</select>` : l.falta==="prov" ? `<select data-coset="prov" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["201","205"], l.c)}</select>` : l.falta==="cli" ? `<select data-coset="cli" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["105"], l.c)}</select>` : `<span class="falta">${l.c?`${esc(l.c)} no existe en tu catálogo`:"Falta cuenta"}</span>`) : "";
+          const sel = p.manual ? (ok ? "" : `<span class="falta">${l.c?`${esc(l.c)} no existe en tu catálogo`:"Falta cuenta"}</span>`) : l.falta || !ok ? (l.falta==="gasto" || (!ok && /^(5|6|7)/.test(l.c||"")) ? `<select data-coset="gasto" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["5","6","7","15"], l.c)}</select>` : l.falta==="prov" ? `<select data-coset="prov" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["201","205"], l.c)}</select>` : l.falta==="cli" ? `<select data-coset="cli" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["105"], l.c)}</select>` : `<span class="falta">${l.c?`${esc(l.c)} no existe en tu catálogo`:"Falta cuenta"}</span>`) : "";
           const editando = coEdit && coEdit.key===p.key && coEdit.i===i;
           const editor = editando ? `<div style="margin-top:6px;display:grid;gap:6px"><input id="coEditBuscar" placeholder="Buscar cuenta por número o nombre" value="${esc(coEdit.q||"")}" autocomplete="off"><select id="coEditSel" size="6" style="width:100%">${catalogo.filter(k=>esDetalle(k.c) && (!coEdit.q || normTxt(k.c+" "+k.n).includes(normTxt(coEdit.q)))).slice(0,300).map(k=>`<option value="${k.c}" ${k.c===l.c?"selected":""}>${k.c} ${esc(k.n)}</option>`).join("")}</select>
             <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" data-coeditok="${esc(p.key)}" data-i="${i}">Usar esta cuenta solo en esta póliza</button><button class="linkbtn" data-coeditno>Cancelar</button></div></div>` : "";
-          return `<tr><td>${ok?`<strong>${l.c}</strong> ${esc(ctaN(l.c))}`:""}${l.cambiada?` <span class="st na" style="font-size:11px">Cambiada (antes ${esc(l.orig||"—")})</span> <button class="linkbtn" data-codeshacer="${esc(p.key)}" data-i="${i}" style="font-size:12px">deshacer</button>`:""}${sel}${ok && !l.cambiada && ["gasto","prov","cli"].some(t=>p.ct[t]===l.c) ? ` <button class="linkbtn" data-cocambia="${["gasto","prov","cli"].find(t=>p.ct[t]===l.c)}" data-id="${esc(p.ct.id)}" style="font-size:12px">cambiar para este ${p.f.tipo==="emitida"?"cliente":"proveedor"}</button>` : ""} ${canWrite && !editando ? `<button class="linkbtn" data-coedit="${esc(p.key)}" data-i="${i}" style="font-size:12px">cambiar en esta póliza</button>` : ""}${editor}</td><td class="num">${l.ca?f(l.ca):""}</td><td class="num">${l.ab?f(l.ab):""}</td></tr>`; }).join("")}
+          return `<tr><td>${ok?`<strong>${l.c}</strong> ${esc(ctaN(l.c))}`:""}${l.cambiada?` <span class="st na" style="font-size:11px">Cambiada (antes ${esc(l.orig||"—")})</span> <button class="linkbtn" data-codeshacer="${esc(p.key)}" data-i="${i}" style="font-size:12px">deshacer</button>`:""}${sel}${ok && !p.manual && !l.cambiada && ["gasto","prov","cli"].some(t=>p.ct[t]===l.c) ? ` <button class="linkbtn" data-cocambia="${["gasto","prov","cli"].find(t=>p.ct[t]===l.c)}" data-id="${esc(p.ct.id)}" style="font-size:12px">cambiar para este ${p.f.tipo==="emitida"?"cliente":"proveedor"}</button>` : ""} ${canWrite && !editando && !p.manual ? `<button class="linkbtn" data-coedit="${esc(p.key)}" data-i="${i}" style="font-size:12px">cambiar en esta póliza</button>` : ""}${editor}</td><td class="num">${l.ca?f(l.ca):""}</td><td class="num">${l.ab?f(l.ab):""}</td></tr>`; }).join("")}
         <tr><td><strong>Sumas</strong>${Math.abs(p.dif)>0.009?` <span class="difw">No cuadra por ${f(Math.abs(p.dif))}</span>`:""}</td><td class="num"><strong>${f(p.lin.reduce((s,l)=>s+(+l.ca||0),0))}</strong></td><td class="num"><strong>${f(p.lin.reduce((s,l)=>s+(+l.ab||0),0))}</strong></td></tr></tbody></table></div></div>`;
     }
     $("cobody").innerHTML = html;
@@ -5040,6 +5093,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(dz){ const mk = mesKey(year, coMes), cambios = {...(contaCfg.cambios||{})}, delMes = {...(cambios[mk]||{})}, deP = {...(delMes[dz.dataset.codeshacer]||{})};
       delete deP[dz.dataset.i]; delMes[dz.dataset.codeshacer] = deP; cambios[mk] = delMes; guardarCfgConta({cambios}); return; }
     if(e.target.closest("#coTxt")) return exportConta("txt");
+    if(e.target.closest("#coTodo")) return exportConta("txt", true);
+    if(e.target.closest("#coNueva")){ abrirPolMan(null); return; }
+    const em = e.target.closest("[data-coman]"); if(em){ abrirPolMan(polApp.find(x=>x.id===em.dataset.coman)); return; }
+    const du = e.target.closest("[data-codup]"); if(du){ const x = polApp.find(y=>y.id===du.dataset.codup); if(x) abrirPolMan({...x, id:null}); return; }
     if(e.target.closest("#coXls")) return exportConta("xlsx");
     if(e.target.closest("#coCfg")){ abrirCfgConta(); return; }
   });
@@ -5050,13 +5107,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   $("contaCfgCancel").onclick = () => $("contaCfgDlg").close();
   $("contaCfgOk").onclick = () => { const c = {}; document.querySelectorAll("[data-cfgk]").forEach(s=>c[s.dataset.cfgk] = s.value); $("contaCfgDlg").close(); guardarCfgConta({cuentas: c}); };
-  async function exportConta(fmt){
-    const ps = polizasMes(year, coMes, coTab), excl = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[]));
-    const sel = ps.filter(p=>!excl.has(p.key) && !p.ya);
+  async function exportConta(fmt, todas){
+    const T = todasPolizas(year, coMes), ps = todas ? Object.values(T).flat() : T[coTab];
+    const sel = ps.filter(p=>p.num!=null).sort((a,b)=>a.tipo.localeCompare(b.tipo) || a.num-b.num);
     if(!sel.length){ toast("No hay pólizas seleccionadas."); return; }
     const malas = sel.filter(p=>p.lin.some(l=>!l.c || !esDetalle(l.c)) || Math.abs(p.dif)>0.009);
     if(malas.length && !await confirmar(`${malas.length} ${malas.length===1?"póliza tiene":"pólizas tienen"} cuentas por completar o no cuadran. ¿Descargar de todos modos?`)) return;
-    const nombreArch = `Polizas ${CO_TABS.find(x=>x[0]===coTab)[1]} ${empresaNombre} ${ABR[coMes-1]} ${year}`;
+    const nombreArch = `Polizas ${todas ? "del mes" : CO_TABS.find(x=>x[0]===coTab)[1]} ${empresaNombre} ${ABR[coMes-1]} ${year}`;
     if(fmt==="txt"){
       const TIPO = {Ingresos:1, Egresos:2, Diario:3}, guid = () => (crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; return (c==="x" ? r : (r&3|8)).toString(16); })).toUpperCase();
       const pad = (s, n) => String(s??"").slice(0,n).padEnd(n), padL = (s, n) => String(s??"").slice(-n).padStart(n);
@@ -5066,7 +5123,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const fe = p.fecha.replace(/-/g,"");
         lineas.push(`P  ${fe}${padL(TIPO[p.tipo], 5)}${padL(p.num, 10)} 1 0${" ".repeat(10)}${pad(p.concepto, 100)} 11 0 0 ${guid()} `);
         for(const l of p.lin){ const imp = l.ca || l.ab || 0; if(!imp) continue;
-          lineas.push(`M1 ${pad(String(l.c||"").replace(/-/g,""), 30)}${pad(p.ref, 30)}  ${l.ab ? 1 : 0} ${pad(num(imp), 20)} ${pad("0", 10)} ${pad("0.0", 20)} ${pad(p.concepto, 106)}${guid()} ${fe} `); }
+          lineas.push(`M1 ${pad(String(l.c||"").replace(/-/g,""), 30)}${pad(l.r || p.ref, 30)}  ${l.ab ? 1 : 0} ${pad(num(imp), 20)} ${pad("0", 10)} ${pad("0.0", 20)} ${pad(p.concepto, 106)}${guid()} ${fe} `); }
       }
       const s = lineas.join("\r\n") + "\r\n", bytes = new Uint8Array(s.length);
       for(let i=0;i<s.length;i++){ const c = s.charCodeAt(i); bytes[i] = c < 256 ? c : 63; }
@@ -5076,7 +5133,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       await loadLibs("excel"); const wb = new ExcelJS.Workbook(), w = wb.addWorksheet("Pólizas"), M = '"$"#,##0.00';
       w.columns = [{width:10},{width:8},{width:12},{width:44},{width:14},{width:40},{width:16},{width:14},{width:14}];
       w.addRow(["Tipo","Número","Fecha","Concepto","Cuenta","Nombre de la cuenta","Referencia","Cargo","Abono"]).font = {bold:true};
-      for(const p of sel){ for(const l of p.lin){ const r = w.addRow([p.tipo, p.num, p.fecha, p.concepto, l.c||"FALTA", ctaN(l.c), p.ref, l.ca||null, l.ab||null]); r.getCell(8).numFmt = M; r.getCell(9).numFmt = M; } w.addRow([]); }
+      for(const p of sel){ for(const l of p.lin){ const r = w.addRow([p.tipo, p.num, p.fecha, p.concepto, l.c||"FALTA", ctaN(l.c), l.r || p.ref, l.ca||null, l.ab||null]); r.getCell(8).numFmt = M; r.getCell(9).numFmt = M; } w.addRow([]); }
       await guardarArchivo(`${nombreArch}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
     }
   }
@@ -5151,7 +5208,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         <td class="num">${g.n}</td><td class="num">${f(g.facturado)}</td><td class="num">${f(g.pagado)}</td><td class="num"><strong>${f(g.saldo)}</strong></td><td class="num ${g.vencido?"late":""}">${g.vencido?f(g.vencido):""}</td><td>${g.ultimo?`${fechaCorta(g.ultimo)} ${g.ultimo.slice(0,4)}`:"—"}</td></tr>`;
       if(ab){
         t += `<tr class="detail"><td colspan="7"><table class="decl" style="width:100%"><thead><tr><th>Fecha</th><th>Folio</th><th>Método</th><th class="num">Total</th><th class="num">${verbo==="cobro"?"Cobrado":"Pagado"}</th><th class="num">Saldo</th><th>Vence</th><th>Estatus</th></tr></thead><tbody>
-          ${g.items.sort((a,b)=>String(b.f.fecha).localeCompare(String(a.f.fecha))).map(({f:x, c})=>`<tr><td>${fechaCorta(x.fecha)} ${String(x.fecha).slice(0,4)}</td><td>${esc(x.folio||"—")}<div class="uuid">${esc(String(x.uuid).slice(0,8))}…</div></td><td>${esc(x.metodo||"")}</td><td class="num">${f(+x.total||0)}</td><td class="num">${f(c.abonado)}${(c.abs||[]).length?`<div class="fsub">${c.abs.map(a=>fechaCorta(a.fecha)).join(", ")}</div>`:""}</td><td class="num"><strong>${f(c.saldo)}</strong></td><td class="${c.saldo>0&&c.dias<0?"late":""}">${fechaCorta(c.vence)}</td><td><span class="st ${c.estatus}">${EST_TXT[c.estatus]}</span></td></tr>`).join("")}
+          ${g.items.sort((a,b)=>String(b.f.fecha).localeCompare(String(a.f.fecha))).map(({f:x, c})=>`<tr><td>${fechaCorta(x.fecha)} ${String(x.fecha).slice(0,4)}</td><td>${esc(x.folio||"—")}<div class="uuid">${esc(String(x.uuid).slice(0,8))}…</div>${botonesCfdi(x.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(x.uuid)}</div>` : ""}</td><td>${esc(x.metodo||"")}</td><td class="num">${f(+x.total||0)}</td><td class="num">${f(c.abonado)}${(c.abs||[]).length?`<div class="fsub">${c.abs.map(a=>fechaCorta(a.fecha)).join(", ")}</div>`:""}</td><td class="num"><strong>${f(c.saldo)}</strong></td><td class="${c.saldo>0&&c.dias<0?"late":""}">${fechaCorta(c.vence)}</td><td><span class="st ${c.estatus}">${EST_TXT[c.estatus]}</span></td></tr>`).join("")}
           <tr><td colspan="3"><strong>Total</strong></td><td class="num"><strong>${f(g.items.reduce((s,x)=>s+(+x.f.total||0),0))}</strong></td><td class="num"><strong>${f(g.pagado)}</strong></td><td class="num"><strong>${f(g.saldo)}</strong></td><td colspan="2"></td></tr></tbody></table></td></tr>`;
       }
     }
@@ -5346,7 +5403,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         return `<tr><td><div class="fname" title="${esc(d.razon||x.razon)}">${esc(d.razon||x.razon||"—")}</div><div class="fsub">${completo?'<span class="st pagado">Completo</span>':'<span class="st parcial">Por completar</span>'}${d.constancia?" · con constancia":""}</div></td>
           <td class="uuid">${esc(d.rfc||x.rfc||"—")}</td><td>${reg?`${esc(reg)}<div class="fsub" title="${esc(REGIMENES[reg]||"")}">${esc((REGIMENES[reg]||"").slice(0,28))}</div>`:"—"}${!d.regimen && reg ? '<div class="fsub">de sus facturas</div>' : ""}</td>
           <td>${esc(d.cp||"—")}</td><td>${uso?`${esc(uso)}<div class="fsub">${esc((USOS[uso]||"").slice(0,24))}</div>`:"—"}</td><td>${esc(d.correo||"—")}</td>
-          <td class="num">${x.n||""}</td><td class="num">${x.saldo?f(x.saldo):""}</td><td>${canWrite?`<button class="btn sm" data-diredit="${esc(x.id)}">${x.dato?"Editar":"Completar"}</button>`:""}</td></tr>`; }).join("")}</tbody></table>`;
+          <td class="num">${x.n||""}</td><td class="num">${x.saldo?f(x.saldo):""}</td><td style="white-space:nowrap">${canWrite?`<button class="btn sm" data-diredit="${esc(x.id)}">${x.dato?"Editar":"Completar"}</button>`:""} ${dirTipo==="cliente"?`<button class="btn sm" data-dircopy="${esc(x.id)}" title="Copia RFC, razón social, régimen, C.P. y uso de CFDI">Copiar datos</button>`:""}</td></tr>`; }).join("")}</tbody></table>
+      ${dirTipo==="cliente"?`<div class="pairbar" style="padding:12px 14px;flex-wrap:wrap;gap:8px"><a class="btn sm primary" href="https://portal.facturaelectronica.sat.gob.mx" target="_blank" rel="noopener">Facturar en el SAT</a><a class="btn sm" href="https://portalcfdi.facturaelectronica.sat.gob.mx" target="_blank" rel="noopener">Consultar y descargar facturas en el SAT</a><span class="fsub" style="max-width:none">Copia los datos del cliente, factura en el SAT y luego sube aquí el XML y PDF para guardarlos y enviarlos.</span></div>`:""}`;
   }
   function llenarSelect(id, cat, val){ $(id).innerHTML = `<option value="">—</option>` + Object.entries(cat).map(([k,v])=>`<option value="${k}" ${k===val?"selected":""}>${k} · ${v}</option>`).join(""); }
   function abrirDir(x, pref){
@@ -5363,7 +5421,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   document.querySelectorAll("[data-dtipo]").forEach(b=>b.onclick = () => { dirTipo = b.dataset.dtipo; renderDirectorio(); });
   $("dirBuscar").addEventListener("input", () => renderDirectorio());
   $("dirNuevo").onclick = () => abrirDir(null);
-  $("dirbody").addEventListener("click", e => { const b = e.target.closest("[data-diredit]"); if(!b) return; abrirDir(listaDirectorio(dirTipo).find(x=>x.id===b.dataset.diredit)); });
+  $("dirbody").addEventListener("click", async e => { const cp = e.target.closest("[data-dircopy]");
+    if(cp){ const x = listaDirectorio(dirTipo).find(y=>y.id===cp.dataset.dircopy); if(!x) return; const d = x.dato || {}, s = x.sugerido || {};
+      const reg = d.regimen || s.regimen, uso = d.uso || s.uso;
+      const txt = [`RFC: ${d.rfc||x.rfc||""}`, `Razón social: ${d.razon||x.razon||""}`, `Código postal: ${d.cp||""}`, `Régimen fiscal: ${reg?`${reg} ${REGIMENES[reg]||""}`:""}`, `Uso de CFDI: ${uso?`${uso} ${USOS[uso]||""}`:""}`, d.correo?`Correo: ${d.correo}`:""].filter(Boolean).join("\n");
+      try{ await navigator.clipboard.writeText(txt); toast("Datos copiados: pégalos en el SAT."); }catch(_){ toast(txt); } return; }
+    const b = e.target.closest("[data-diredit]"); if(!b) return; abrirDir(listaDirectorio(dirTipo).find(x=>x.id===b.dataset.diredit)); });
   $("dirCancel").onclick = () => $("dirDlg").close();
   $("dCsfInfo").addEventListener("click", e => { if(e.target.id==="dCsfVer"){ const d = directorio[dirEdit]; if(d && d.constancia) descargarAsset(d.constancia); } });
   $("dirOk").onclick = async () => {
@@ -5415,13 +5478,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   // ---------- XML de CFDI (sueltos o en .zip) ----------
   async function leerXmlsCfdi(files){
-    const textos = [];
+    const textos = [], pdfs = [];
     for(const f of files){
-      if(/\.zip$/i.test(f.name)){ await loadLibs("zip"); const z = await JSZip.loadAsync(f); for(const n of Object.keys(z.files)) if(/\.xml$/i.test(n) && !z.files[n].dir) textos.push(await z.file(n).async("string")); }
-      else textos.push(await f.text());
+      if(/\.zip$/i.test(f.name)){ await loadLibs("zip"); const z = await JSZip.loadAsync(f);
+        for(const n of Object.keys(z.files)){ if(z.files[n].dir) continue; const base = n.split("/").pop();
+          if(/\.xml$/i.test(n)){ const t = await z.file(n).async("string"); textos.push({t, nombre: base}); }
+          else if(/\.pdf$/i.test(n)) pdfs.push({nombre: base, blob: () => z.file(n).async("blob")}); } }
+      else if(/\.pdf$/i.test(f.name)) pdfs.push({nombre: f.name, blob: async () => f});
+      else textos.push({t: await f.text(), nombre: f.name});
     }
     const P = new DOMParser(), xs = [];
-    for(const t of textos){ try{ const d = P.parseFromString(t, "application/xml"); if(d.getElementsByTagNameNS("*","Comprobante")[0]) xs.push(d); }catch(_){} }
+    for(const {t, nombre} of textos){ try{ const d = P.parseFromString(t, "application/xml"); if(d.getElementsByTagNameNS("*","Comprobante")[0]){ d.__texto = t; d.__nombre = nombre; xs.push(d); } }catch(_){} }
     const el = (n, raiz) => (raiz||null) && raiz.getElementsByTagNameNS("*", n)[0] || null, els = (n, raiz) => [...raiz.getElementsByTagNameNS("*", n)];
     const at = (e, a) => e ? (e.getAttribute(a) ?? "") : "";
     // RFC de la empresa: el guardado, o el que aparece en todos los XML
@@ -5448,7 +5515,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
             els("TrasladoDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="002" && Math.abs(+at(t,"TasaOCuotaDR")-0.16)<0.0001){ ivaB += +at(t,"BaseDR")||0; iva += +at(t,"ImporteDR")||0; } });
             els("RetencionDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="001") isr += +at(t,"ImporteDR")||0; });
             comps.push({tipo, uuid, doc: at(dr,"IdDocumento").toUpperCase(), fechaPago: fp || fecha, impPagado: num(at(dr,"ImpPagado")), saldoInsoluto: num(at(dr,"ImpSaldoInsoluto")),
-              parcialidad: +at(dr,"NumParcialidad")||1, estadoSAT: "Vigente", nombre: at(otro,"Nombre"), ivaBase: r2(ivaB), iva: r2(iva), isrRet: r2(isr), regimen: at(E,"RegimenFiscal")});
+              parcialidad: +at(dr,"NumParcialidad")||1, estadoSAT: (complementos.find(c=>c.id===`${uuid}_${at(dr,"IdDocumento").toUpperCase()}`)||{}).estadoSAT || "Vigente", nombre: at(otro,"Nombre"), ivaBase: r2(ivaB), iva: r2(iva), isrRet: r2(isr), regimen: at(E,"RegimenFiscal")});
           }
         }
         continue;
@@ -5458,7 +5525,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const N = el("Nomina", d), Pe = el("Percepciones", d), ded = els("Deduccion", d);
         const fp = at(N,"FechaPago") || fecha;
         noms.push({uuid, fechaPago: fp, anio: +fp.slice(0,4), mes: +fp.slice(5,7), nombre: at(R,"Nombre"), percepciones: num(at(N,"TotalPercepciones")), exento: num(at(Pe,"TotalExento")),
-          isr: r2(ded.filter(x=>at(x,"TipoDeduccion")==="002").reduce((s,x)=>s+(+at(x,"Importe")||0),0)), imss: r2(ded.filter(x=>at(x,"TipoDeduccion")==="001").reduce((s,x)=>s+(+at(x,"Importe")||0),0)), estadoSAT: "Vigente"});
+          isr: r2(ded.filter(x=>at(x,"TipoDeduccion")==="002").reduce((s,x)=>s+(+at(x,"Importe")||0),0)), imss: r2(ded.filter(x=>at(x,"TipoDeduccion")==="001").reduce((s,x)=>s+(+at(x,"Importe")||0),0)), estadoSAT: (nominas.find(n=>n.id===uuid||n.uuid===uuid)||{}).estadoSAT || "Vigente"});
         continue;
       }
       if(tc!=="I"){ if(tc==="E") egresos++; else otros++; continue; }
@@ -5469,16 +5536,31 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         els("Retencion", imp).forEach(t=>{ if(at(t,"Impuesto")==="001") isrRet += +at(t,"Importe")||0; if(at(t,"Impuesto")==="002") ivaRet += +at(t,"Importe")||0; }); }
       const loc = el("ImpuestosLocales", d);
       docs.push({tipo, uuid, fecha, anio: +fecha.slice(0,4), mes: +fecha.slice(5,7), folio: [at(C,"Serie"), at(C,"Folio")].filter(Boolean).join("-"),
-        nombre: at(otro,"Nombre"), rfc: (tipo==="emitida" ? rR : eR), metodo: at(C,"MetodoPago").toUpperCase(), total: num(at(C,"Total")), estadoSAT: "Vigente",
+        nombre: at(otro,"Nombre"), rfc: (tipo==="emitida" ? rR : eR), metodo: at(C,"MetodoPago").toUpperCase(), total: num(at(C,"Total")), estadoSAT: (facturas.find(f=>f.uuid===uuid)||{}).estadoSAT || "Vigente",
         conceptos: els("Concepto", d).map(c=>at(c,"Descripcion")).join(" | ").replace(/\s+/g," ").slice(0,160),
         subtotal: r2((+at(C,"SubTotal")||0) - (+at(C,"Descuento")||0)), ivaBase: r2(ivaBase), iva: r2(iva), iva0Base: r2(iva0), ivaExBase: r2(ivaEx), isrRet: r2(isrRet), ivaRet: r2(ivaRet), impLoc: num(at(loc,"TotaldeRetenciones")),
         regimen: tipo==="emitida" ? at(R,"RegimenFiscalReceptor") : at(E,"RegimenFiscal"), uso: at(R,"UsoCFDI"), formaPago: at(C,"FormaPago")});
     }
+    // Guarda los XML y PDF para poder descargarlos después, ligados por UUID
+    let guardados = 0;
+    if(assets){
+      const pend = [];
+      for(const d of xs){ const T2 = el("TimbreFiscalDigital", d), u = at(T2,"UUID").toUpperCase(); if(u && !(cfdiMap[u]||{}).xml) pend.push({u, tipo:"xml", nombre: d.__nombre || `${u}.xml`, blob: async () => new Blob([d.__texto], {type:"application/xml"})}); }
+      for(const p of pdfs){ const m = p.nombre.match(/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/); if(m){ const u = m[0].toUpperCase(); if(!(cfdiMap[u]||{}).pdf) pend.push({u, tipo:"pdf", nombre: p.nombre, blob: p.blob}); } }
+      let i = 0;
+      for(const x of pend){ i++; setSaving(`Guardando XML y PDF ${i} de ${pend.length}…`);
+        try{ if(!cfdiMap[x.u]){ try{ const s = await db.doc(`empresas/${empresa}/cfdi/${x.u}`).get(); if(s.exists) cfdiMap = {...cfdiMap, [x.u]: s.data()}; }catch(_){} }
+          if((cfdiMap[x.u]||{})[x.tipo]) continue;
+          const bl = await x.blob(); const up = await assets.upload(new File([bl], x.nombre, {type: x.tipo==="xml" ? "application/xml" : "application/pdf"}));
+          const prev = cfdiMap[x.u] || {}; const d = {...prev, [x.tipo]: {id: up.id, nombre: x.nombre}};
+          await conReintento(()=>db.doc(`empresas/${empresa}/cfdi/${x.u}`).set(d)); cfdiMap = {...cfdiMap, [x.u]: d}; guardados++; }catch(_){} }
+    }
     const avisos = [];
-    if(!xs.length) avisos.push("No encontré XML de CFDI en los archivos.");
+    if(guardados) avisos.push(`Guardé ${guardados} archivos XML y PDF para descargarlos desde Facturas.`);
+    if(!xs.length && !guardados) avisos.push("No encontré XML de CFDI en los archivos.");
     if(otros) avisos.push(`${otros} XML no son de ${cur.nombre||"esta empresa"} (RFC ${miRfc||"desconocido"}) o no se usan; los ignoré.`);
     if(egresos) avisos.push(`${egresos} notas de crédito (egresos) todavía no se toman en cuenta.`);
-    if(xs.length) avisos.push("Los XML no dicen si están cancelados: sube después el reporte de AdminXML o marca las canceladas a mano.");
+    if(xs.length && !docs.every(d=>facturas.some(f=>f.uuid===d.uuid))) avisos.push("Los XML no dicen si están cancelados: sube después el reporte de AdminXML o marca las canceladas a mano.");
     return {docs, comps, noms, aviso: avisos.join(" ")};
   }
 
@@ -5575,6 +5657,202 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const out = movs.map((m,i)=>{ let id = `bnmx-${m.fecha}-${m.tipo}-${Math.round(m.monto*100)}`; while(ids.has(id)) id += "x"; ids.add(id); return {id, fecha: m.fecha, tipo: m.tipo, monto: m.monto, comision: 0, nombre: m.nombre || "Banamex", concepto: m.concepto}; });
     return {movs: out, saldoInicial: saldoIni, periodo: {anio, mes: mesCorte}, sinMovs: !out.length};
   }
+
+  // ---------- Documentos: todo lo que te pueden pedir, en un solo lugar ----------
+  let docMes = null;
+  function docsDelMes(y, m){
+    const out = []; const add = (grupo, nombre, a, nota) => { if(a && a.id) out.push({grupo, nombre, a, nota}); };
+    const TIPO_DEC = {linea:"Línea de captura", declaracion:"Declaración", resumen:"Resumen SUA", cedula:"Cédula SUA", comprobante:"Comprobante de pago", acuse:"Acuse"};
+    for(const d of declaraciones.filter(x=>x.anio===y && x.mes===m)){ const o = OBLIG.find(x=>x.clave===d.clave) || {nombre:d.clave};
+      (d.archivos||[]).forEach(a=>add("Impuestos e IMSS", `${o.nombre} · ${TIPO_DEC[a.tipo]||"Acuse"}`, a, a.nombre)); }
+    for(const c of concs.filter(x=>x.anio===y && x.mes===m)){ const cta = cuentasB.find(x=>x.id===c.cuenta) || {nombre:c.cuenta};
+      (c.archivos||[]).forEach(a=>add("Bancos", `${cta.nombre} · ${a.tipo==="aux"?"Auxiliar de CONTPAQi":"Estado de cuenta"}`, a, a.nombre)); }
+    const b = balanzas[mesKey(y, m)]; if(b && b.archivoAsset) add("Balanza", "Balanza de comprobación (original)", b.archivoAsset, b.archivoAsset.nombre);
+    const ex = (typeof expDe==="function" && y===year) ? expDe(m) : {};
+    (ex.polizas||[]).forEach(a=>add("Pólizas y expediente", "Pólizas impresas", a, a.nombre));
+    Object.entries(ex.invoices||{}).forEach(([k,arr])=>(arr||[]).forEach(a=>add("Pólizas y expediente", `Invoice ${(licencias.find(l=>l.id===k)||{}).nombre||k}`, a, a.nombre)));
+    if(ex.drive && ex.drive.id) add("Pólizas y expediente", "Carpeta final del mes", ex.drive, ex.drive.nombre);
+    facturas.filter(f=>f.acuseCancel && String(f.fecha).slice(0,7)===mesKey(y,m)).forEach(f=>add("Facturas", `Acuse de cancelación · ${f.nombre}`, f.acuseCancel, f.acuseCancel.nombre));
+    return out;
+  }
+  async function conEstado(cambios, fn){
+    const prev = {cuentaSel, bMes, iMes, blMes, rMes, dTab, dMes, mesSel, vista, ctSel, coMes, coTab};
+    try{ ({cuentaSel = cuentaSel, bMes = bMes, iMes = iMes, blMes = blMes, rMes = rMes, dTab = dTab, dMes = dMes, mesSel = mesSel, ctSel = ctSel} = cambios); if(cambios.vista) vista = cambios.vista; await fn(); }
+    finally{ ({cuentaSel, bMes, iMes, blMes, rMes, dTab, dMes, mesSel, vista, ctSel, coMes, coTab} = prev); }
+  }
+  function renderDocumentos(){
+    $("yearLabel").textContent = year;
+    setTimeout(renderDocsFiscales, 0);
+    if(!docMes) docMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
+    $("docmonths").innerHTML = Array.from({length:12},(_,i)=>{ const n = docsDelMes(year, i+1).length; return `<button class="mchip ${n?"ok":""}" data-docmes="${i+1}" aria-current="${docMes===i+1}"><b>${ABR[i]}</b><small>${n?`${n} archivos`:"—"}</small></button>`; }).join("");
+    const docs = docsDelMes(year, docMes), grupos = {}; docs.forEach(d=>(grupos[d.grupo] ||= []).push(d));
+    $("statusLine").innerHTML = `${MESES[docMes-1]} ${year}: <strong>${docs.length}</strong> ${docs.length===1?"archivo guardado":"archivos guardados"} y los reportes que arma la app.`;
+    const ctas = cuentasB.filter(c=>concDe(c.id, year, docMes));
+    const btn = (id, t, extra="") => `<button class="btn sm" data-gen="${id}" ${extra}>${t}</button>`;
+    let html = `<div class="pairbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="docZip">Descargar todo ${MESES[docMes-1].toLowerCase()} (.zip)</button><span class="fsub" style="max-width:none">La carpeta del mes con pólizas, conciliaciones, impuestos, acuses, cuentas, facturas, balanza y dashboard.</span></div>`;
+    html += `<div class="dgrid"><div class="bpanel"><h3>Archivos que subiste<small>Los originales, tal como los subiste a la app.</small></h3>${docs.length ? Object.entries(grupos).map(([g, xs])=>`<div style="padding:8px 14px"><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:4px">${esc(g)}</div>${xs.map((d,i)=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)"><div style="min-width:0"><div>${esc(d.nombre)}</div><div class="fsub" style="max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.nota||"")}</div></div><button class="btn sm" data-docdl="${esc(d.a.id)}">Descargar</button></div>`).join("")}</div>`).join("") : `<div class="empty" style="padding:16px">Aún no hay archivos guardados de este mes. Los acuses, estados de cuenta, auxiliares y balanzas que subas a partir de ahora se guardan aquí.</div>`}</div>
+      <div class="bpanel"><h3>Reportes que arma la app<small>Siempre con tus datos más recientes.</small></h3><div style="padding:10px 14px;display:grid;gap:12px">
+        <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Bancos</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${ctas.length ? ctas.map(c=>btn(`conc-pdf-${c.id}`, `Conciliación ${esc(c.nombre)} (PDF)`) + btn(`conc-xlsx-${c.id}`, `${esc(c.nombre)} (Excel)`)).join("") : '<span class="fsub">Sin conciliaciones este mes.</span>'}${btn("saldos", "Saldos diarios (Excel)")}</div></div>
+        <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Impuestos</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${btn("imp-pdf","Cálculo de impuestos (PDF)")}${btn("imp-xlsx","Cálculo (Excel)")}${btn("extracto",`Extracto de impuestos ${year}`)}</div></div>
+        <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Cuentas y facturas</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${btn("resumen","Resumen CxC y CxP (PDF)")}${btn("cxc","Cuentas por cobrar (Excel)")}${btn("cxp","Cuentas por pagar (Excel)")}${btn("fac","Facturas del mes (Excel)")}</div></div>
+        <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Balanza y resultados</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${balanzas[mesKey(year, docMes)] ? btn("bal","Revisión de balanza (PDF)") + btn("dash","Dashboard del mes (PDF)") : '<span class="fsub">Sin balanza este mes.</span>'}${btn("activos","Activo fijo (Excel)")}</div></div>
+        <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Generales</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${btn("directorio","Directorio de clientes y proveedores")}</div></div>
+      </div></div></div>`;
+    $("docbody").innerHTML = html;
+  }
+  $("docmonths").addEventListener("click", e => { const b = e.target.closest("[data-docmes]"); if(b){ docMes = +b.dataset.docmes; renderDocumentos(); } });
+  $("docbody").addEventListener("click", async e => {
+    const dl = e.target.closest("[data-docdl]"); if(dl){ const d = docsDelMes(year, docMes).find(x=>x.a.id===dl.dataset.docdl); if(d) descargarAsset(d.a); return; }
+    if(e.target.closest("#docZip")){ if(typeof armarZip==="function"){ const prevV = vista; try{ await armarZip(docMes); } finally{ vista = prevV; renderDocumentos(); } } return; }
+    const g = e.target.closest("[data-gen]"); if(!g) return; const k = g.dataset.gen, m = docMes; g.disabled = true;
+    try{
+      if(k.startsWith("conc-")){ const [, fmt, ...id] = k.split("-"); await conEstado({cuentaSel: id.join("-"), bMes: m, vista:"bancos"}, ()=>exportBancos(fmt)); }
+      else if(k==="saldos") await exportDiario();
+      else if(k==="imp-pdf") await conEstado({iMes: m, vista:"impuestos"}, ()=>exportImpuestos("pdf"));
+      else if(k==="imp-xlsx") await conEstado({iMes: m, vista:"impuestos"}, ()=>exportImpuestos("xlsx"));
+      else if(k==="extracto") await exportExtracto();
+      else if(k==="resumen") await exportResumenCuentas(m);
+      else if(k==="cxc") await conEstado({ctSel:"emitida", rMes: m, vista:"cuentas"}, ()=>exportCuentas("xlsx"));
+      else if(k==="cxp") await conEstado({ctSel:"recibida", rMes: m, vista:"cuentas"}, ()=>exportCuentas("xlsx"));
+      else if(k==="fac") await conEstado({mesSel: m, vista:"facturas"}, ()=>exportFacturas("xlsx"));
+      else if(k==="bal") await conEstado({blMes: m, vista:"balanza"}, ()=>exportBalanza("pdf"));
+      else if(k==="dash") await conEstado({dTab:"mes", dMes: m, vista:"dashboard"}, ()=>exportDashboard("pdf"));
+      else if(k==="activos") await exportActivos("xlsx");
+      else if(k==="directorio") await exportDirectorio();
+    }catch(err){ console.error(err); toast("No se pudo preparar ese reporte."); }
+    finally{ g.disabled = false; }
+  });
+
+  // ---------- Constancias y opiniones de cumplimiento de la empresa ----------
+  const TIPOS_DF = {csf:"Constancia de situación fiscal", "op-sat":"Opinión de cumplimiento SAT (32-D)", "op-imss":"Opinión de cumplimiento IMSS", "op-infonavit":"Constancia de situación INFONAVIT", "op-estatal":"Opinión de cumplimiento estatal", otro:"Otro documento fiscal"};
+  let docsEmp = [], unsubDE = null;
+  function subscribeDocsEmpresa(){
+    if(unsubDE) unsubDE(); docsEmp = [];
+    if(!db || !empresa) return;
+    unsubDE = db.collection(`empresas/${empresa}/docsEmpresa`).onSnapshot(qs => { docsEmp = qs.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>String(b.fecha||b.subido).localeCompare(String(a.fecha||a.subido))); if(vista==="documentos") renderDocsFiscales(); }, () => {});
+  }
+  const MESES_L = {ENERO:1,FEBRERO:2,MARZO:3,ABRIL:4,MAYO:5,JUNIO:6,JULIO:7,AGOSTO:8,SEPTIEMBRE:9,OCTUBRE:10,NOVIEMBRE:11,DICIEMBRE:12};
+  function leerDocFiscal(texto){
+    const T = sinAcento(texto).toUpperCase().replace(/\s+/g," ");
+    let tipo = "otro";
+    if(/CONSTANCIA DE SITUACION FISCAL/.test(T)) tipo = "csf";
+    else if(/INFONAVIT/.test(T) && /(SITUACION|CUMPLIMIENTO)/.test(T)) tipo = "op-infonavit";
+    else if(/SEGURIDAD SOCIAL|INSTITUTO MEXICANO DEL SEGURO SOCIAL|\bIMSS\b/.test(T) && /OPINION|CUMPLIMIENTO/.test(T)) tipo = "op-imss";
+    else if(/OPINION DEL CUMPLIMIENTO|OPINION DE CUMPLIMIENTO|32-D/.test(T) && /SAT|SERVICIO DE ADMINISTRACION TRIBUTARIA/.test(T)) tipo = "op-sat";
+    else if(/OPINION/.test(T) && /ESTADO DE|GOBIERNO DEL ESTADO|SECRETARIA DE FINANZAS/.test(T)) tipo = "op-estatal";
+    // Fecha: "04 DE NOVIEMBRE DE 2026" o "04/11/2026"
+    let fecha = "";
+    const f1 = T.match(/(\d{1,2}) DE ([A-Z]+) DE (\d{4})/); if(f1 && MESES_L[f1[2]]) fecha = `${f1[3]}-${String(MESES_L[f1[2]]).padStart(2,"0")}-${f1[1].padStart(2,"0")}`;
+    if(!fecha){ const f2 = T.match(/(\d{2})\/(\d{2})\/(\d{4})/); if(f2) fecha = `${f2[3]}-${f2[2]}-${f2[1]}`; }
+    const sentido = /SENTIDO\s+NEGATIVO|OPINION NEGATIVA|EN SENTIDO NEGATIVO/.test(T) ? "Negativa" : /SENTIDO\s+POSITIVO|OPINION POSITIVA|EN SENTIDO POSITIVO|SE ENCUENTRA AL CORRIENTE|AL CORRIENTE EN EL CUMPLIMIENTO/.test(T) ? "Positiva" : "";
+    const rfc = (T.match(/\b([A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3})\b/)||[])[1] || "";
+    const folio = (T.match(/FOLIO:?\s*([A-Z0-9]{8,})/)||[])[1] || "";
+    return {tipo, fecha, sentido, rfc, folio};
+  }
+  const venceDF = d => d.tipo.startsWith("op-") && d.fecha ? (()=>{ const x = new Date(d.fecha+"T12:00:00"); x.setDate(x.getDate()+30); return x.toISOString().slice(0,10); })() : "";
+  function renderDocsFiscales(){
+    const el = $("docfiscal"); if(!el) return;
+    const ultimo = t => docsEmp.find(d=>d.tipo===t);
+    const fila = t => { const d = ultimo(t), v = d ? venceDF(d) : "", vencida = v && v < hoyISO;
+      return `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap"><div style="min-width:0"><div style="font-weight:600">${TIPOS_DF[t]}</div>
+        <div class="fsub" style="max-width:none">${d ? `${d.fecha?`Del ${fechaCorta(d.fecha)} ${d.fecha.slice(0,4)}`:`Subida el ${fechaCorta(d.subido)}`}${d.sentido?` · <strong style="color:${d.sentido==="Positiva"?"var(--done-ink)":"var(--late-ink)"}">${d.sentido}</strong>`:""}${v?` · ${vencida?`<strong style="color:var(--late-ink)">vencida, saca una nueva</strong>`:`vigente hasta ${fechaCorta(v)}`}`:""}${docsEmp.filter(x=>x.tipo===t).length>1?` · ${docsEmp.filter(x=>x.tipo===t).length} guardadas`:""}` : '<span class="falta">Sin subir</span>'}</div></div>
+        <div style="display:flex;gap:6px">${d?`<button class="btn sm" data-dfdl="${esc(d.id)}">Descargar</button>`:""}${docsEmp.filter(x=>x.tipo===t).length>1?`<button class="linkbtn" data-dfhist="${t}">anteriores</button>`:""}</div></div>`; };
+    const hist = el.dataset.hist || "";
+    el.innerHTML = `<div class="bpanel" style="margin-bottom:16px"><h3>Documentos fiscales de la empresa<small>Constancias y opiniones de cumplimiento, siempre a la mano para el auditor o tus clientes.</small></h3>
+      ${["csf","op-sat","op-imss","op-infonavit","op-estatal"].map(fila).join("")}${docsEmp.some(d=>d.tipo==="otro")?fila("otro"):""}
+      ${hist ? `<div style="padding:8px 14px"><strong>${TIPOS_DF[hist]} anteriores</strong>${docsEmp.filter(x=>x.tipo===hist).slice(1).map(d=>`<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${d.fecha?fechaCorta(d.fecha)+" "+d.fecha.slice(0,4):d.nombre}${d.sentido?` · ${d.sentido}`:""}</span><span><button class="btn sm" data-dfdl="${esc(d.id)}">Descargar</button>${canWrite?` <button class="linkbtn" data-dfdel="${esc(d.id)}">borrar</button>`:""}</span></div>`).join("")}</div>` : ""}
+      <div class="pairbar" style="padding:12px 14px 0;flex-wrap:wrap;gap:6px"><span class="fsub" style="max-width:none">Sácalas en:</span><a class="btn sm" href="https://www.sat.gob.mx" target="_blank" rel="noopener">SAT</a><a class="btn sm" href="https://www.imss.gob.mx" target="_blank" rel="noopener">IMSS</a><a class="btn sm" href="https://empresarios.infonavit.org.mx" target="_blank" rel="noopener">INFONAVIT</a></div>
+      ${canWrite?`<div class="pairbar" style="padding:12px 14px"><button class="btn sm primary" id="dfSubir">Subir constancia u opinión (PDF)</button><input type="file" id="dfFile" accept="application/pdf" multiple hidden><span class="fsub" style="max-width:none">La app reconoce el tipo, la fecha y si la opinión es positiva o negativa.</span></div>`:""}</div>`;
+    const oscura = docsEmp.filter(d=>d.tipo.startsWith("op-")).find(d=>venceDF(d) && venceDF(d) < hoyISO && d===ultimo(d.tipo));
+    if(oscura && vista==="documentos" && !$("statusLine").innerHTML.includes("opiniones de cumplimiento vencidas")) $("statusLine").innerHTML += ` · <strong style="color:var(--late-ink)">Tienes opiniones de cumplimiento vencidas</strong>`;
+  }
+  $("docfiscal").addEventListener("click", async e => {
+    if(e.target.closest("#dfSubir")){ $("dfFile").click(); return; }
+    const dl = e.target.closest("[data-dfdl]"); if(dl){ const d = docsEmp.find(x=>x.id===dl.dataset.dfdl); if(d && d.asset) descargarAsset(d.asset); return; }
+    const hi = e.target.closest("[data-dfhist]"); if(hi){ $("docfiscal").dataset.hist = $("docfiscal").dataset.hist===hi.dataset.dfhist ? "" : hi.dataset.dfhist; renderDocsFiscales(); return; }
+    const del = e.target.closest("[data-dfdel]"); if(del){ if(!await confirmar("¿Borrar este documento?")) return; try{ await db.doc(`empresas/${empresa}/docsEmpresa/${del.dataset.dfdel}`).delete(); }catch(err){ handleWriteError(err); } return; }
+  });
+  $("docfiscal").addEventListener("change", async e => {
+    if(e.target.id!=="dfFile") return; const files = [...e.target.files]; e.target.value = ""; if(!files.length) return;
+    if(!assets){ toast("No se pueden guardar archivos en esta versión."); return; }
+    const cur = empresas.find(x=>x.id===empresa) || {}, hechos = [];
+    for(const file of files){
+      try{
+        const L = await leerPdf(file); const info = L ? leerDocFiscal(L.todo) : {tipo:"otro", fecha:"", sentido:"", rfc:""};
+        if(info.rfc && cur.rfc && info.rfc!==String(cur.rfc).toUpperCase() && !await confirmar(`${file.name} es del RFC ${info.rfc}, no de ${cur.nombre} (${cur.rfc}). ¿Guardarlo de todos modos?`)) continue;
+        const up = await assets.upload(file);
+        const id = `${info.tipo}-${info.fecha || hoyISO}-${Date.now().toString(36)}`;
+        await db.doc(`empresas/${empresa}/docsEmpresa/${id}`).set({...info, nombre: file.name, asset: {id: up.id, nombre: file.name}, subido: hoyISO});
+        hechos.push(`${TIPOS_DF[info.tipo]}${info.sentido?` (${info.sentido.toLowerCase()})`:""}`);
+      }catch(err){ toast(`No se pudo guardar ${file.name}.`); }
+    }
+    if(hechos.length) toast(`Guardado: ${hechos.join(", ")}.`);
+  });
+
+  // ---------- XML y PDF de cada CFDI ----------
+  let cfdiMap = {}, unsubCfdi = null;
+  function subscribeCfdi(){
+    if(unsubCfdi) unsubCfdi(); cfdiMap = {};
+    if(!db || !empresa) return;
+    unsubCfdi = db.collection(`empresas/${empresa}/cfdi`).onSnapshot(qs => { cfdiMap = Object.fromEntries(qs.docs.map(d=>[d.id, d.data()])); if(vista==="facturas") renderFacturas(); if(vista==="cuentas") renderCuentas(); }, () => {});
+  }
+  const botonesCfdi = uuid => { const c = cfdiMap[String(uuid).toUpperCase()]; if(!c) return ""; return `${c.xml?`<button class="doc" data-cfdl="${esc(uuid)}" data-t="xml" title="Descargar XML">XML</button>`:""}${c.pdf?`<button class="doc" data-cfdl="${esc(uuid)}" data-t="pdf" title="Descargar PDF">PDF</button>`:""}<button class="doc" data-cfshare="${esc(uuid)}" title="Enviar por correo, WhatsApp…">Enviar</button>`; };
+  // Enviar XML y PDF juntos desde el iPad (menú de compartir del sistema)
+  async function compartirCfdi(uuid){
+    const c = cfdiMap[String(uuid).toUpperCase()] || {}, f = facturas.find(x=>x.uuid===String(uuid).toUpperCase()) || {};
+    const archivos = [];
+    for(const t of ["pdf","xml"]){ const a = c[t]; if(!a) continue; try{ const r = await fetch("/_blob/"+a.id); if(r.ok){ const b = await r.blob(); archivos.push(new File([b], a.nombre || `${uuid}.${t}`, {type: t==="pdf"?"application/pdf":"application/xml"})); } }catch(_){} }
+    if(archivos.length && navigator.canShare && navigator.canShare({files: archivos})){
+      try{ await navigator.share({files: archivos, title: `Factura ${f.folio||""} ${f.nombre||""}`.trim(), text: `Factura ${f.folio?`folio ${f.folio} `:""}por ${money.format(+f.total||0)}`}); }catch(_){} return; }
+    for(const t of ["pdf","xml"]) if(c[t]) descargarAsset(c[t]);
+    toast("Te descargué el PDF y el XML para que los adjuntes.");
+  }
+  document.addEventListener("click", e => { const s = e.target.closest("[data-cfshare]"); if(s){ e.stopPropagation(); compartirCfdi(s.dataset.cfshare); } }, true);
+  document.addEventListener("click", e => { const b = e.target.closest("[data-cfdl]"); if(!b) return; e.stopPropagation(); const c = cfdiMap[String(b.dataset.cfdl).toUpperCase()]; const a = c && c[b.dataset.t]; if(a) descargarAsset(a); }, true);
+  $("folderBtn").onclick = () => { if(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1)){ toast("En el iPad: en Archivos mantén presionada la carpeta → Comprimir, y sube el .zip con 'Subir reporte'."); return; } $("folderFile").click(); };
+  // Subir una carpeta completa (en computadora)
+  if($("folderFile")) $("folderFile").addEventListener("change", e => { const fs = [...e.target.files].filter(f=>/\.(xml|pdf)$/i.test(f.name)); e.target.value = ""; if(fs.length) importar(fs); });
+
+  // ---------- Pólizas capturadas a mano ----------
+  let polApp = [], unsubPA = null, pmEdit = null, pmLin = [];
+  function subscribePolApp(){
+    if(unsubPA) unsubPA(); polApp = [];
+    if(!db || !empresa) return;
+    unsubPA = db.collection(`empresas/${empresa}/polizasApp`).onSnapshot(qs => { polApp = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="conta") renderConta(); }, () => {});
+  }
+  const ctaTexto = c => { const k = catalogo.find(x=>x.c===c); return c ? `${c}${k?` ${k.n}`:""}` : ""; };
+  function pintarPM(){
+    $("pmLineas").innerHTML = pmLin.map((l,i)=>`<tr><td><input data-pm="${i}" data-k="c" list="pmCtas" value="${esc(ctaTexto(l.c))}" placeholder="Número o nombre de la cuenta" autocomplete="off"></td><td><input data-pm="${i}" data-k="r" value="${esc(l.r||"")}" maxlength="30"></td><td><input data-pm="${i}" data-k="ca" type="number" step="0.01" min="0" value="${l.ca||""}" style="text-align:right"></td><td><input data-pm="${i}" data-k="ab" type="number" step="0.01" min="0" value="${l.ab||""}" style="text-align:right"></td><td><button class="linkbtn" data-pmdel="${i}" aria-label="Quitar">×</button></td></tr>`).join("");
+    sumasPM();
+  }
+  function sumasPM(){ const ca = r2(pmLin.reduce((s,l)=>s+(+l.ca||0),0)), ab = r2(pmLin.reduce((s,l)=>s+(+l.ab||0),0)), d = r2(ca-ab);
+    $("pmSumas").innerHTML = `Cargos ${money.format(ca)} · Abonos ${money.format(ab)} · ${Math.abs(d)<0.005 ? '<span class="st pagado">Cuadra</span>' : `<span class="st vencido">Diferencia ${money.format(Math.abs(d))}</span>`}`; }
+  function abrirPolMan(p){
+    if(!catalogo.length){ toast("Primero sube tu catálogo de cuentas."); return; }
+    pmEdit = p && p.id ? p.id : null;
+    $("pmTitulo").textContent = pmEdit ? "Editar póliza" : "Nueva póliza";
+    $("pmTipo").value = (p && p.tipo) || "Diario"; $("pmFecha").value = (p && p.fecha) || `${mesKey(year, coMes)}-${String(new Date(year, coMes, 0).getDate()).padStart(2,"0")}`; $("pmConcepto").value = (p && p.concepto) || "";
+    pmLin = p && p.lin ? p.lin.map(l=>({...l})) : [{c:"", r:"", ca:null, ab:null}, {c:"", r:"", ca:null, ab:null}];
+    $("pmCtas").innerHTML = catalogo.filter(k=>esDetalle(k.c)).map(k=>`<option value="${esc(k.c+" "+k.n)}"></option>`).join("");
+    $("pmBorrar").style.display = pmEdit ? "" : "none"; pintarPM(); $("polManDlg").showModal();
+  }
+  $("pmLineas").addEventListener("input", e => { const x = e.target.closest("[data-pm]"); if(!x) return; const l = pmLin[+x.dataset.pm], k = x.dataset.k;
+    if(k==="c"){ const m = x.value.match(/^(\d{3}-\d{2}-\d{3})/); l.c = m ? m[1] : x.value.trim(); } else if(k==="r") l.r = x.value; else l[k] = x.value==="" ? null : +x.value; sumasPM(); });
+  $("pmLineas").addEventListener("click", e => { const d = e.target.closest("[data-pmdel]"); if(d){ pmLin.splice(+d.dataset.pmdel, 1); pintarPM(); } });
+  $("pmAdd").onclick = () => { const ca = r2(pmLin.reduce((s,l)=>s+(+l.ca||0),0)), ab = r2(pmLin.reduce((s,l)=>s+(+l.ab||0),0)); pmLin.push({c:"", r: (pmLin[pmLin.length-1]||{}).r || "", ca: ab>ca ? r2(ab-ca) : null, ab: ca>ab ? r2(ca-ab) : null}); pintarPM(); };
+  $("pmCancel").onclick = () => $("polManDlg").close();
+  $("pmBorrar").onclick = async () => { if(!pmEdit || !await confirmar("¿Borrar esta póliza?")) return; try{ await db.doc(`empresas/${empresa}/polizasApp/${pmEdit}`).delete(); $("polManDlg").close(); }catch(err){ handleWriteError(err); } };
+  $("pmOk").onclick = async () => {
+    const lin = pmLin.filter(l=>l.c && (+l.ca||+l.ab)).map(l=>({c:l.c, r:(l.r||"").slice(0,30), ca:r2(+l.ca||0), ab:r2(+l.ab||0)}));
+    if(!$("pmFecha").value){ $("pmFecha").focus(); return; } if(!$("pmConcepto").value.trim()){ $("pmConcepto").focus(); return; }
+    if(lin.length<2){ toast("Captura al menos dos movimientos."); return; }
+    const malas = lin.filter(l=>!esDetalle(l.c)); if(malas.length){ toast(`Revisa la cuenta ${malas[0].c}: no existe en tu catálogo o no es de detalle.`); return; }
+    const d = r2(lin.reduce((s,l)=>s+l.ca-l.ab,0)); if(Math.abs(d)>=0.005 && !await confirmar(`La póliza no cuadra por ${money.format(Math.abs(d))}. ¿Guardarla así?`)) return;
+    const doc = {tipo: $("pmTipo").value, fecha: $("pmFecha").value, concepto: $("pmConcepto").value.trim().toUpperCase().slice(0,100), ref: (lin[0].r||""), lin, actualizado: hoyISO};
+    const id = pmEdit || `pm-${Date.now().toString(36)}`;
+    try{ await db.doc(`empresas/${empresa}/polizasApp/${id}`).set(doc); polApp = [...polApp.filter(x=>x.id!==id), {id, ...doc}]; $("polManDlg").close(); coTab = "manual"; coMes = +doc.fecha.slice(5,7); renderConta(); toast("Póliza guardada."); }
+    catch(err){ handleWriteError(err); }
+  };
 
   // ---------- Arranque ----------
   render();
