@@ -276,7 +276,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 12 · Pendientes de impuestos con recargos y actualización</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 13 · Pólizas en Excel marcan lo ya contabilizado</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1342,7 +1342,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const sinPdf = ["expediente","notas","conta","directorio","documentos"].includes(v), sinXls = ["expediente","notas","documentos"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
-    $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt)" : "Subir reporte de AdminXML";
+    $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
     try{ history.replaceState(null,"", "#"+v); }catch(_){}
     render();
   }
@@ -1649,6 +1649,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const impN = impPdfs.length ? await guardarPdfsImpuesto(impPdfs) : 0;
       const balN = balPdfs.length ? await guardarBalanzas(balPdfs) : "";
       const polN = polXlsx.length ? await guardarPolizasCQ(polXlsx) : "";
+      if(polN && vista==="conta") setTimeout(renderConta, 50);
       setSaving("Guardado");
       const anios = docs.map(d=>d.anio).filter(Boolean);
       if(anios.length && !anios.includes(year)){ year = Math.max(...anios); mesSel = null; subscribeYear(); }
@@ -5111,7 +5112,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           if(f.metodo==="PPD"){ lin.push({c: bk.cta, ca: x.monto, falta: !bk.cta && "banco"}); if(iva){ lin.push({c: ctaCfg("iva209"), ca: iva}); lin.push({c: ctaCfg("iva208"), ab: iva}); } lin.push({c: ct.cli, ab: x.monto, falta: !ct.cli && "cli"}); }
           else { lin.push({c: bk.cta, ca: x.monto, falta: !bk.cta && "banco"}); if(iva) lin.push({c: ctaCfg("iva208"), ab: iva}); lin.push({c: ctaCfg("ingresos"), ab: sub}); }
         }
-        add({key: `${tab}-${f.uuid}-${x.fecha}-${x.monto}`, tipo: tab==="egresos" ? "Egresos" : "Ingresos", fecha: x.fecha, concepto: `PAGO ${folioDe(f)?folioDe(f)+" ":""}${f.nombre}`, ref: refDe(f), f, ct, lin, bk, sinPago: x.sinPago, ya: null});
+        // ¿Ya está en tus pólizas? Por el complemento (PPD), por la factura (PUE) o por folio/UUID en pólizas del mes del pago
+        const tipoP = tab==="egresos" ? "Egresos" : "Ingresos"; let ya = null;
+        if(R && R.asig){ const cands = f.metodo==="PUE" ? [f.uuid] : complementos.filter(c=>c.doc===f.uuid && Math.abs(diasEntre(String(c.fechaPago).slice(0,10), x.fecha))<=10).map(c=>c.uuid);
+          for(const u of cands){ const a = R.asig[u]; if(a && a.p && a.p.p && a.p.p.tipo!=="Diario"){ ya = a.p.id; break; } } }
+        if(!ya) ya = buscarPoliza(f, [tipoP], [x.fecha.slice(0,7)]);
+        add({key: `${tab}-${f.uuid}-${x.fecha}-${x.monto}`, tipo: tipoP, fecha: x.fecha, concepto: `PAGO ${folioDe(f)?folioDe(f)+" ":""}${f.nombre}`, ref: refDe(f), f, ct, lin, bk, sinPago: x.sinPago, ya});
       }
     }
     // Cuentas que cambiaste a mano en una póliza (por ejemplo, pagada por un tercero y no por el banco)
