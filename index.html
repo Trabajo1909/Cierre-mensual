@@ -278,7 +278,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 22 · Archivos en Documentos y resumen de cuotas IMSS</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 23 · IMSS por trabajador y ver estados de cuenta</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -2281,7 +2281,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const resumenRev = ur && !ur.visto ? (()=>{ const p = [], L = (t, xs) => xs && xs.length ? `<div><strong>${t} (${xs.length}):</strong> ${xs.slice(0,6).map(esc).join(" · ")}${xs.length>6?` y ${xs.length-6} más`:""}</div>` : "";
       const det = L("Pólizas nuevas", ur.aux.nuevas) + L("Pólizas que ya no vienen", ur.aux.eliminadas) + L("Pólizas modificadas", ur.aux.modificadas) + L("Movimientos del banco nuevos", ur.banco.nuevos) + L("Movimientos del banco que ya no vienen", ur.banco.eliminados) + L("Movimientos del banco modificados", ur.banco.modificados);
       return `<div class="bpanel" style="margin:0 0 14px;border-left:4px solid var(--today-line)"><h3>Volviste a subir archivos el ${fechaCorta(ur.fecha)}<small>La conciliación ya se revisó otra vez con los cambios.</small></h3><div style="padding:10px 14px;font-size:13px;display:grid;gap:4px">${det || "<div>No hubo cambios en los movimientos.</div>"}${ur.deshechos ? `<div><strong>${ur.deshechos} ${ur.deshechos===1?"emparejamiento que armaste":"emparejamientos que armaste"} se deshizo</strong> porque una de sus pólizas o movimientos cambió o ya no viene: revisa <strong>Por revisar</strong>.</div>` : ""}${ur.partidasQuitadas ? `<div><strong>${ur.partidasQuitadas} ${ur.partidasQuitadas===1?"partida en conciliación se quitó":"partidas en conciliación se quitaron"}</strong> por la misma razón.</div>` : ""}</div>${canWrite?`<div class="pairbar" style="padding:0 14px 12px"><button class="btn sm" id="revVisto">Entendido</button></div>`:""}</div>`; })() : "";
-    let html = resumenRev + `<div class="bfiles"><span>Estado de cuenta: ${nB ? `<b>${nB} movimientos</b>` : c.edoSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Auxiliar: ${nA ? `<b>${nA} pólizas</b>` : c.auxSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Emparejados: <b>${E.pairs.length}</b></span></div>`;
+    const arch = c.archivos || [], aE = arch.find(a=>a.tipo==="edo"), aA = arch.find(a=>a.tipo==="aux");
+    const verArch = `<div class="pairbar" style="margin:0 0 10px;flex-wrap:wrap;gap:8px">${aE?`<button class="btn sm" data-bver="edo">Ver estado de cuenta</button>`:'<span class="fsub" style="max-width:none">Estado de cuenta: el archivo no está guardado (vuelve a subirlo para poder verlo)</span>'}${aA?`<button class="btn sm" data-bver="aux">Ver auxiliar</button>`:""}</div>`;
+    let html = resumenRev + verArch + `<div class="bfiles"><span>Estado de cuenta: ${nB ? `<b>${nB} movimientos</b>` : c.edoSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Auxiliar: ${nA ? `<b>${nA} pólizas</b>` : c.auxSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Emparejados: <b>${E.pairs.length}</b></span></div>`;
     const okDif = Math.abs(k.dif)<=0.009;
     html += `<div class="bgrid"><div class="bpanel"><h3>Carátula de conciliación<small>${esc(cta.nombre)}${cta.cuentaContable?` · cuenta ${esc(cta.cuentaContable)}`:""} · al ${new Date(Date.UTC(year,bMes,0)).getUTCDate()} de ${MESES[bMes-1].toLowerCase()} de ${year}</small></h3>
       <table class="car"><tbody>
@@ -2450,6 +2452,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
 
   $("bbody").addEventListener("click", async e => {
+    const bv = e.target.closest("[data-bver]"); if(bv){ const c0 = concDe(cuentaSel, year, bMes); const a = c0 && (c0.archivos||[]).find(x=>x.tipo===bv.dataset.bver); if(a) descargarAsset(a, true); return; }
     const arm = e.target.closest("[data-armar]"); if(arm){ abrirArmar(arm.dataset.armar); return; }
     if(e.target.closest("#revVisto")){ const c0 = concDe(cuentaSel, year, bMes); if(c0 && c0.ultimaRevision){ try{ await escribirConc({...c0, ultimaRevision: {...c0.ultimaRevision, visto:true}}); }catch(err){ handleWriteError(err); } } return; }
     const sb = e.target.closest("[data-selb]"), sa = e.target.closest("[data-sela]");
@@ -3026,6 +3029,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const {L, file} of lista){
       const items = parsePdfImpuesto(L.todo);
       if(!items){ toast(`${file.name}: no reconocí este documento de impuestos.`); continue; }
+      if(items[0].clave==="imss" && items[0].tipoDoc==="cedula"){ const tr = parseCedulaSUA(L); if(tr.length) items[0].trabajadores = tr; }
       let archivo = null;
       if(assets){
         try{ const up = await assets.upload(file); archivo = {id: up.id, nombre: file.name, tipo: items[0].tipoDoc, subido: hoyISO}; }
@@ -3060,6 +3064,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(it.ivaDiot!=null) d.ivaDiot = it.ivaDiot;
         if(it.folioSUA) d.folioSUA = it.folioSUA;
         if(it.imssDet) d.imssDet = it.imssDet;
+        if(it.trabajadores) d.trabajadores = it.trabajadores;
         if(it.operaciones) d.operaciones = it.operaciones;
         for(const k of ["impuesto","actualizacion","recargos","compensacion","pagadoAntes"]) if(it[k]!=null && it.tipoDoc!=="declaracion") d[k] = it[k]; else if(esOtra) delete d[k];
         if(it.tipoDoc!=="declaracion" || d.aPagar==null){ if(it.aPagar!=null) d.aPagar = it.aPagar; if(it.aFavor!=null) d.aFavor = it.aFavor; }
@@ -3234,7 +3239,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(m%3===0){ filasIng += `<tr style="background:var(--group)"><td><strong>Trimestre ${m/3}</strong></td><td class="num"><strong>${f(trim)}</strong></td><td></td><td></td></tr>`; trim = 0; }
     }
     const tablaIng = `<div class="bpanel"><h3>Ingresos nominales ${year}<small>Facturas emitidas vigentes, por mes, acumulado y por trimestre, comparadas con la cuenta 401 de tu balanza.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Mes</th><th class="num">Ingresos del mes</th><th class="num">Acumulado</th><th class="num">Balanza (401)</th></tr></thead><tbody>${filasIng}<tr><td><strong>Total del año</strong></td><td class="num"><strong>${f(acum)}</strong></td><td></td><td></td></tr></tbody></table></div></div>`;
-    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}`;
+    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}${htmlIMSSEmpleados()}`;
   }
 
   $("imonths").addEventListener("click", e => { const b = e.target.closest("[data-imes]"); if(b){ iMes = +b.dataset.imes; renderImpuestos(); } });
@@ -5465,6 +5470,59 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }
     return out;
   }
+  // ---------- Cédula del SUA: detalle por trabajador ----------
+  function parseCedulaSUA(L){
+    const out = []; let cur = null;
+    const nums = s => String(s).split(/\s+/).filter(t=>/^[\d,]+(\.\d+)?$/.test(t)).map(t=>+t.replace(/,/g,""));
+    for(const l of L.lineas){
+      const tx = l.texto || l.items.map(i=>i.s).join(" ");
+      const nss = tx.match(/\b(\d{2}-\d{2}-\d{2}-\d{4}-\d)\b/), curp = tx.match(/\b([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)\b/);
+      if(nss && curp){ const nombre = tx.slice(tx.indexOf(nss[1]) + nss[1].length, tx.indexOf(curp[1])).trim().replace(/\s+/g," ");
+        cur = {nss: nss[1], nombre, curp: curp[1]}; out.push(cur); continue; }
+      if(!cur) continue;
+      const alta = tx.match(/\bAlta\s+(\d{2}\/\d{2}\/\d{4})/i), baja = tx.match(/\bBaja\s+(\d{2}\/\d{2}\/\d{4})/i);
+      if(alta) cur.alta = alta[1]; if(baja) cur.baja = baja[1];
+      const n = nums(tx);
+      if(/^\s*Recargos/i.test(tx) && n.length>=3){ cur.recPat = n[n.length-3]; cur.recObr = n[n.length-2]; cur.recTot = n[n.length-1]; continue; }
+      if(/^\s*Actualizaci/i.test(tx)) continue;
+      if(!cur.patronal && n.length>=18){ const v = n.slice(-18);
+        Object.assign(cur, {dias:v[0], sdi:v[1], inc:v[2], aus:v[3], cf:v[4], excPat:v[5], excObr:v[6], pdPat:v[7], pdObr:v[8], gmpPat:v[9], gmpObr:v[10], rt:v[11], ivPat:v[12], ivObr:v[13], gps:v[14], patronal:v[15], obrera:v[16], total:v[17]}); }
+    }
+    return out.filter(t=>t.total!=null);
+  }
+  // Compara lo que dice el SUA de cada trabajador contra lo retenido en sus recibos de nómina del mes
+  function imssPorEmpleado(y, m){
+    const d = declDe(y, m, "imss"), T = (d && d.trabajadores) || [], mk = mesKey(y, m);
+    const noms = nominas.filter(n=>vigente(n) && String(n.fechaPago).slice(0,7)===mk);
+    const usados = new Set(), filas = [];
+    for(const t of T){
+      const tk = tokens(t.nombre), recs = noms.filter(n=>inter(tk, tokens(n.nombre)) >= Math.min(3, tk.size));
+      recs.forEach(n=>usados.add(n.uuid));
+      const ret = r2(recs.reduce((s,n)=>s+(+n.imss||0),0)), cv = r2((+t.sdi||0)*(+t.dias||0)*0.01125);
+      const esperado = r2((+t.obrera||0) + cv), dif = recs.length ? r2(ret - esperado) : null;
+      let motivo = "";
+      if(!recs.length) motivo = "No encontré sus recibos de nómina de este mes";
+      else if(Math.abs(dif) <= 2) motivo = "Cuadra (incluye cesantía y vejez, que se paga en el bimestre)";
+      else if(Math.abs(r2(ret - (+t.obrera||0))) <= 2) motivo = "Cuadra solo con la cuota mensual: la nómina no retuvo cesantía y vejez";
+      else if(recs.length===1 && Math.abs(ret - esperado/2) <= Math.max(5, esperado*0.06)) motivo = "Solo encontré 1 recibo del mes: falta la otra quincena (sube el reporte de nóminas completo)";
+      else if(dif > 0) motivo = (t.inc||t.aus) ? "Retuviste de más; el SUA descuenta incapacidades/ausencias" : "Retuviste de más en nómina que lo que determina el SUA";
+      else motivo = t.baja ? `Baja el ${t.baja}: revisa si el finiquito retuvo IMSS` : "Retuviste de menos: revisa el SDI o los días en nómina";
+      filas.push({...t, recibos: recs.length, ret, cv, esperado, dif, motivo});
+    }
+    const sinCedula = noms.filter(n=>!usados.has(n.uuid) && +n.imss>0).map(n=>({nombre:n.nombre, ret:+n.imss}));
+    return {filas, sinCedula, hay: T.length>0};
+  }
+  function htmlIMSSEmpleados(){
+    const E = imssPorEmpleado(year, iMes), f = money.format;
+    if(!E.hay) return `<div class="bpanel" style="margin-top:16px"><h3>IMSS por trabajador · ${MESES[iMes-1].toLowerCase()}<small>Sube la <strong>cédula de determinación de cuotas del SUA</strong> (mensual) de este mes con "Subir acuses, líneas o nóminas" y la app te muestra las cuotas de cada trabajador y la diferencia contra lo retenido en su nómina.</small></h3></div>`;
+    const S = k => r2(E.filas.reduce((s,x)=>s+(+x[k]||0),0));
+    return `<div class="bpanel" style="margin-top:16px"><h3>IMSS por trabajador · ${MESES[iMes-1].toLowerCase()}<small>De la cédula mensual del SUA. La cuota obrera mensual no incluye cesantía y vejez (1.125% del SDI), que se paga cada bimestre pero se retiene cada mes en nómina: la app la estima por trabajador para comparar.</small></h3>
+      <div class="sheet" style="border:none;border-radius:0"><table class="ft" style="min-width:1050px"><thead><tr><th>Trabajador</th><th class="num">Días</th><th class="num">SDI</th><th class="num">Patronal</th><th class="num">Obrera mensual</th><th class="num">C y V obrera (estimada)</th><th class="num">Debió retenerse</th><th class="num">Retenido en nómina</th><th class="num">Diferencia</th><th>Dónde está la diferencia</th></tr></thead><tbody>
+      ${E.filas.map(x=>`<tr><td><div class="fname">${esc(x.nombre)}</div><div class="fsub">${esc(x.nss)}${x.alta?` · alta ${esc(x.alta)}`:""}${x.baja?` · baja ${esc(x.baja)}`:""}${x.inc||x.aus?` · inc. ${x.inc} aus. ${x.aus}`:""}</div></td><td class="num">${x.dias}</td><td class="num">${f(x.sdi)}</td><td class="num">${f(x.patronal)}${x.recPat?`<div class="fsub">+ rec. ${f(x.recPat)}</div>`:""}</td><td class="num">${f(x.obrera)}</td><td class="num">${f(x.cv)}</td><td class="num">${f(x.esperado)}</td><td class="num">${x.recibos?f(x.ret):"—"}${x.recibos?`<div class="fsub">${x.recibos} ${x.recibos===1?"recibo":"recibos"}</div>`:""}</td><td class="num ${x.dif!=null && Math.abs(x.dif)>2?"late":""}">${x.dif==null?"—":Math.abs(x.dif)<=2?"":f(x.dif)}</td><td><span class="st ${x.dif!=null && Math.abs(x.dif)<=2?"pagado":"parcial"}" style="white-space:normal">${esc(x.motivo)}</span></td></tr>`).join("")}
+      <tr style="background:var(--group)"><td><strong>Total</strong></td><td class="num"><strong>${S("dias")}</strong></td><td></td><td class="num"><strong>${f(S("patronal"))}</strong></td><td class="num"><strong>${f(S("obrera"))}</strong></td><td class="num"><strong>${f(S("cv"))}</strong></td><td class="num"><strong>${f(S("esperado"))}</strong></td><td class="num"><strong>${f(S("ret"))}</strong></td><td class="num"><strong>${f(r2(S("ret")-S("esperado")))}</strong></td><td></td></tr></tbody></table></div>
+      ${E.sinCedula.length?`<div class="fsub" style="padding:8px 14px;max-width:none;white-space:normal">⚠️ En nómina se retuvo IMSS a quien no está en la cédula: ${E.sinCedula.map(x=>`${esc(x.nombre)} (${f(x.ret)})`).join(", ")}. Revisa si falta su alta en el IDSE.</div>`:""}
+      <div class="fsub" style="padding:8px 14px;max-width:none;white-space:normal">RCV e INFONAVIT se pagan por bimestre: la cesantía y vejez estimada aquí es lo que debiste retener este mes y se entera en la línea del bimestre (meses pares).</div></div>`;
+  }
   function htmlCuotasIMSS(){
     const C = cuotasIMSS(year), f = money.format; if(!C.length) return "";
     const S = k => r2(C.reduce((s,x)=>s+(+x[k]||0),0));
@@ -5479,7 +5537,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       h += `<tr><td>${fuerte?`<strong>${l}</strong>`:l}</td>${C.map(x=>`<td class="num">${!x.hay && k!=="retNom" ? '<span class="fsub">sin línea</span>' : x[k] ? (fuerte?`<strong>${f(x[k])}</strong>`:f(x[k])) : '<span class="fsub">—</span>'}</td>`).join("")}<td class="num"><strong>${f(S(k))}</strong></td></tr>`;
     }
     const difs = C.filter(x=>x.difRet!=null && Math.abs(x.difRet)>1);
-    h += `</tbody></table></div>${difs.length?`<div class="fsub" style="padding:8px 14px;max-width:none;white-space:normal">⚠️ Lo retenido en nómina no coincide con la cuota obrera en ${difs.map(x=>`${MESES[x.m-1].toLowerCase()} (${x.difRet>0?"+":""}${f(x.difRet)})`).join(", ")}. Puede ser por ausentismo, incapacidades o porque la nómina y el SUA se calcularon con salarios distintos.</div>`:""}
+    h += `</tbody></table></div>${difs.length?`<div class="fsub" style="padding:8px 14px;max-width:none;white-space:normal">ℹ️ Lo retenido en nómina no coincide con la cuota obrera de la línea en ${difs.map(x=>`${MESES[x.m-1].toLowerCase()} (${x.difRet>0?"+":""}${f(x.difRet)})`).join(", ")}. Gran parte suele ser la <strong>cesantía y vejez obrera</strong>: se retiene cada mes en nómina pero solo se paga en la línea del bimestre (meses pares). Sube la cédula mensual del SUA para ver la diferencia por trabajador, abajo.</div>`:""}
       ${downloads?`<div class="pairbar" style="padding:10px 14px"><button class="btn sm" id="imssXls">Descargar resumen IMSS (Excel)</button></div>`:""}</div>`;
     return h;
   }
