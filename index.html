@@ -375,11 +375,11 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 26 · Nuevo diseño blanco, negro y vino</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 28 · Ventas: reporte de Mercado Libre</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -441,6 +441,12 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vVentas" hidden>
+    <div class="ftools"><button class="btn sm primary" id="vpSubir">Subir reporte de ventas</button><input type="file" id="vpFile" accept=".xlsx,.xls,.csv" multiple hidden></div>
+    <div class="months" id="vpmonths"></div>
+    <div id="vpbody"></div>
   </section>
 
   <section id="vEstados" hidden>
@@ -1014,7 +1020,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -1068,6 +1074,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="accesos"){ renderAccesos(); return; }
     if(vista==="presupuesto"){ renderPresupuesto(); return; }
     if(vista==="estados"){ renderEstados(); return; }
+    if(vista==="ventas"){ renderVentasPlat(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1220,6 +1227,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeAccesos();
     subscribePresupuesto();
     subscribePreReglas();
+    subscribeVentasPlat();
     subscribeDocsEmpresa();
     subscribeCfdi();
     subscribeArchivosGen();
@@ -1377,6 +1385,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="resumen") return exportResumenAnual("xlsx");
     if(vista==="presupuesto") return exportPresupuesto();
     if(vista==="estados") return exportEstados("xlsx");
+    if(vista==="ventas") return exportVentasPlat();
     const btn=$("xlsxBtn"); btn.disabled=true;
     try{
       await loadLibs("excel");
@@ -1471,15 +1480,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || !canWrite;
-    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto"].includes(v), sinXls = ["expediente","notas","documentos","accesos"].includes(v);
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || !canWrite;
+    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas"].includes(v), sinXls = ["expediente","notas","documentos","accesos"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
@@ -5919,6 +5928,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     expediente: "Pólizas impresas, invoices de licencias y la carpeta final del mes en .zip para Drive, más el respaldo completo de la app.",
     notas: "Tus pendientes, preguntas para tu jefe y notas. Las abiertas se cuentan en el tablero.",
     activos: "Registra tus activos fijos (la app detecta facturas con uso de CFDI de inversión). Calcula depreciación contable mensual, la póliza del mes y la deducción fiscal anual, y la compara contra tu balanza.",
+    ventas: "Tus ventas en Mercado Libre, Mercado Pago, TikTok Shop u otras plataformas: sube el reporte de ventas (Excel o CSV) o regístralas a mano. Por mes ves lo vendido por plataforma, comisiones, envíos y neto, lo que Mercado Pago te liberó en el banco y cuánto va a tu factura global.",
     estados: "Los estados financieros que piden los dueños, armados con tus balanzas de CONTPAQi: balanza de comprobación, estado de resultados (del mes y acumulado, con % sobre ingresos), balance general al cierre del mes y flujo de efectivo por el método indirecto. Descárgalos en PDF o Excel con los botones de arriba.",
     presupuesto: "Sube el presupuesto que hace administración (Excel con la hoja PRESUPUESTO; si trae HOJA CONTROL y ENVIO, también se leen). Al inicio del mes el inicial; al cierre, el actualizado. La app compara inicial, actualizado y lo pagado por subcategoría, te muestra lo que salió fuera de presupuesto, el saldo inicial y final de bancos, y cuánto fondear para el siguiente mes.",
     accesos: "Tus links a las plataformas que usas (SAT, IMSS, bancos, portales estatales…), agrupados por categoría. Toca Abrir para entrar. No guardes contraseñas aquí.",
@@ -7066,6 +7076,129 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     await guardarArchivo(`Estados financieros ${empresaNombre} ${ABR[efMes-1]} ${year}.pdf`, doc.output("blob"));
   }
 
+  // ---------- Ventas en plataformas (Mercado Libre, Mercado Pago, TikTok Shop, Amazon…) ----------
+  let ventasP = [], unsubVP = null, vpMes = null, vpPlat = "";
+  function subscribeVentasPlat(){ if(unsubVP) unsubVP(); ventasP = []; if(!db || !empresa) return;
+    unsubVP = db.collection(`empresas/${empresa}/ventasPlat`).onSnapshot(qs => { ventasP = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="ventas") renderVentasPlat(); }, () => {}); }
+  // Encabezados que usa cada plataforma para el mismo dato
+  const VP_CAMPOS = {
+    orden: [/^n[uú]mero de (operaci[oó]n|venta)$/, /^# de venta$/, /^order id$/, /^id del pedido$/, /^amazon order id$/, /^order-id$/],
+    fecha: [/^fecha de (la )?(compra|venta|creaci[oó]n)/, /^created time$/, /^fecha$/, /^purchase-date$/, /^order create time$/],
+    estado: [/^estado$/, /^order status$/, /^status$/],
+    producto: [/^descripci[oó]n del [ií]tem$/, /^t[ií]tulo de la publicaci[oó]n$/, /^product name$/, /^producto$/, /^product-name$/],
+    cantidad: [/^cantidad$/, /^unidades$/, /^quantity$/],
+    bruto: [/^cobro$/, /^ingresos por productos/, /^order amount$/, /^sku subtotal after discount$/, /^total pagado/, /^item-price$/, /^precio/],
+    cargos: [/^cargos e impuestos$/, /^cargo por venta e impuestos/, /^platform commission$/, /^comisi[oó]n/, /^tarifa/],
+    envio: [/^costos? de env[ií]o/, /^shipping fee/, /^env[ií]o/],
+    neto: [/^total a recibir$/, /^total \(mxn\)$/, /^total settlement amount$/, /^neto/, /^importe a recibir/],
+    canal: [/^canal de venta$/],
+    reembolso: [/^anulaciones y reembolsos/, /^refund/, /^reembolso/],
+    facturaAdj: [/^factura adjunta$/],
+    sku: [/^sku$/, /^seller sku$/]
+  };
+  function leerReporteVentas(wb, nombre){
+    for(const hoja of wb.SheetNames){
+      const F = XLSX.utils.sheet_to_json(wb.Sheets[hoja], {header:1, defval:"", raw:true});
+      const hi = F.slice(0,20).findIndex(r=>{ const H = r.map(x=>nPre(x)); return ["orden","fecha"].every(k=>H.some(h=>VP_CAMPOS[k].some(re=>re.test(h)))) && ["bruto","neto"].some(k=>H.some(h=>VP_CAMPOS[k].some(re=>re.test(h)))); });
+      if(hi<0) continue;
+      const H = F[hi].map(nPre), col = k => H.findIndex(h=>VP_CAMPOS[k].some(re=>re.test(h)));
+      const C = Object.fromEntries(Object.keys(VP_CAMPOS).map(k=>[k, col(k)]));
+      const txtPlano = F.slice(0,hi).flat().join(" ") + " " + nombre;
+      const Hs = H.join(" ");
+      const plat = /tiktok/i.test(txtPlano) || /sku subtotal|order amount/.test(Hs) ? "TikTok Shop" : /amazon/i.test(txtPlano) || /amazon-order-id|purchase-date/.test(Hs) ? "Amazon" : /mercado ?pago/i.test(txtPlano) || /herramienta de cobro|total a recibir/.test(Hs) ? "Mercado Pago" : /mercado ?libre/i.test(txtPlano) || /# de venta|titulo de la publicacion/.test(Hs) ? "Mercado Libre" : "Otra plataforma";
+      const num = v => typeof v==="number" ? v : (+String(v).replace(/[$,\s]/g,"").replace(/[^\d.-]/g,"")||0);
+      const fecha = v => { if(typeof v==="number"){ const d = XLSX.SSF.parse_date_code(v); return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`; }
+        const s = String(v); let m = s.match(/(\d{4})-(\d{2})-(\d{2})/); if(m) return `${m[1]}-${m[2]}-${m[3]}`; m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+        m = sinAcento(s).toLowerCase().match(/(\d{1,2}) de ([a-z]+) de (\d{4})/); if(m && MES_NOMBRE[m[2].toUpperCase()]) return `${m[3]}-${String(MES_NOMBRE[m[2].toUpperCase()]).padStart(2,"0")}-${m[1].padStart(2,"0")}`; return ""; };
+      const ventas = [];
+      for(const r of F.slice(hi+1)){
+        const orden = String(r[C.orden]??"").trim(); if(!orden) continue;
+        const f = fecha(r[C.fecha]); if(!f) continue;
+        const bruto = C.bruto>=0 ? Math.abs(num(r[C.bruto])) : 0, cargos = C.cargos>=0 ? Math.abs(num(r[C.cargos])) : 0, envio = C.envio>=0 ? Math.abs(num(r[C.envio])) : 0;
+        const neto = C.neto>=0 ? num(r[C.neto]) : r2(bruto - cargos - envio);
+        const canal = C.canal>=0 ? String(r[C.canal]).trim() : "", platFila = /mercado ?libre/i.test(canal) ? "Mercado Libre" : /tiktok/i.test(canal) ? "TikTok Shop" : /amazon/i.test(canal) ? "Amazon" : plat;
+        const reemb = C.reembolso>=0 ? Math.abs(num(r[C.reembolso])) : 0, fac = C.facturaAdj>=0 ? String(r[C.facturaAdj]||"").trim() : "";
+        ventas.push({reembolso: r2(reemb), sku: C.sku>=0 ? String(r[C.sku]||"").trim() : "", facturaAdjunta: !!fac && !/^no$/i.test(fac), plataforma: platFila, orden, fecha: f, estado: C.estado>=0 ? String(r[C.estado]).trim() : "", producto: C.producto>=0 ? String(r[C.producto]).trim() : "", cantidad: C.cantidad>=0 ? num(r[C.cantidad])||1 : 1,
+          bruto: r2(bruto), cargos: r2(cargos), envio: r2(envio), neto: r2(neto), canal: C.canal>=0 ? String(r[C.canal]).trim() : ""});
+      }
+      return {plataforma: plat, ventas, hoja};
+    }
+    return null;
+  }
+  // Cancelada = no quedó nada de la venta (cancelación o devolución total); los reembolsos parciales restan, no anulan
+  const esCancelada = v => /cancelad/i.test(sinAcento(v.estado||"")) || (+v.reembolso>0 && +v.reembolso >= +v.bruto - 0.01) || (/devuelto|devolucion finalizada/i.test(sinAcento(v.estado||"")) && !(+v.neto>0));
+  const ventaNeta = v => r2((+v.bruto||0) - (+v.reembolso||0));
+  async function guardarVentas(lista){
+    let n = 0;
+    for(const v of lista){ const id = `${v.plataforma}_${v.orden}`.normalize("NFD").replace(/[^\w-]+/g,"_").slice(0,140);
+      const prev = ventasP.find(x=>x.id===id) || {}; const {id: _i, ...pv} = prev; await conReintento(()=>db.doc(`empresas/${empresa}/ventasPlat/${id}`).set({...pv, ...v, facturada: prev.facturada!=null && prev.id ? prev.facturada : !!v.facturaAdjunta})); n++; }
+    return n;
+  }
+  function renderVentasPlat(){
+    $("yearLabel").textContent = year;
+    if(!vpMes) vpMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
+    const f = money.format, enAnio = ventasP.filter(v=>String(v.fecha).startsWith(String(year)));
+    $("vpmonths").innerHTML = Array.from({length:12},(_,i)=>{ const xs = enAnio.filter(v=>+v.fecha.slice(5,7)===i+1 && !esCancelada(v)); return `<button class="mchip ${xs.length?"ok":""}" data-vpmes="${i+1}" aria-current="${vpMes===i+1}"><b>${ABR[i]}</b><small>${xs.length?f(r2(xs.reduce((s,v)=>s+ventaNeta(v),0))).replace(/\.\d\d$/,""):"—"}</small></button>`; }).join("");
+    const mk = mesKey(year, vpMes), delMes = ventasP.filter(v=>String(v.fecha).slice(0,7)===mk), plats = [...new Set(ventasP.map(v=>v.plataforma))];
+    const lista = delMes.filter(v=>!vpPlat || v.plataforma===vpPlat).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
+    const vig = delMes.filter(v=>!esCancelada(v)), S = (xs, k) => r2(xs.reduce((s,v)=>s+(k==="venta" ? ventaNeta(v) : (+v[k]||0)),0));
+    // Lo que te depositó Mercado Pago en el mes (liberaciones de dinero)
+    const mpCtas = cuentasB.filter(c=>/mercado ?pago/i.test(c.nombre)).map(c=>c.id), liberado = r2(concs.filter(c=>mpCtas.includes(c.cuenta) && c.anio===year && c.mes===vpMes).flatMap(c=>c.banco||[]).filter(b=>b.tipo==="dep" && /liberaci/i.test(b.nombre)).reduce((s,b)=>s+b.monto,0));
+    $("statusLine").innerHTML = `${MESES[vpMes-1]}: ${vig.length} ventas por <strong>${f(S(vig,"venta"))}</strong>${S(vig,"reembolso")?` (ya sin ${f(S(vig,"reembolso"))} de devoluciones)`:""} · comisiones y envíos <strong>${f(r2(S(delMes,"cargos")+S(delMes,"envio")))}</strong> · neto recibido <strong>${f(S(delMes,"neto"))}</strong>.`;
+    let h = `<div class="kpis">${plats.map(p=>{ const xs = vig.filter(v=>v.plataforma===p); return `<div class="kpi"><span>${esc(p)}</span><b>${f(S(xs,"venta"))}</b><small>${xs.length} ventas · neto ${f(S(delMes.filter(v=>v.plataforma===p),"neto"))}</small></div>`; }).join("")}
+      <div class="kpi"><span>Sin factura individual</span><b>${f(S(vig.filter(v=>!v.facturada),"venta"))}</b><small>para tu factura global del mes</small></div>
+      ${mpCtas.length?`<div class="kpi"><span>Liberado en Mercado Pago</span><b>${f(liberado)}</b><small>según tu estado de cuenta del mes</small></div>`:""}</div>`;
+    // Captura manual
+    if(canWrite) h += `<details class="bpanel" style="margin-top:14px;padding:0"><summary style="cursor:pointer;padding:12px 14px;font-weight:600">+ Registrar una venta a mano</summary><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:0 14px 14px;align-items:end">
+      <div><label for="vpFecha" style="margin:0 0 2px">Fecha</label><input id="vpFecha" type="date" value="${mk}-${String(Math.min(now.getDate(),28)).padStart(2,"0")}"></div>
+      <div><label for="vpPlatIn" style="margin:0 0 2px">Plataforma</label><input id="vpPlatIn" list="vpPlats" value="${esc(vpPlat||"Mercado Libre")}"><datalist id="vpPlats">${["Mercado Libre","Mercado Pago","TikTok Shop","Amazon","Shopify","Venta directa",...plats].filter((x,i,a)=>a.indexOf(x)===i).map(p=>`<option value="${esc(p)}"></option>`).join("")}</datalist></div>
+      <div><label for="vpOrden" style="margin:0 0 2px">Número de orden</label><input id="vpOrden" autocomplete="off"></div>
+      <div style="grid-column:span 2"><label for="vpProd" style="margin:0 0 2px">Producto</label><input id="vpProd" autocomplete="off"></div>
+      <div><label for="vpCant" style="margin:0 0 2px">Cantidad</label><input id="vpCant" type="number" min="1" value="1"></div>
+      <div><label for="vpBruto" style="margin:0 0 2px">Precio de venta</label><input id="vpBruto" type="number" step="0.01" min="0"></div>
+      <div><label for="vpCargos" style="margin:0 0 2px">Comisión</label><input id="vpCargos" type="number" step="0.01" min="0"></div>
+      <div><label for="vpEnvio" style="margin:0 0 2px">Envío</label><input id="vpEnvio" type="number" step="0.01" min="0"></div>
+      <div><button class="btn sm primary" id="vpAgregar">Registrar venta</button></div></div></details>`;
+    h += `<div class="pairbar" style="margin:14px 0 8px;flex-wrap:wrap;gap:8px"><div class="seg"><button data-vpplat="" aria-pressed="${!vpPlat}">Todas</button>${plats.map(p=>`<button data-vpplat="${esc(p)}" aria-pressed="${vpPlat===p}">${esc(p)}</button>`).join("")}</div></div>`;
+    h += lista.length ? `<div class="sheet"><table class="ft" style="min-width:980px"><thead><tr><th>Fecha</th><th>Plataforma</th><th>Orden</th><th>Producto</th><th class="num">Cant.</th><th class="num">Venta</th><th class="num">Devolución</th><th class="num">Comisión</th><th class="num">Envío</th><th class="num">Neto</th><th>Estado</th><th>Factura</th><th></th></tr></thead><tbody>
+      ${lista.map(v=>`<tr class="${esCancelada(v)?"canc":""}"><td>${fechaCorta(v.fecha)}</td><td>${esc(v.plataforma)}</td><td class="uuid">${esc(v.orden)}</td><td><div class="fname" title="${esc(v.producto)}">${esc(v.producto||"—")}</div></td><td class="num">${v.cantidad}</td><td class="num">${f(v.bruto)}</td><td class="num">${v.reembolso?f(-v.reembolso):""}</td><td class="num">${v.cargos?f(v.cargos):""}</td><td class="num">${v.envio?f(v.envio):""}</td><td class="num"><strong>${f(v.neto)}</strong></td><td>${esc(v.estado||"")}</td>
+        <td>${canWrite?`<label class="check inline" style="margin:0"><input type="checkbox" data-vpfac="${esc(v.id)}" ${v.facturada?"checked":""}> Individual</label>`:(v.facturada?"Individual":"Global")}${v.facturaAdjunta?'<div class="fsub">factura adjunta en la plataforma</div>':""}</td><td>${canWrite?`<button class="linkbtn" data-vpdel="${esc(v.id)}">quitar</button>`:""}</td></tr>`).join("")}
+      <tr style="background:var(--group)"><td colspan="5"><strong>Total ${MESES[vpMes-1].toLowerCase()}</strong> <span class="fsub">(la venta sin canceladas; el neto incluye todo lo que te cobró la plataforma)</span></td><td class="num"><strong>${f(S(lista,"bruto"))}</strong></td><td class="num"><strong>${f(-S(lista,"reembolso"))}</strong></td><td class="num"><strong>${f(S(lista,"cargos"))}</strong></td><td class="num"><strong>${f(S(lista,"envio"))}</strong></td><td class="num"><strong>${f(S(lista,"neto"))}</strong></td><td colspan="3"></td></tr></tbody></table></div>`
+      : `<div class="empty">Sin ventas en ${MESES[vpMes-1].toLowerCase()}. Sube el reporte de ventas de la plataforma (Excel o CSV) con <strong>Subir reporte de ventas</strong> o regístralas a mano.</div>`;
+    $("vpbody").innerHTML = h;
+  }
+  $("vpmonths").addEventListener("click", e => { const b = e.target.closest("[data-vpmes]"); if(b){ vpMes = +b.dataset.vpmes; renderVentasPlat(); } });
+  $("vpbody").addEventListener("click", async e => {
+    const p = e.target.closest("[data-vpplat]"); if(p){ vpPlat = p.dataset.vpplat; renderVentasPlat(); return; }
+    const d = e.target.closest("[data-vpdel]"); if(d){ if(!await confirmar("¿Quitar esta venta?")) return; try{ await db.doc(`empresas/${empresa}/ventasPlat/${d.dataset.vpdel}`).delete(); }catch(err){ handleWriteError(err); } return; }
+    if(e.target.closest("#vpAgregar")){
+      const bruto = r2(+$("vpBruto").value||0), cargos = r2(+$("vpCargos").value||0), envio = r2(+$("vpEnvio").value||0);
+      if(!(bruto>0)){ $("vpBruto").focus(); return; } if(!$("vpFecha").value){ $("vpFecha").focus(); return; }
+      const v = {plataforma: $("vpPlatIn").value.trim() || "Venta directa", orden: $("vpOrden").value.trim() || `manual-${Date.now().toString(36)}`, fecha: $("vpFecha").value, estado: "Registrada a mano", producto: $("vpProd").value.trim(), cantidad: +$("vpCant").value||1, bruto, cargos, envio, neto: r2(bruto - cargos - envio), manual: true};
+      try{ await guardarVentas([v]); toast("Venta registrada."); }catch(err){ handleWriteError(err); }
+    }
+  });
+  $("vpbody").addEventListener("change", async e => { const c = e.target.closest("[data-vpfac]"); if(!c) return; const v = ventasP.find(x=>x.id===c.dataset.vpfac); if(!v) return;
+    const {id, ...resto} = v; try{ await db.doc(`empresas/${empresa}/ventasPlat/${id}`).set({...resto, facturada: c.checked}); }catch(err){ handleWriteError(err); } });
+  $("vpSubir").onclick = () => $("vpFile").click();
+  $("vpFile").onchange = async e => {
+    const files = [...e.target.files]; e.target.value = ""; if(!files.length) return; await loadLibs("xlsx"); let total = 0, vacios = [];
+    for(const file of files){ try{ const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellDates:false}); const R = leerReporteVentas(wb, file.name);
+        if(!R){ toast(`${file.name}: no reconocí las columnas (número de orden, fecha e importe).`); continue; }
+        if(!R.ventas.length){ vacios.push(`${file.name} (${R.plataforma})`); continue; }
+        total += await guardarVentas(R.ventas); guardarArchivoGeneral(file, "Reportes de ventas", year, null);
+        const ms = R.ventas.map(v=>v.fecha.slice(0,7)).sort(); vpMes = +ms[ms.length-1].slice(5,7); }catch(err){ toast(`${file.name}: no se pudo leer.`); } }
+    if(total) toast(`Listo: ${total} ventas registradas.`); else if(vacios.length) toast(`Reconocí el formato, pero el reporte no trae ventas: ${vacios.join(", ")}. Descárgalo con un periodo que tenga ventas.`);
+  };
+  async function exportVentasPlat(){
+    const xs = ventasP.filter(v=>String(v.fecha).startsWith(String(year))).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))); if(!xs.length){ toast("Sin ventas este año."); return; }
+    await loadLibs("excel"); const wb = new ExcelJS.Workbook(), w = wb.addWorksheet("Ventas"), M = '"$"#,##0.00';
+    w.columns = [{width:12},{width:16},{width:22},{width:40},{width:8},{width:14},{width:14},{width:14},{width:14},{width:18},{width:12}];
+    w.addRow(["Fecha","Plataforma","Orden","SKU","Producto","Cantidad","Venta","Devolución","Comisión","Envío","Neto","Estado","Factura"]).font = {bold:true};
+    xs.forEach(v=>{ const r = w.addRow([v.fecha, v.plataforma, v.orden, v.sku||"", v.producto, v.cantidad, v.bruto, v.reembolso||0, v.cargos, v.envio, v.neto, v.estado, v.facturada?"Individual":"Global"]); [7,8,9,10,11].forEach(i=>r.getCell(i).numFmt = M); });
+    await guardarArchivo(`Ventas en plataformas ${empresaNombre} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
+  }
+
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
   $("recCfgOk").onclick = async () => {
     const inpc = {}, tasa = {}, dias = {};
@@ -7085,9 +7218,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       dashboard:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', expediente:'<path d="M3 7h6l2 2h10v10H3z"/>', notas:'<path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h3"/>', activos:'<path d="M3 6h18v11H3zM8 21h8M12 17v4"/>',
       conta:'<path d="M5 3h14v18H5zM9 7h6M9 11h6M9 15h2M14 15h1"/>', directorio:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 19v-1a3 3 0 0 0-2-2.8M17 5.2a3 3 0 0 1 0 5.6"/>',
       documentos:'<path d="M6 3h9l4 4v14H6zM14 3v5h5"/>', resumen:'<path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/>', accesos:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-      presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
+      ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
     };
-    const GRUPOS = [["Cierre", ["tablero","notas","expediente"]], ["Operación", ["facturas","cuentas","bancos","directorio"]], ["Impuestos", ["impuestos"]],
+    const GRUPOS = [["Cierre", ["tablero","notas","expediente"]], ["Operación", ["facturas","cuentas","bancos","ventas","directorio"]], ["Impuestos", ["impuestos"]],
       ["Contabilidad", ["conta","balanza","estados","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","accesos"]]];
     const vistas = document.querySelector(".views"); if(!vistas) return;
     const nav = document.createElement("aside"); nav.id = "sideNav"; nav.setAttribute("aria-label", "Secciones");
