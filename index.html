@@ -276,7 +276,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 13 · Pólizas en Excel marcan lo ya contabilizado</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 14 · Contabilidad completa por mes</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -5131,17 +5131,34 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   // Si ya subiste pólizas de ese mes, propone seguir después del último número de ese tipo
   function siguienteNum(mk, tipo){ const ps = ((polCQ[mk]||{}).polizas||[]).filter(p=>p.tipo===tipo); return ps.length ? Math.max(...ps.map(p=>+p.num||0)) + 1 : 1; }
+  // ¿La contabilidad del mes está completa? Todas las provisiones PPD, egresos e ingresos ya están en tus pólizas (o los quitaste de la lista)
+  const memoConta = {};
+  function estadoContaMes(y, m){
+    const mk = mesKey(y, m), firma = `${facturas.length}|${abonos.length}|${complementos.length}|${Object.keys(polCQ).join(",")}|${JSON.stringify((contaCfg.excluir||{})[mk]||[])}`;
+    if(memoConta[mk] && memoConta[mk].firma===firma) return memoConta[mk];
+    const excl = new Set(((contaCfg.excluir||{})[mk]||[]));
+    const ps = ["provProv","provCli","egresos","ingresos"].flatMap(t=>polizasMesSinNum(y, m, t));
+    const ya = ps.filter(p=>p.ya).length, fuera = ps.filter(p=>!p.ya && excl.has(p.key)).length;
+    const e = {firma, total: ps.length, ya, fuera, falta: ps.length - ya - fuera, hayPol: !!polCQ[mk]};
+    memoConta[mk] = e; return e;
+  }
   function renderConta(){
     $("yearLabel").textContent = year;
     if(!coMes) coMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
-    $("ctabs").innerHTML = CO_TABS.map(([k,n])=>`<button data-cotab="${k}" aria-pressed="${coTab===k}">${n}</button>`).join("");
-    $("cmonths2").innerHTML = Array.from({length:12},(_,i)=>`<button class="mchip" data-comes="${i+1}" aria-current="${coMes===i+1}"><b>${ABR[i]}</b><small>&nbsp;</small></button>`).join("");
+    const pendTab = k => { if(k==="manual" || !catalogo.length) return 0; const ex = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[])); return polizasMesSinNum(year, coMes, k).filter(p=>!p.ya && !ex.has(p.key)).length; };
+    $("ctabs").innerHTML = CO_TABS.map(([k,n])=>{ const pn = pendTab(k); return `<button data-cotab="${k}" aria-pressed="${coTab===k}">${n}${pn?` <span class="st vencido" style="font-size:11px;padding:1px 6px">${pn}</span>`:""}</button>`; }).join("");
+    const ultC = year<now.getFullYear() ? 12 : year===now.getFullYear() ? now.getMonth()+1 : 0;
+    $("cmonths2").innerHTML = Array.from({length:12},(_,i)=>{ if(!catalogo.length || i+1>ultC) return `<button class="mchip" data-comes="${i+1}" aria-current="${coMes===i+1}"><b>${ABR[i]}</b><small>—</small></button>`;
+      const e = estadoContaMes(year, i+1);
+      const cls = !e.hayPol ? "" : e.falta ? "pend" : "ok", txt = !e.total ? "Sin movimientos" : !e.hayPol ? "Sin pólizas" : e.falta ? `${e.falta} por registrar` : "Completa ✓";
+      return `<button class="mchip ${cls}" data-comes="${i+1}" aria-current="${coMes===i+1}" title="${e.total} movimientos · ${e.ya} ya en tus pólizas"><b>${ABR[i]}</b><small>${txt}</small></button>`; }).join("");
     const f = money.format;
     if(!catalogo.length){ $("statusLine").textContent = "Sube tu catálogo de cuentas de CONTPAQi para empezar.";
       $("cobody").innerHTML = `<div class="empty">Sube con <strong>Subir catálogo o pólizas (.txt)</strong> tu <strong>catálogo de cuentas</strong> exportado de CONTPAQi. Si también subes tus <strong>pólizas exportadas en .txt</strong>, la app aprende qué cuentas usas con cada proveedor y cliente.</div>`; return; }
     const ps = polizasMes(year, coMes, coTab), excl = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[]));
     const nuevas = ps.filter(p=>!p.ya), faltan = ps.filter(p=>p.lin.some(l=>l.falta || (l.c && !esDetalle(l.c))) || Math.abs(p.dif)>0.009);
-    $("statusLine").innerHTML = `${ps.length} ${ps.length===1?"póliza":"pólizas"} de ${CO_TABS.find(x=>x[0]===coTab)[1].toLowerCase()} en ${MESES[coMes-1].toLowerCase()}${faltan.length?` · <strong style="color:var(--wip-ink)">${faltan.length} con cuentas por completar</strong>`:""}.`;
+    const eM = estadoContaMes(year, coMes);
+    $("statusLine").innerHTML = `${!eM.total ? "" : !eM.hayPol ? `<strong style="color:var(--wip-ink)">${MESES[coMes-1]}: sube tus pólizas del mes para revisar si está completa</strong> · ` : eM.falta ? `<strong style="color:var(--wip-ink)">${MESES[coMes-1]}: faltan ${eM.falta} de ${eM.total} por registrar</strong> · ` : `<strong style="color:var(--done-ink)">${MESES[coMes-1]}: contabilidad completa ✓</strong> · `}${ps.length} ${ps.length===1?"póliza":"pólizas"} de ${CO_TABS.find(x=>x[0]===coTab)[1].toLowerCase()} en ${MESES[coMes-1].toLowerCase()}${faltan.length?` · <strong style="color:var(--wip-ink)">${faltan.length} con cuentas por completar</strong>`:""}.`;
     const tipoP = ps[0] ? ps[0].tipo : (coTab==="egresos"?"Egresos":coTab==="ingresos"?"Ingresos":"Diario"), ini = ((contaCfg.inicios||{})[mesKey(year, coMes)]||{})[tipoP] || siguienteNum(mesKey(year, coMes), tipoP);
     const todasN = Object.values(todasPolizas(year, coMes)).flat().filter(p=>p.num!=null).length;
     const opts = (pref, sel) => `<option value="">Elige cuenta…</option>${catalogo.filter(k=>pref.some(p=>k.c.startsWith(p)) && esDetalle(k.c)).map(k=>`<option value="${k.c}" ${k.c===sel?"selected":""}>${k.c} ${esc(k.n)}</option>`).join("")}`;
