@@ -1342,6 +1342,34 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function delAnio(){ return facturas.filter(f => f.tipo===tipoSel && f.anio===year); }
   function fechaCorta(s){ const [y,m,d] = String(s||"").split("-"); return d ? `${+d} ${ABR[+m-1].toLowerCase()}` : "—"; }
 
+  // Busca en tus pólizas de CONTPAQi la provisión (Diario) y el pago (Ingresos o Egresos) de una factura
+  let idxPol = null, idxPolKey = "";
+  function indicePolizas(){
+    const key = Object.keys(polCQ).sort().join(",") + Object.values(polCQ).reduce((s,x)=>s+((x.polizas||[]).length),0);
+    if(idxPol && idxPolKey===key) return idxPol;
+    idxPol = Object.entries(polCQ).flatMap(([mk, x])=>(x.polizas||[]).map(p=>({mk, id:`${p.tipo} ${p.num}`, tipo:p.tipo, txt: normTxt(p.concepto+" "+p.movs.map(m=>m.n+" "+m.r).join(" ")).replace(/\s+/g," "), tok: tokens(p.concepto+" "+p.movs.map(m=>m.n).join(" "))})));
+    idxPolKey = key; return idxPol;
+  }
+  function buscarPoliza(f, tipos, mesesPref){
+    const P = indicePolizas().filter(p=>tipos.includes(p.tipo)), u8 = String(f.uuid).slice(0,8).toLowerCase(), folio = String(f.folio||"").replace(/^F-?/i,"").toLowerCase(), tk = tokens(f.nombre||"");
+    let x = P.find(p=>p.txt.includes(u8)); if(x) return x.id;
+    if(folio){ const reF = new RegExp(`(^|[^0-9a-z])f ?${folio.replace(/[^0-9a-z]/g,"")}([^0-9]|$)`); x = P.filter(p=>!mesesPref || mesesPref.includes(p.mk)).find(p=>reF.test(p.txt) && inter(tk, p.tok)>=1); if(x) return x.id; }
+    return null;
+  }
+  function estadoContable(f, R, idx){
+    const cta = cuentaDe(f, idx), mk = String(f.fecha).slice(0,7), hayPolMes = !!polCQ[mk];
+    const asig = R && R.asig ? R.asig : {}, a = asig[f.uuid];
+    let prov = null, pago = null;
+    if(f.metodo==="PPD"){ if(a && a.p && a.p.p && a.p.p.tipo==="Diario") prov = a.p.id; else prov = buscarPoliza(f, ["Diario"]); }
+    const tPago = f.tipo==="emitida" ? "Ingresos" : "Egresos";
+    const fechasPago = [...(cta.abs||[]).map(x=>String(x.fecha).slice(0,7)), ...complementos.filter(c=>c.doc===f.uuid).map(c=>String(c.fechaPago).slice(0,7))];
+    if(f.metodo==="PUE" && a && a.p && a.p.p && a.p.p.tipo!=="Diario") pago = a.p.id;
+    if(!pago) for(const c of complementos.filter(c=>c.doc===f.uuid)){ const ac = asig[c.uuid]; if(ac && ac.p && ac.p.p && ac.p.p.tipo!=="Diario"){ pago = ac.p.id; break; } }
+    if(!pago) pago = buscarPoliza(f, [tPago, ...(f.metodo==="PUE" ? [] : [])], fechasPago.length ? fechasPago : null);
+    const tienePago = f.metodo==="PUE" || cta.abonado>0 || complementos.some(c=>c.doc===f.uuid);
+    const mesesPago = fechasPago.length ? fechasPago : [mk], hayPolPago = mesesPago.some(m=>!!polCQ[m]);
+    return {cta, prov, pago, hayPolMes, tienePago, hayPolPago, pagoFalta: tienePago && !pago && !listo(f.ctrl) && hayPolPago};
+  }
   function renderFacturas(){
     $("yearLabel").textContent = year;
     renderObservaciones();
@@ -1366,15 +1394,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     let rows = (qF ? lista.filter(f=>normTxt(`${f.nombre} ${f.rfc} ${f.folio} ${f.uuid}`).includes(qF)) : lista.filter(f=>f.mes===mesSel)).sort((a,b)=> (vigente(b)-vigente(a)) || String(a.fecha).localeCompare(String(b.fecha)));
     const vig = rows.filter(vigente), canc = rows.length - vig.length;
     if(qF){ const tot = vig.reduce((s,f)=>s+(+f.total||0),0); }
-    const sinProv = vig.filter(f=>!listo(f.prov)).length, sinCtrl = vig.filter(f=>!listo(f.ctrl)).length;
+    const RX = (()=>{ try{ return conciliarXml(); }catch(_){ return null; } })(), IDX = indices(), estC = {};
+    vig.forEach(f=>{ estC[f.uuid] = estadoContable(f, RX, IDX); });
+    const sinProv = vig.filter(f=>f.metodo==="PPD" && !estC[f.uuid].prov && !listo(f.prov)).length, sinCtrl = vig.filter(f=>estC[f.uuid].pagoFalta).length;
     const tipoTxt = tipoSel==="emitida" ? "emitidas" : "recibidas";
     $("fsum").innerHTML = !rows.length ? "" :
       `${qF ? `Búsqueda en todo ${year}` : MESES[mesSel-1]}: ${vig.length} ${tipoTxt} vigentes${canc?` y ${canc} ${canc===1?"cancelada":"canceladas"}`:""}. ` +
-      (sinProv||sinCtrl ? `Falta provisionar <strong>${sinProv}</strong> y registrar en ${CTRL_LBL[tipoSel]} <strong>${sinCtrl}</strong>.` : "<strong>Todo listo.</strong>");
+      (sinProv||sinCtrl ? `PPD sin póliza de provisión: <strong>${sinProv}</strong> · ${tipoSel==="emitida"?"cobros":"pagos"} sin póliza de ${tipoSel==="emitida"?"ingresos":"egresos"}: <strong>${sinCtrl}</strong>.` : "<strong>Todo listo.</strong>");
     if(soloPend) rows = rows.filter(f=>vigente(f) && !completa(f));
     if(!facturas.length){ $("fsheet").innerHTML = `<div class="empty">Todavía no hay facturas. Usa <strong>Subir reporte de AdminXML</strong> para cargarlas.</div>`; return; }
     if(!rows.length){ $("fsheet").innerHTML = `<div class="empty">${soloPend && lista.some(f=>f.mes===mesSel) ? "No hay pendientes en este mes." : `No hay facturas ${tipoTxt} en ${MESES[mesSel-1].toLowerCase()}.`}</div>`; return; }
-    let t = `<table class="ft"><thead><tr><th>Fecha</th><th>${tipoSel==="emitida"?"Cliente":"Proveedor"}</th><th>Folio / UUID</th><th>Método</th><th class="num">Total</th><th class="ck">Provisión</th><th class="ck">${CTRL_LBL[tipoSel]}</th></tr></thead><tbody>`;
+    let t = `<table class="ft"><thead><tr><th>Fecha</th><th>${tipoSel==="emitida"?"Cliente":"Proveedor"}</th><th>Folio / UUID</th><th>Método</th><th class="num">Total</th><th>Provisión</th><th>Contabilidad</th><th>${CTRL_LBL[tipoSel]}</th></tr></thead><tbody>`;
     for(const f of rows){
       const v = vigente(f);
       t += `<tr class="${v?"":"canc"}"><td>${fechaCorta(f.fecha)}</td>
@@ -1382,9 +1412,19 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         <td>${f.folio?`<div>${esc(f.folio)}</div>`:""}<div class="uuid" title="${esc(f.uuid)}">${esc(String(f.uuid).slice(0,8))}…</div></td>
         <td><span class="mp ${f.metodo==="PPD"?"ppd":""}">${esc(f.metodo||"—")}</span></td>
         <td class="num">${money.format(+f.total||0)}</td>`;
-      for(const campo of ["prov","ctrl"]){
-        const s = f[campo]||"";
-        t += v ? `<td class="ck"><button class="cell ${s}" data-f="${esc(f.id)}" data-campo="${campo}" aria-label="${campo==="prov"?"Provisión":CTRL_LBL[tipoSel]} de ${esc(f.nombre)}: ${NOMBRE_ESTADO[s]}">${ICON[s]}</button></td>` : `<td class="ck"></td>`;
+      if(!v){ t += `<td></td><td></td><td></td>`; }
+      else {
+        const ec = estC[f.uuid], chip = (cls, txt, tit) => `<span class="st ${cls}" title="${esc(tit||"")}" style="white-space:nowrap">${esc(txt)}</span>`;
+        // Provisión: solo PPD; la busca en tus pólizas de CONTPAQi (o la marcas tú)
+        const prov = f.metodo!=="PPD" ? chip("na","No aplica (PUE)") : ec.prov ? chip("pagado", ec.prov, "Póliza de provisión encontrada en tus pólizas") :
+          listo(f.prov) ? chip("pagado","Marcada por ti") : !ec.hayPolMes ? chip("na","Sin pólizas del mes","Sube tus pólizas de ese mes para revisarlo") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="prov" data-marca="1" style="font-size:12px">ya está</button>`:""}`;
+        // Contabilidad: póliza de ingresos o egresos del pago
+        const cont = ec.pago ? chip("pagado", ec.pago, "Póliza del pago encontrada en tus pólizas") : !ec.tienePago ? chip("na", tipoSel==="emitida"?"Sin cobro aún":"Sin pago aún") :
+          listo(f.ctrl) ? chip("pagado","Marcada por ti") : !ec.hayPolPago ? chip("na","Sin pólizas del mes","Sube tus pólizas del mes del pago") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="ctrl" data-marca="1" style="font-size:12px">ya está</button>`:""}`;
+        // CxC / CxP: estatus del pago y complemento
+        const c = ec.cta, est = {pagado:["pagado","Pagada"], parcial:["parcial","Pago parcial"], vencido:["vencido","Vencida"], pendiente:["pendiente","Pendiente"]}[c.estatus] || ["na",""];
+        const comp = f.metodo!=="PPD" ? "" : c.comp==="ok" ? chip("pagado","Con complemento") : c.comp==="falta" ? chip("vencido","Falta complemento") : "";
+        t += `<td>${prov}</td><td>${cont}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${chip(est[0], tipoSel==="emitida" && est[1]==="Pagada" ? "Cobrada" : est[1])}${comp}</div></td>`;
       }
       t += `</tr>`;
     }
@@ -1415,10 +1455,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         setSaving("Guardado"); }catch(err){ handleWriteError(err); }
       return;
     }
-    const b = e.target.closest(".cell"); if(!b || !canWrite || !db) return;
+    const b = e.target.closest(".cell, [data-marca]"); if(!b || !canWrite || !db || !b.dataset.f) return;
     const f = facturas.find(x=>x.id===b.dataset.f); if(!f) return;
     const campo = b.dataset.campo, cur = f[campo]||"";
-    const next = CICLO_F[(CICLO_F.indexOf(cur)+1)%CICLO_F.length];
+    const next = b.dataset.marca ? "done" : CICLO_F[(CICLO_F.indexOf(cur)+1)%CICLO_F.length];
     f[campo] = next;
     const keep = document.activeElement === b;
     renderFacturas();
