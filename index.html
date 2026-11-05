@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 28 · Ventas: reporte de Mercado Libre</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 29 · Ventas: TikTok Shop</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7089,10 +7089,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     cantidad: [/^cantidad$/, /^unidades$/, /^quantity$/],
     bruto: [/^cobro$/, /^ingresos por productos/, /^order amount$/, /^sku subtotal after discount$/, /^total pagado/, /^item-price$/, /^precio/],
     cargos: [/^cargos e impuestos$/, /^cargo por venta e impuestos/, /^platform commission$/, /^comisi[oó]n/, /^tarifa/],
-    envio: [/^costos? de env[ií]o/, /^shipping fee/, /^env[ií]o/],
+    envio: [/^costos? de env[ií]o/, /^shipping fee \(seller\)/, /^env[ií]o/],
     neto: [/^total a recibir$/, /^total \(mxn\)$/, /^total settlement amount$/, /^neto/, /^importe a recibir/],
     canal: [/^canal de venta$/],
-    reembolso: [/^anulaciones y reembolsos/, /^refund/, /^reembolso/],
+    reembolso: [/^anulaciones y reembolsos/, /^refund/, /refund amount$/, /^reembolso/],
     facturaAdj: [/^factura adjunta$/],
     sku: [/^sku$/, /^seller sku$/]
   };
@@ -7107,8 +7107,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const Hs = H.join(" ");
       const plat = /tiktok/i.test(txtPlano) || /sku subtotal|order amount/.test(Hs) ? "TikTok Shop" : /amazon/i.test(txtPlano) || /amazon-order-id|purchase-date/.test(Hs) ? "Amazon" : /mercado ?pago/i.test(txtPlano) || /herramienta de cobro|total a recibir/.test(Hs) ? "Mercado Pago" : /mercado ?libre/i.test(txtPlano) || /# de venta|titulo de la publicacion/.test(Hs) ? "Mercado Libre" : "Otra plataforma";
       const num = v => typeof v==="number" ? v : (+String(v).replace(/[$,\s]/g,"").replace(/[^\d.-]/g,"")||0);
+      const usaMDY = plat==="TikTok Shop" || plat==="Amazon";
       const fecha = v => { if(typeof v==="number"){ const d = XLSX.SSF.parse_date_code(v); return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`; }
-        const s = String(v); let m = s.match(/(\d{4})-(\d{2})-(\d{2})/); if(m) return `${m[1]}-${m[2]}-${m[3]}`; m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+        const s = String(v); let m = s.match(/(\d{4})-(\d{2})-(\d{2})/); if(m) return `${m[1]}-${m[2]}-${m[3]}`; m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m){ let [dd, mm] = [m[1], m[2]]; if(usaMDY ? +m[2] <= 12 && +m[1] <= 12 || +m[2] > 12 : +m[1] <= 12 && +m[2] > 12) [dd, mm] = [m[2], m[1]]; return `${m[3]}-${mm.padStart(2,"0")}-${dd.padStart(2,"0")}`; }
         m = sinAcento(s).toLowerCase().match(/(\d{1,2}) de ([a-z]+) de (\d{4})/); if(m && MES_NOMBRE[m[2].toUpperCase()]) return `${m[3]}-${String(MES_NOMBRE[m[2].toUpperCase()]).padStart(2,"0")}-${m[1].padStart(2,"0")}`; return ""; };
       const ventas = [];
       for(const r of F.slice(hi+1)){
@@ -7121,7 +7122,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         ventas.push({reembolso: r2(reemb), sku: C.sku>=0 ? String(r[C.sku]||"").trim() : "", facturaAdjunta: !!fac && !/^no$/i.test(fac), plataforma: platFila, orden, fecha: f, estado: C.estado>=0 ? String(r[C.estado]).trim() : "", producto: C.producto>=0 ? String(r[C.producto]).trim() : "", cantidad: C.cantidad>=0 ? num(r[C.cantidad])||1 : 1,
           bruto: r2(bruto), cargos: r2(cargos), envio: r2(envio), neto: r2(neto), canal: C.canal>=0 ? String(r[C.canal]).trim() : ""});
       }
-      return {plataforma: plat, ventas, hoja};
+      // Un pedido puede venir en varios renglones (uno por producto): se juntan
+      const porOrden = {};
+      for(const v of ventas){ const k = `${v.plataforma}|${v.orden}`, a = porOrden[k];
+        if(!a){ porOrden[k] = {...v}; continue; }
+        a.bruto = r2(a.bruto + v.bruto); a.cargos = r2(a.cargos + v.cargos); a.envio = r2(a.envio + v.envio); a.cantidad += v.cantidad;
+        a.neto = C.neto>=0 ? r2(a.neto + v.neto) : r2(a.bruto - a.cargos - a.envio); a.reembolso = Math.max(a.reembolso||0, v.reembolso||0);
+        if(v.producto && !a.producto.includes(v.producto)) a.producto = `${a.producto} + ${v.producto}`; if(v.sku && !String(a.sku).includes(v.sku)) a.sku = `${a.sku} ${v.sku}`.trim(); }
+      return {plataforma: plat, ventas: Object.values(porOrden), hoja, sinComision: C.cargos<0};
     }
     return null;
   }
@@ -7187,6 +7195,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(!R){ toast(`${file.name}: no reconocí las columnas (número de orden, fecha e importe).`); continue; }
         if(!R.ventas.length){ vacios.push(`${file.name} (${R.plataforma})`); continue; }
         total += await guardarVentas(R.ventas); guardarArchivoGeneral(file, "Reportes de ventas", year, null);
+        if(R.sinComision) setTimeout(()=>toast(`${R.plataforma}: este reporte no trae comisiones. Captúralas en cada venta o sube el reporte de liquidaciones para tener el neto real.`), 3500);
         const ms = R.ventas.map(v=>v.fecha.slice(0,7)).sort(); vpMes = +ms[ms.length-1].slice(5,7); }catch(err){ toast(`${file.name}: no se pudo leer.`); } }
     if(total) toast(`Listo: ${total} ventas registradas.`); else if(vacios.length) toast(`Reconocí el formato, pero el reporte no trae ventas: ${vacios.join(", ")}. Descárgalo con un periodo que tenga ventas.`);
   };
