@@ -276,7 +276,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 10 · Compara tu cálculo de impuestos en Excel</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 11 · "No aplica" en pólizas de cierre</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -3165,12 +3165,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       {k:"resumen", act:"resumen-cuentas", nombre:"Resumen de cuentas por cobrar y por pagar", nota:"Descárgalo e imprímelo", lineas:null, resumen:true},
     ];
     let pz = `<div class="bpanel" style="margin-top:18px"><h3>Pólizas y cierre de ${MESES[iMes-1].toLowerCase()}<small>Los importes para tus pólizas en CONTPAQi. Palomea cada una cuando la registres y se marca en tu tablero.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><tbody>`;
+    const polNA = (empresas.find(x=>x.id===empresa)||{}).polNoAplica || [];
     for(const P of POL){
+      if(polNA.includes(P.k)){ pz += `<tr style="opacity:.6"><td><strong>${P.nombre}</strong><div class="fsub" style="max-width:none">No aplica a esta empresa.</div></td><td style="text-align:right;white-space:nowrap">${canWrite?`<button class="linkbtn" data-polsi="${P.k}">Sí aplica</button>`:""}</td></tr>`; continue; }
       const hecho = !!pol[P.k] || (estados[P.act]||{})[iMes]==="done";
       const tabla = P.lineas ? `<table class="pt" style="min-width:0;width:auto;margin-top:6px"><thead><tr><th>Concepto</th><th class="num">Cargo</th><th class="num">Abono</th></tr></thead><tbody>${P.lineas.map(([c,a,b])=>`<tr><td>${c}</td><td class="num">${a?f(a):""}</td><td class="num">${b?f(b):""}</td></tr>`).join("")}</tbody></table>`
         : P.resumen ? "" : `<div class="fsub" style="white-space:normal;max-width:none">Sube la línea de captura del SIPARE de este mes para ver el desglose patronal.</div>`;
       const btns = (P.resumen && downloads ? `<button class="btn sm" id="resumenPdf">Descargar resumen (PDF)</button> ` : "") + (canWrite ? `<button class="btn sm ${hecho?"":"primary"}" data-pol="${P.k}" aria-pressed="${hecho}">${hecho ? "Listo ✓" : P.resumen ? "Marcar como impreso" : "Marcar registrada"}</button>` : "");
-      pz += `<tr><td><strong>${P.nombre}</strong><div class="fsub" style="white-space:normal;max-width:none">${P.nota}</div>${tabla}</td><td style="text-align:right;white-space:nowrap">${btns}</td></tr>`;
+      const naBtn = canWrite && P.k!=="iva" ? `<div style="margin-top:6px"><button class="linkbtn" data-polna="${P.k}" style="font-size:12px">No aplica a esta empresa</button></div>` : "";
+      pz += `<tr><td><strong>${P.nombre}</strong><div class="fsub" style="white-space:normal;max-width:none">${P.nota}</div>${tabla}</td><td style="text-align:right;white-space:nowrap">${btns}${naBtn}</td></tr>`;
     }
     pz += `</tbody></table></div></div>`;
     // Nota del mes
@@ -3281,6 +3284,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   });
   const POL_ACT = {iva:"determinacion-iva", isn:"determinacion-isn", imss:"prov-imss", resumen:"resumen-cuentas"};
   $("ibody").addEventListener("click", async e => {
+    const na = e.target.closest("[data-polna], [data-polsi]");
+    if(na){
+      const k = na.dataset.polna || na.dataset.polsi, act = POL_ACT[k], cur = empresas.find(x=>x.id===empresa) || {}, set = new Set(cur.polNoAplica||[]);
+      if(na.dataset.polna){ if(!await confirmar(`¿Esta póliza no aplica a ${cur.nombre||"esta empresa"}? Ya no te la pediré en ningún mes y en el tablero quedará como "No aplica".`)) return; set.add(k); } else set.delete(k);
+      cur.polNoAplica = [...set];
+      try{ await db.doc(`empresas/${empresa}`).update({polNoAplica: cur.polNoAplica}); }catch(err){ handleWriteError(err); return; }
+      if(act && actividades.some(a=>a.id===act)){ estados[act] = Object.assign({}, estados[act]||{});
+        for(let mm=1; mm<=12; mm++){ if(na.dataset.polna){ if(estados[act][mm]!=="done") estados[act][mm] = "na"; } else if(estados[act][mm]==="na") delete estados[act][mm]; }
+        scheduleSave(); }
+      renderImpuestos(); return;
+    }
     const b = e.target.closest("[data-pol]");
     if(b){
       const key = mesKey(year, iMes), act = POL_ACT[b.dataset.pol], cur = polizas[key] || {};
