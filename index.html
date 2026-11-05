@@ -272,11 +272,11 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 15 · Accesos a plataformas</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 16 · Presupuesto mensual</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -338,6 +338,12 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vPresupuesto" hidden>
+    <div class="ftools"><button class="btn sm primary" id="preIni">Subir presupuesto inicial</button><button class="btn sm" id="preAct">Subir presupuesto actualizado</button><input type="file" id="preFile" accept=".xlsx,.xls" hidden></div>
+    <div class="months" id="premonths"></div>
+    <div id="prebody"></div>
   </section>
 
   <section id="vAccesos" hidden>
@@ -899,7 +905,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -951,6 +957,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="documentos"){ renderDocumentos(); return; }
     if(vista==="resumen"){ renderResumenAnual(); return; }
     if(vista==="accesos"){ renderAccesos(); return; }
+    if(vista==="presupuesto"){ renderPresupuesto(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1101,6 +1108,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeCalcUsuario();
     subscribeRecargos();
     subscribeAccesos();
+    subscribePresupuesto();
     subscribeDocsEmpresa();
     subscribeCfdi();
     subscribePolApp();
@@ -1255,6 +1263,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="conta") return exportConta("xlsx");
     if(vista==="directorio") return exportDirectorio();
     if(vista==="resumen") return exportResumenAnual("xlsx");
+    if(vista==="presupuesto") return exportPresupuesto();
     const btn=$("xlsxBtn"); btn.disabled=true;
     try{
       await loadLibs("excel");
@@ -1348,15 +1357,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || !canWrite;
-    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos"].includes(v), sinXls = ["expediente","notas","documentos","accesos"].includes(v);
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || !canWrite;
+    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto"].includes(v), sinXls = ["expediente","notas","documentos","accesos"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
@@ -5664,6 +5673,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     expediente: "Pólizas impresas, invoices de licencias y la carpeta final del mes en .zip para Drive, más el respaldo completo de la app.",
     notas: "Tus pendientes, preguntas para tu jefe y notas. Las abiertas se cuentan en el tablero.",
     activos: "Registra tus activos fijos (la app detecta facturas con uso de CFDI de inversión). Calcula depreciación contable mensual, la póliza del mes y la deducción fiscal anual, y la compara contra tu balanza.",
+    presupuesto: "Sube el presupuesto que hace administración (Excel con la hoja PRESUPUESTO; si trae HOJA CONTROL y ENVIO, también se leen). Al inicio del mes el inicial; al cierre, el actualizado. La app compara inicial, actualizado y lo pagado por subcategoría, te muestra lo que salió fuera de presupuesto, el saldo inicial y final de bancos, y cuánto fondear para el siguiente mes.",
     accesos: "Tus links a las plataformas que usas (SAT, IMSS, bancos, portales estatales…), agrupados por categoría. Toca Abrir para entrar. No guardes contraseñas aquí.",
     resumen: "Cuánto entró y cuánto salió cada mes: ingresos facturados y cobrados, fondeo (depósitos que no son cobros ni traspasos), gastos con proveedores, nómina (sueldos y asimilados), impuestos separados en SAT, SATEG e IMSS, y el flujo neto. Toca un mes para ver el detalle de impuestos, el fondeo y en qué se gastó.",
     directorio: "Los datos fiscales de tus clientes y proveedores para facturar: razón social, RFC, régimen, código postal, uso de CFDI, forma y método de pago, correo, banco, CLABE y notas. La app arma la lista con tus facturas y te propone el régimen y uso que vienen en ellas; tú completas el resto o subes su constancia de situación fiscal en PDF para llenarlo solo.",
@@ -6446,6 +6456,137 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     try{ await guardarAcceso({nombre, url, cat: $("accCat").value, nota: $("accNota").value.trim()}, $("accTodas").checked); $("accDlg").close(); }catch(err){ handleWriteError(err); }
   };
   $("accBorrar").onclick = async () => { if(!accEdit || !await confirmar("¿Borrar este acceso?")) return; try{ await db.doc(`empresas/${empresa}/accesos/${accEdit}`).delete(); $("accDlg").close(); }catch(err){ handleWriteError(err); } };
+
+  // ---------- Presupuesto mensual: inicial, real y actualizado; flujo y fondeo ----------
+  let presup = {}, unsubPre = null, preMes = null, preAbiertos = new Set(), preTipoSubida = "inicial";
+  function subscribePresupuesto(){
+    if(unsubPre) unsubPre(); presup = {};
+    if(!db || !empresa) return;
+    unsubPre = db.collection(`empresas/${empresa}/presupuestos`).onSnapshot(qs => { presup = Object.fromEntries(qs.docs.map(d=>[d.id, d.data()])); if(vista==="presupuesto") renderPresupuesto(); }, () => {});
+  }
+  const nPre = s => sinAcento(String(s??"")).toLowerCase().replace(/\s+/g," ").trim();
+  function leerPresupuesto(wb, nombre){
+    const hoja = wb.SheetNames.find(n=>/presupuesto/i.test(n)); if(!hoja) return null;
+    const F = XLSX.utils.sheet_to_json(wb.Sheets[hoja], {header:1, defval:"", raw:true});
+    const hi = F.findIndex(r=>r.some(x=>nPre(x)==="concepto") && r.some(x=>/subcategor/.test(nPre(x)))); if(hi<0) return null;
+    const H = F[hi].map(nPre), iSub = H.findIndex(x=>/subcategor/.test(x)), iCla = H.findIndex(x=>/clasificaci/.test(x));
+    const montos = H.map((x,i)=>x==="monto"?i:-1).filter(i=>i>=0); if(!montos.length) return null;
+    const iM = montos[montos.length-1], num = v => typeof v==="number" ? v : (+String(v).replace(/[$,\s]/g,"")||0);
+    const items = []; let cat = "", sub = "", subTot = {};
+    for(let r=hi+1; r<F.length; r++){
+      const row = F[r], b = String(row[1]||"").trim(), c = String(row[2]||"").trim(), d = String(row[iSub]||"").trim(), a = String(row[0]||"").trim(), m = r2(num(row[iM]));
+      if(b && !c && !d && !String(row[iCla]||"").trim() && /^(costo|gastos|nomina|nómina|impuestos|inversion|inversión|ingresos)/i.test(b)){ cat = b; continue; }
+      if(c && !d){ sub = c; subTot[`${cat}|${sub}`] = m; continue; }
+      if(d){ sub = d; const cla = String(row[iCla]||"").trim() || cat; if(m) items.push({cat: cla || cat, sub: d, concepto: b || a || d, monto: m}); continue; }
+      // Renglones con nombre e importe pero sin subcategoría: pertenecen a la subcategoría de arriba
+      if((b || a) && m && sub) items.push({cat, sub, concepto: b || a, monto: m});
+    }
+    // Subcategorías con total pero sin detalle
+    for(const [k, t] of Object.entries(subTot)){ const [ct, sb] = k.split("|"); if(t && !items.some(i=>i.sub===sb)) items.push({cat: ct, sub: sb, concepto: sb, monto: t}); }
+    // Hoja de control (pagos que lleva administración)
+    const control = [], hc = wb.SheetNames.find(n=>/control/i.test(n));
+    if(hc){ const C = XLSX.utils.sheet_to_json(wb.Sheets[hc], {header:1, defval:"", raw:true}); const ci = C.findIndex(r=>r.some(x=>nPre(x)==="concepto") && r.some(x=>nPre(x)==="monto"));
+      if(ci>=0){ const h = C[ci].map(nPre), ix = k => h.findIndex(x=>x.startsWith(k));
+        const iC = ix("concepto"), iS = ix("subcuenta"), iE = ix("estatus"), iF = ix("fecha de pago"), iMo = ix("monto"), iCa = ix("categor");
+        for(const row of C.slice(ci+1)){ const mo = r2(num(row[iMo])); if(!mo || !String(row[iC]||"").trim()) continue;
+          let fe = row[iF]; if(typeof fe==="number"){ const d = XLSX.SSF.parse_date_code(fe); fe = `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`; } else fe = String(fe||"").slice(0,10);
+          control.push({concepto: String(row[iC]).trim(), sub: String(row[iS]||"").trim(), cat: String(row[iCa]||"").trim(), estatus: String(row[iE]||"").trim(), fecha: fe, monto: mo}); } } }
+    // Solicitud de fondeo
+    const envio = {}, he = wb.SheetNames.find(n=>/envio|envío/i.test(n));
+    if(he){ const E = XLSX.utils.sheet_to_json(wb.Sheets[he], {header:1, defval:"", raw:true});
+      for(const row of E) row.forEach((x,i)=>{ const t = nPre(x), v = row.slice(i+1).find(y=>typeof y==="number");
+        if(v==null) return; if(/^total a fondear/.test(t)) envio.total = r2(v); else if(/fondeo.*nomina/.test(t)) envio.nomina = envio.nomina ?? r2(v); else if(/fondeo a cuenta/.test(t) && !/nomina/.test(t)) envio.cuenta = envio.cuenta ?? r2(v); else if(/^entradas/.test(t)) envio.entradas = r2(v); else if(/^presupuesto /.test(t)) envio.presupuesto = r2(v); }); }
+    let mes = null; const nm = sinAcento(String(nombre)).toUpperCase(); Object.entries(MES_NOMBRE).forEach(([k,v])=>{ if(!mes && nm.includes(k)) mes = v; });
+    return {items, control, envio, mes, total: r2(items.reduce((s,i)=>s+i.monto,0))};
+  }
+  async function subirPresupuesto(file, tipo){
+    await loadLibs("xlsx"); const wb = XLSX.read(await file.arrayBuffer(), {type:"array"}); const p = leerPresupuesto(wb, file.name);
+    if(!p || !p.items.length){ toast(`${file.name}: no encontré la hoja PRESUPUESTO con conceptos y montos.`); return; }
+    const mes = p.mes || preMes; if(p.mes && p.mes!==preMes && !await confirmar(`El archivo parece de ${MESES[p.mes-1].toLowerCase()}. ¿Guardarlo como el presupuesto ${tipo} de ${MESES[p.mes-1].toLowerCase()}?`)) return;
+    const key = mesKey(year, mes), prev = presup[key] || {};
+    let archivo = null; if(assets){ try{ const up = await assets.upload(file); archivo = {id: up.id, nombre: file.name}; }catch(_){} }
+    const d = {...prev, [tipo]: {items: p.items, total: p.total, archivo, subido: hoyISO}, control: p.control.length ? p.control : (prev.control||[]), envio: Object.keys(p.envio).length ? p.envio : (prev.envio||{})};
+    try{ await db.doc(`empresas/${empresa}/presupuestos/${key}`).set(d); presup = {...presup, [key]: d}; preMes = mes; toast(`Presupuesto ${tipo} de ${MESES[mes-1].toLowerCase()}: ${p.items.length} conceptos por ${money.format(p.total)}${p.control.length?` y ${p.control.length} pagos de la hoja de control`:""}.`); renderPresupuesto(); }
+    catch(err){ handleWriteError(err); }
+  }
+  function saldoBancosAl(fecha){ return r2(cuentasB.reduce((s,c)=>{ const x = ultimoSaldo(c.id, fecha); return s + (x ? +x.saldo : 0); },0)); }
+  function renderPresupuesto(){
+    $("yearLabel").textContent = year;
+    if(!preMes) preMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
+    const f = money.format;
+    $("premonths").innerHTML = Array.from({length:12},(_,i)=>{ const p = presup[mesKey(year,i+1)]; return `<button class="mchip ${p?"ok":""}" data-premes="${i+1}" aria-current="${preMes===i+1}"><b>${ABR[i]}</b><small>${p ? (p.actualizado ? "Actualizado" : "Inicial") : "—"}</small></button>`; }).join("");
+    const key = mesKey(year, preMes), P = presup[key];
+    if(!P){ $("statusLine").textContent = `Sin presupuesto de ${MESES[preMes-1].toLowerCase()}.`; $("prebody").innerHTML = `<div class="empty">Sube el presupuesto de ${MESES[preMes-1].toLowerCase()} con <strong>Subir presupuesto inicial</strong>. A fin de mes, sube la versión con <strong>Subir presupuesto actualizado</strong>.</div>`; return; }
+    const ini = P.inicial || {items:[], total:0}, act = P.actualizado || null, base = act || ini;
+    const control = (P.control||[]).filter(c=>!c.fecha || c.fecha.slice(0,7)===key || !/^\d{4}-\d{2}/.test(c.fecha));
+    const realDe = sub => r2(control.filter(c=>nPre(c.sub)===nPre(sub)).reduce((s,c)=>s+c.monto,0));
+    // Agrupa por clasificación y subcategoría
+    const subs = {}; const addS = (it, campo) => { const k = `${it.cat}|${it.sub}`; const g = subs[k] ||= {cat: it.cat, sub: it.sub, ini:0, act:0, items:{}}; g[campo] = r2(g[campo] + it.monto); const ik = nPre(it.concepto); (g.items[ik] ||= {concepto: it.concepto, ini:0, act:0})[campo] += it.monto; };
+    ini.items.forEach(it=>addS(it, "ini")); (act ? act.items : []).forEach(it=>addS(it, "act"));
+    const cats = {}; Object.values(subs).forEach(g=>{ g.real = realDe(g.sub); g.pres = act ? g.act : g.ini; (cats[g.cat] ||= []).push(g); });
+    const fuera = control.filter(c=>!c.sub || !Object.values(subs).some(g=>nPre(g.sub)===nPre(c.sub)));
+    const realTot = r2(control.reduce((s,c)=>s+c.monto,0)), presTot = base.total;
+    const st = (pres, real) => !pres && real ? ["vencido","Fuera de presupuesto"] : real > pres + 1 ? ["vencido",`Pasado ${f(r2(real-pres))}`] : real >= pres*0.9 && pres ? ["parcial","Casi completo"] : ["pagado", pres ? `Disponible ${f(r2(pres-real))}` : ""];
+    let h = `<div class="kpis">
+      <div class="kpi"><span>Presupuesto inicial</span><b>${f(ini.total)}</b><small>${ini.archivo?esc(ini.archivo.nombre):"sin archivo"}</small></div>
+      <div class="kpi"><span>Presupuesto actualizado</span><b>${act?f(act.total):"—"}</b><small>${act ? `${act.total>ini.total?"+":""}${f(r2(act.total-ini.total))} vs. inicial` : "súbelo al cierre del mes"}</small></div>
+      <div class="kpi"><span>Pagado (hoja de control)</span><b>${f(realTot)}</b><small>${presTot?Math.round(realTot/presTot*100):0}% ejercido · ${control.length} pagos</small></div>
+      <div class="kpi"><span>${realTot>presTot?"Te pasaste por":"Disponible"}</span><b style="color:${realTot>presTot?"var(--late-ink)":"inherit"}">${f(Math.abs(r2(presTot-realTot)))}</b><small>contra el presupuesto ${act?"actualizado":"inicial"}</small></div></div>`;
+    h += `<div class="sheet" style="margin-top:14px"><table class="ft"><thead><tr><th>Concepto</th><th class="num">Inicial</th><th class="num">Actualizado</th><th class="num">Pagado</th><th class="num">Diferencia</th><th>Estatus</th></tr></thead><tbody>`;
+    for(const [cat, gs] of Object.entries(cats)){
+      const ti = r2(gs.reduce((s,g)=>s+g.ini,0)), ta = r2(gs.reduce((s,g)=>s+g.act,0)), tr = r2(gs.reduce((s,g)=>s+g.real,0)), tp = act ? ta : ti;
+      h += `<tr style="background:var(--group)"><td><strong>${esc(cat)}</strong></td><td class="num"><strong>${f(ti)}</strong></td><td class="num"><strong>${act?f(ta):"—"}</strong></td><td class="num"><strong>${f(tr)}</strong></td><td class="num ${tr>tp+1?"late":""}"><strong>${f(r2(tp-tr))}</strong></td><td></td></tr>`;
+      for(const g of gs){ const [c, t] = st(g.pres, g.real), k = `${g.cat}|${g.sub}`, ab = preAbiertos.has(k);
+        h += `<tr class="row" data-presub="${esc(k)}" style="cursor:pointer"><td style="padding-left:22px">${ab?"▾":"▸"} ${esc(g.sub)}</td><td class="num">${f(g.ini)}</td><td class="num">${act?f(g.act):"—"}</td><td class="num">${g.real?f(g.real):'<span class="fsub">—</span>'}</td><td class="num ${g.real>g.pres+1?"late":""}">${f(r2(g.pres-g.real))}</td><td>${t?`<span class="st ${c}">${t}</span>`:""}</td></tr>`;
+        if(ab){ Object.values(g.items).forEach(it=>{ h += `<tr><td style="padding-left:44px" class="fsub">${esc(it.concepto)}</td><td class="num fsub">${f(it.ini)}</td><td class="num fsub">${act?f(it.act):""}</td><td colspan="3"></td></tr>`; });
+          control.filter(c=>nPre(c.sub)===nPre(g.sub)).forEach(c=>{ h += `<tr><td style="padding-left:44px" class="fsub">💳 ${esc(c.concepto)} · ${c.fecha?fechaCorta(c.fecha):""}</td><td></td><td></td><td class="num fsub">${f(c.monto)}</td><td colspan="2"></td></tr>`; }); }
+      }
+    }
+    h += `<tr><td><strong>Total</strong></td><td class="num"><strong>${f(ini.total)}</strong></td><td class="num"><strong>${act?f(act.total):"—"}</strong></td><td class="num"><strong>${f(realTot)}</strong></td><td class="num ${realTot>presTot?"late":""}"><strong>${f(r2(presTot-realTot))}</strong></td><td></td></tr></tbody></table></div>`;
+    if(fuera.length) h += `<div class="bpanel" style="margin-top:16px"><h3>Pagos fuera de presupuesto<small>En la hoja de control, sin subcategoría o con una que no está en el presupuesto.</small></h3><table class="decl" style="width:100%"><tbody>${fuera.map(c=>`<tr><td>${c.fecha?fechaCorta(c.fecha):""}</td><td>${esc(c.concepto)}<div class="fsub">${esc(c.sub||"sin subcategoría")}</div></td><td class="num">${f(c.monto)}</td></tr>`).join("")}</tbody></table></div>`;
+    // Flujo de bancos y fondeo
+    const ini0 = `${key}-01`, prevDia = new Date(Date.UTC(year, preMes-1, 0)).toISOString().slice(0,10), finDia = new Date(Date.UTC(year, preMes, 0)).toISOString().slice(0,10), corte = finDia < hoyISO ? finDia : hoyISO;
+    const sIni = saldoBancosAl(prevDia), sFin = saldoBancosAl(corte), R = resumenMes(year, preMes);
+    const sigKey = preMes===12 ? mesKey(year+1,1) : mesKey(year, preMes+1), Psig = presup[sigKey], presSig = Psig ? (Psig.actualizado||Psig.inicial||{}).total||0 : null;
+    const pendImp = (()=>{ try{ return r2(pendientesImpuestos(year).filter(x=>x.total).reduce((s,x)=>s+x.total,0)); }catch(_){ return 0; } })();
+    const cxp = (()=>{ const idx = indices(); return r2(facturas.filter(x=>x.tipo==="recibida" && vigente(x)).reduce((s,x)=>s+cuentaDe(x, idx, corte).saldo,0)); })();
+    h += `<div class="dgrid" style="margin-top:16px"><div class="bpanel"><h3>Bancos en ${MESES[preMes-1].toLowerCase()}<small>Con tus estados de cuenta y saldos diarios. ${cuentasB.map(c=>esc(c.nombre)).join(", ")}.</small></h3><table class="decl" style="width:100%"><tbody>
+      <tr><td>Saldo inicial (${fechaCorta(prevDia)})</td><td class="num">${f(sIni)}</td></tr>
+      <tr><td>(+) Cobros a clientes</td><td class="num">${f(R.ingCob)}</td></tr>
+      <tr><td>(+) Fondeo recibido</td><td class="num">${f(R.fondeo)}${P.envio && P.envio.entradas?`<div class="fsub">en la solicitud: ${f(P.envio.entradas)}</div>`:""}</td></tr>
+      <tr><td>(−) Pagos a proveedores, nómina e impuestos</td><td class="num">${f(R.salidas)}</td></tr>
+      <tr><td><strong>Saldo final (${fechaCorta(corte)})</strong></td><td class="num"><strong>${f(sFin)}</strong></td></tr></tbody></table></div>
+      <div class="bpanel"><h3>Fondeo para ${MESES[preMes===12?0:preMes].toLowerCase()}<small>Lo que se necesita para cubrir el siguiente presupuesto con lo que queda en bancos.</small></h3><table class="decl" style="width:100%"><tbody>
+      <tr><td>Presupuesto de ${MESES[preMes===12?0:preMes].toLowerCase()}</td><td class="num">${presSig!=null?f(presSig):'<span class="fsub">súbelo para calcular</span>'}</td></tr>
+      <tr><td>(−) Saldo que queda en bancos</td><td class="num">${f(sFin)}</td></tr>
+      <tr><td><strong>Fondeo sugerido</strong></td><td class="num"><strong>${presSig!=null?f(Math.max(0, r2(presSig - sFin))):"—"}</strong></td></tr>
+      <tr><td class="fsub" colspan="2" style="padding-top:10px">Para revisar si ya vienen en el presupuesto:</td></tr>
+      <tr><td class="fsub">Proveedores pendientes de pagar al cierre</td><td class="num fsub">${f(cxp)}</td></tr>
+      <tr><td class="fsub">Impuestos pendientes (con recargos)</td><td class="num fsub">${f(pendImp)}</td></tr>
+      ${Psig && Psig.envio && Psig.envio.total ? `<tr><td class="fsub">Solicitado por administración</td><td class="num fsub">${f(Psig.envio.total)}${Psig.envio.nomina?`<br>nómina ${f(Psig.envio.nomina)} · cuenta ${f(Psig.envio.cuenta||0)}`:""}</td></tr>` : ""}</tbody></table>
+      <div class="fsub" style="padding:8px 14px;max-width:none;white-space:normal">El fondeo sugerido es el presupuesto del siguiente mes menos lo que queda en bancos. Si algún proveedor o impuesto pendiente no viene en ese presupuesto, súmalo.</div></div></div>`;
+    $("prebody").innerHTML = h;
+    $("statusLine").innerHTML = `${MESES[preMes-1]}: presupuesto ${act?"actualizado":"inicial"} <strong>${f(presTot)}</strong> · pagado <strong>${f(realTot)}</strong> · ${realTot>presTot?`<strong style="color:var(--late-ink)">pasado por ${f(r2(realTot-presTot))}</strong>`:`disponible <strong>${f(r2(presTot-realTot))}</strong>`}.`;
+  }
+  $("premonths").addEventListener("click", e => { const b = e.target.closest("[data-premes]"); if(b){ preMes = +b.dataset.premes; renderPresupuesto(); } });
+  $("prebody").addEventListener("click", e => { const r = e.target.closest("[data-presub]"); if(r){ preAbiertos.has(r.dataset.presub) ? preAbiertos.delete(r.dataset.presub) : preAbiertos.add(r.dataset.presub); renderPresupuesto(); } });
+  $("preIni").onclick = () => { preTipoSubida = "inicial"; $("preFile").click(); };
+  $("preAct").onclick = () => { preTipoSubida = "actualizado"; $("preFile").click(); };
+  $("preFile").onchange = async e => { const file = e.target.files[0]; e.target.value = ""; if(file) await subirPresupuesto(file, preTipoSubida); };
+  async function exportPresupuesto(){
+    const P = presup[mesKey(year, preMes)]; if(!P){ toast("Sin presupuesto este mes."); return; }
+    await loadLibs("excel"); const wb = new ExcelJS.Workbook(), w = wb.addWorksheet("Presupuesto vs real"), M = '"$"#,##0.00';
+    w.columns = [{width:30},{width:30},{width:34},{width:15},{width:15},{width:15}];
+    w.addRow([`${empresaNombre} · Presupuesto ${MESES[preMes-1]} ${year}`]).font = {bold:true, size:13}; w.addRow([]);
+    w.addRow(["Clasificación","Subcategoría","Concepto","Inicial","Actualizado","Pagado"]).font = {bold:true};
+    const ctl = P.control||[], real = s => r2(ctl.filter(c=>nPre(c.sub)===nPre(s)).reduce((a,c)=>a+c.monto,0)), vistos = new Set();
+    [...(P.inicial||{items:[]}).items, ...((P.actualizado||{}).items||[])].forEach(it=>{ const k = `${it.cat}|${it.sub}|${nPre(it.concepto)}`; if(vistos.has(k)) return; vistos.add(k);
+      const iv = ((P.inicial||{}).items||[]).filter(x=>`${x.cat}|${x.sub}|${nPre(x.concepto)}`===k).reduce((a,x)=>a+x.monto,0), av = ((P.actualizado||{}).items||[]).filter(x=>`${x.cat}|${x.sub}|${nPre(x.concepto)}`===k).reduce((a,x)=>a+x.monto,0);
+      const r = w.addRow([it.cat, it.sub, it.concepto, iv||null, av||null, null]); [4,5,6].forEach(i=>r.getCell(i).numFmt = M); });
+    const w2 = wb.addWorksheet("Pagado por subcategoría"); w2.addRow(["Subcategoría","Pagado"]).font = {bold:true};
+    [...new Set(ctl.map(c=>c.sub||"Sin subcategoría"))].forEach(s=>{ const r = w2.addRow([s, s==="Sin subcategoría" ? r2(ctl.filter(c=>!c.sub).reduce((a,c)=>a+c.monto,0)) : real(s)]); r.getCell(2).numFmt = M; });
+    await guardarArchivo(`Presupuesto ${empresaNombre} ${ABR[preMes-1]} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
+  }
 
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
   $("recCfgOk").onclick = async () => {
