@@ -278,7 +278,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 20 · Calculadora de fondeo</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 22 · Archivos en Documentos y resumen de cuotas IMSS</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1114,6 +1114,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribePreReglas();
     subscribeDocsEmpresa();
     subscribeCfdi();
+    subscribeArchivosGen();
     subscribePolApp();
     subscribeActivos();
   }
@@ -1556,6 +1557,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(/\.txt$/i.test(file.name) || file.type==="text/plain"){
           const txt = new TextDecoder("windows-1252").decode(await file.arrayBuffer());
           const res = await importarTxtContpaq(txt, file.name);
+          if(res) guardarArchivoGeneral(file, /catálogo/.test(res) ? "Catálogo de cuentas" : "Pólizas de CONTPAQi", year, null);
           if(res) txtRes.push(res);
           continue;
         }
@@ -1573,9 +1575,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const arr = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:"", raw:true});
         const cu = leerCalculoUsuario(wb, file.name);
         if(cu){ try{ await db.doc(`empresas/${empresa}/calcUsuario/${mesKey(cu.anio, cu.mes)}`).set({val: cu.val, archivo: file.name, subido: hoyISO}); calcUsr = {...calcUsr, [mesKey(cu.anio, cu.mes)]: {val: cu.val, archivo: file.name, subido: hoyISO}};
+          guardarArchivoGeneral(file, "Tu cálculo de impuestos", cu.anio, cu.mes);
           iMes = cu.mes; if(year!==cu.anio){ year = cu.anio; subscribeYear(); } txtRes.push(`tu cálculo de impuestos de ${MESES[cu.mes-1].toLowerCase()}`); }catch(err){ handleWriteError(err); } continue; }
         if(arr.slice(0,12).some(row=>row.some(x=>/Balanza de comprobaci/i.test(String(x))))){ balPdfs.push({xlsx: arr, file}); continue; }
-        if(arr.slice(0,8).some(row=>row.some(x=>/Impreso de p[oó]lizas/i.test(String(x))))){ polXlsx.push({arr, name:file.name}); continue; }
+        if(arr.slice(0,8).some(row=>row.some(x=>/Impreso de p[oó]lizas/i.test(String(x))))){ polXlsx.push({arr, name:file.name}); guardarArchivoGeneral(file, "Pólizas de CONTPAQi", year, null); continue; }
         const kind = detectarBanco(arr);
         if(kind){ bancoFiles.push({kind, arr, name:file.name, file}); continue; }
         // El encabezado puede no estar en el primer renglón (algunos reportes de AdminXML traen título arriba)
@@ -1584,6 +1587,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(!rows.length) continue;
         const cols = Object.keys(rows[0]);
         if(cols.includes("TotalPercepciones") && cols.includes("UUID")){
+          guardarArchivoGeneral(file, "Reportes de AdminXML", year, null);
           for(const row of rows){
             const uuid = String(row["UUID"]||"").trim().toUpperCase(); if(!/^[0-9A-F-]{36}$/.test(uuid)) continue;
             const fp = parseFecha(row["FechaPago"]) || parseFecha(row["Fecha Emision"]);
@@ -1615,6 +1619,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           }
         }
         if(!tipo || !cols.includes("UUID")){ toast(`${file.name} no parece un reporte de AdminXML.`); continue; }
+        guardarArchivoGeneral(file, "Reportes de AdminXML", year, null);
         if(cols.includes("IdDocumento") && cols.includes("ImpPagado")){
           for(const row of rows){
             const uuid = String(row["UUID"]||"").trim().toUpperCase(), doc = String(row["IdDocumento"]||"").trim().toUpperCase();
@@ -3229,7 +3234,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(m%3===0){ filasIng += `<tr style="background:var(--group)"><td><strong>Trimestre ${m/3}</strong></td><td class="num"><strong>${f(trim)}</strong></td><td></td><td></td></tr>`; trim = 0; }
     }
     const tablaIng = `<div class="bpanel"><h3>Ingresos nominales ${year}<small>Facturas emitidas vigentes, por mes, acumulado y por trimestre, comparadas con la cuenta 401 de tu balanza.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Mes</th><th class="num">Ingresos del mes</th><th class="num">Acumulado</th><th class="num">Balanza (401)</th></tr></thead><tbody>${filasIng}<tr><td><strong>Total del año</strong></td><td class="num"><strong>${f(acum)}</strong></td><td></td><td></td></tr></tbody></table></div></div>`;
-    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}`;
+    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}`;
   }
 
   $("imonths").addEventListener("click", e => { const b = e.target.closest("[data-imes]"); if(b){ iMes = +b.dataset.imes; renderImpuestos(); } });
@@ -3246,6 +3251,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   $("ibody").addEventListener("click", async e => {
     if(e.target.closest("#pendCfg")){ abrirCfgRecargos(); return; }
+    if(e.target.closest("#imssXls")){ exportCuotasIMSS(); return; }
     if(e.target.closest("#cuBorrar")){ if(!await confirmar("¿Quitar tu cálculo de este mes?")) return; try{ await db.doc(`empresas/${empresa}/calcUsuario/${mesKey(year, iMes)}`).delete(); const c = {...calcUsr}; delete c[mesKey(year, iMes)]; calcUsr = c; renderImpuestos(); }catch(err){ handleWriteError(err); } return; }
   });
   $("ibody").addEventListener("click", async e => {
@@ -5439,6 +5445,54 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const vers = d.versiones || [], tot = vers.length ? r2(vers.reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0) - (+d.aFavor||0)) : r2(+d.aPagar||0);
     return r2((+e.calc||0) - tot) > 1 ? r2((+e.calc||0) - tot) : 0;
   }
+  // ---------- Resumen de cuotas IMSS: patronales y obreras, por concepto y por mes ----------
+  function cuotasIMSS(y){
+    const out = [];
+    for(let m=1;m<=12;m++){
+      const d = declDe(y, m, "imss"), x = d && d.imssDet, mk = mesKey(y, m);
+      const noms = nominas.filter(n=>vigente(n) && String(n.fechaPago).slice(0,7)===mk), retNom = r2(noms.reduce((s,n)=>s+(+n.imss||0),0));
+      if(!x && !retNom) continue;
+      const recI = x ? (x.recImss!=null ? +x.recImss : +x.recargos||0) : 0, recR = x ? +x.recRcv||0 : 0, recV = x ? +x.recInf||0 : 0, act = x ? +x.actualizacion||0 : 0;
+      const obI = x ? (x.obImss!=null ? +x.obImss : +x.obrera||0) : 0, obR = x ? +x.obRcv||0 : 0, obV = x ? +x.obInf||0 : 0;
+      const r = {m, hay: !!x, pagada: !!(d && d.pagada), fechaPago: d && d.fechaPago,
+        patImss: r2(x ? +x.imss||0 : 0), patRcv: r2(x ? +x.rcv||0 : 0), patInf: r2(x ? +x.inf||0 : 0), recargos: r2(recI + recR + recV + act),
+        obImss: r2(obI), obRcv: r2(obR), obInf: r2(obV), retNom};
+      // Las cifras del SUA traen la patronal ya con la parte obrera separada: patronal neta = total patronal del documento
+      r.patronal = x ? r2(+x.patronal || (r.patImss + r.patRcv + r.patInf + r.recargos)) : 0;
+      r.obrera = x ? r2(+x.obrera || (r.obImss + r.obRcv + r.obInf)) : 0;
+      r.total = r2(r.patronal + r.obrera); r.difRet = x ? r2(r.retNom - r.obrera) : null;
+      out.push(r);
+    }
+    return out;
+  }
+  function htmlCuotasIMSS(){
+    const C = cuotasIMSS(year), f = money.format; if(!C.length) return "";
+    const S = k => r2(C.reduce((s,x)=>s+(+x[k]||0),0));
+    const filas = [["Cuotas patronales", null], ["IMSS (enfermedades, invalidez, riesgos, guarderías)", "patImss"], ["RCV (retiro, cesantía y vejez)", "patRcv"], ["INFONAVIT", "patInf"], ["Recargos y actualización", "recargos"], ["Total patronal", "patronal", true],
+      ["Cuotas obreras (las que se retienen al trabajador)", null], ["IMSS obrero", "obImss"], ["RCV obrero (cesantía y vejez)", "obRcv"], ["INFONAVIT obrero (amortizaciones)", "obInf"], ["Total obrera", "obrera", true],
+      ["Total de la línea de captura", "total", true], ["IMSS obrero retenido en los recibos de nómina", "retNom"]];
+    let h = `<div class="bpanel" style="margin-top:16px"><h3>Cuotas IMSS ${year}<small>Patronales y obreras por concepto, tomadas de tus líneas de captura del SIPARE (y la cédula/resumen del SUA). RCV e INFONAVIT se pagan cada bimestre. Abajo, lo retenido en nómina para comparar con la cuota obrera.</small></h3>
+      <div class="kpis" style="padding:0 14px 10px"><div class="kpi"><span>Patronal del año</span><b>${f(S("patronal"))}</b><small>incluye ${f(S("recargos"))} de recargos</small></div><div class="kpi"><span>Obrera del año</span><b>${f(S("obrera"))}</b><small>retenido en nómina ${f(S("retNom"))}</small></div><div class="kpi"><span>Total pagado al IMSS</span><b>${f(r2(C.filter(x=>x.pagada).reduce((s,x)=>s+x.total,0)))}</b><small>${C.filter(x=>x.hay && !x.pagada).length} ${C.filter(x=>x.hay && !x.pagada).length===1?"mes":"meses"} por pagar</small></div></div>
+      <div class="sheet" style="border:none;border-radius:0"><table class="ft" style="min-width:${300+C.length*110}px"><thead><tr><th>Concepto</th>${C.map(x=>`<th class="num">${ABR[x.m-1]}${x.hay?(x.pagada?' <span title="Pagada">✓</span>':' <span title="Por pagar" style="color:var(--late-ink)">•</span>'):""}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody>`;
+    for(const [l, k, fuerte] of filas){
+      if(!k){ h += `<tr style="background:var(--group)"><td colspan="${C.length+2}"><strong>${l}</strong></td></tr>`; continue; }
+      h += `<tr><td>${fuerte?`<strong>${l}</strong>`:l}</td>${C.map(x=>`<td class="num">${!x.hay && k!=="retNom" ? '<span class="fsub">sin línea</span>' : x[k] ? (fuerte?`<strong>${f(x[k])}</strong>`:f(x[k])) : '<span class="fsub">—</span>'}</td>`).join("")}<td class="num"><strong>${f(S(k))}</strong></td></tr>`;
+    }
+    const difs = C.filter(x=>x.difRet!=null && Math.abs(x.difRet)>1);
+    h += `</tbody></table></div>${difs.length?`<div class="fsub" style="padding:8px 14px;max-width:none;white-space:normal">⚠️ Lo retenido en nómina no coincide con la cuota obrera en ${difs.map(x=>`${MESES[x.m-1].toLowerCase()} (${x.difRet>0?"+":""}${f(x.difRet)})`).join(", ")}. Puede ser por ausentismo, incapacidades o porque la nómina y el SUA se calcularon con salarios distintos.</div>`:""}
+      ${downloads?`<div class="pairbar" style="padding:10px 14px"><button class="btn sm" id="imssXls">Descargar resumen IMSS (Excel)</button></div>`:""}</div>`;
+    return h;
+  }
+  async function exportCuotasIMSS(){
+    const C = cuotasIMSS(year); if(!C.length){ toast("Sin líneas del IMSS este año."); return; }
+    await loadLibs("excel"); const wb = new ExcelJS.Workbook(), w = wb.addWorksheet("Cuotas IMSS"), M = '"$"#,##0.00';
+    w.columns = [{width:48}, ...C.map(()=>({width:14})), {width:16}];
+    w.addRow([`${empresaNombre} · Cuotas IMSS ${year}`]).font = {bold:true, size:13}; w.addRow([]);
+    w.addRow(["Concepto", ...C.map(x=>ABR[x.m-1]), "Total"]).font = {bold:true};
+    [["IMSS patronal","patImss"],["RCV patronal","patRcv"],["INFONAVIT patronal","patInf"],["Recargos y actualización","recargos"],["Total patronal","patronal"],["IMSS obrero","obImss"],["RCV obrero","obRcv"],["INFONAVIT obrero","obInf"],["Total obrera","obrera"],["Total línea de captura","total"],["Obrero retenido en nómina","retNom"]]
+      .forEach(([l,k])=>{ const r = w.addRow([l, ...C.map(x=>x[k]||null), r2(C.reduce((s,x)=>s+(+x[k]||0),0))]); for(let i=2;i<=C.length+2;i++) r.getCell(i).numFmt = M; if(/^Total/.test(l)) r.font = {bold:true}; });
+    await guardarArchivo(`Cuotas IMSS ${empresaNombre} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
+  }
   function htmlPendientes(){
     const f = money.format, P = pendientesImpuestos(year), hoy = pendFecha || hoyISO;
     const porAut = a => P.filter(x=>x.o.aut===a), sum = (xs, k) => r2(xs.reduce((s,x)=>s+(+x[k]||0),0));
@@ -6001,6 +6055,19 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     return {movs: out, saldoInicial: saldoIni, periodo: {anio, mes: mesCorte}, sinMovs: !out.length};
   }
 
+  // ---------- Archivos originales que subes (reportes, pólizas, catálogo, tu cálculo) ----------
+  let archivosGen = [], unsubAG = null;
+  function subscribeArchivosGen(){ if(unsubAG) unsubAG(); archivosGen = []; if(!db || !empresa) return;
+    unsubAG = db.collection(`empresas/${empresa}/archivos`).onSnapshot(qs => { archivosGen = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="documentos") renderDocumentos(); }, () => {}); }
+  async function guardarArchivoGeneral(file, categoria, anio, mes){
+    if(!assets || !file) return;
+    try{ const id = `${categoria}-${anio}-${mes||0}-${file.name}`.normalize("NFD").replace(/[^\w.-]+/g,"_").slice(0,140);
+      if(archivosGen.some(a=>a.id===id && a.tam===file.size)) return; // ya estaba igual
+      const up = await assets.upload(file);
+      await db.doc(`empresas/${empresa}/archivos/${id}`).set({categoria, anio, mes: mes||null, nombre: file.name, tam: file.size, asset: {id: up.id, nombre: file.name}, subido: hoyISO});
+    }catch(_){}
+  }
+
   // ---------- Documentos: todo lo que te pueden pedir, en un solo lugar ----------
   let docMes = null;
   function docsDelMes(y, m){
@@ -6016,6 +6083,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     Object.entries(ex.invoices||{}).forEach(([k,arr])=>(arr||[]).forEach(a=>add("Pólizas y expediente", `Invoice ${(licencias.find(l=>l.id===k)||{}).nombre||k}`, a, a.nombre)));
     if(ex.drive && ex.drive.id) add("Pólizas y expediente", "Carpeta final del mes", ex.drive, ex.drive.nombre);
     facturas.filter(f=>f.acuseCancel && String(f.fecha).slice(0,7)===mesKey(y,m)).forEach(f=>add("Facturas", `Acuse de cancelación · ${f.nombre}`, f.acuseCancel, f.acuseCancel.nombre));
+    archivosGen.filter(a=>a.anio===y && a.mes===m).forEach(a=>add(a.categoria, a.nombre, a.asset, `subido el ${fechaCorta(a.subido)}`));
+    const pr = (typeof presup!=="undefined" && presup[mesKey(y,m)]) || null;
+    if(pr){ if(pr.inicial && pr.inicial.archivo) add("Presupuesto", "Presupuesto inicial", pr.inicial.archivo, pr.inicial.archivo.nombre); if(pr.actualizado && pr.actualizado.archivo) add("Presupuesto", "Presupuesto actualizado", pr.actualizado.archivo, pr.actualizado.archivo.nombre); }
     return out;
   }
   async function conEstado(cambios, fn){
@@ -6032,7 +6102,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("statusLine").innerHTML = `${MESES[docMes-1]} ${year}: <strong>${docs.length}</strong> ${docs.length===1?"archivo guardado":"archivos guardados"} y los reportes que arma la app.`;
     const ctas = cuentasB.filter(c=>concDe(c.id, year, docMes));
     const btn = (id, t, extra="") => `<span style="display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden"><button class="btn sm" style="border:none;border-radius:0" data-gen="${id}" data-ver="1" ${extra} title="Ver sin descargar">Ver</button><button class="btn sm" style="border:none;border-left:1px solid var(--line);border-radius:0" data-gen="${id}" ${extra}>${t}</button></span>`;
-    let html = `<div class="pairbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="docZip">Descargar todo ${MESES[docMes-1].toLowerCase()} (.zip)</button><span class="fsub" style="max-width:none">La carpeta del mes con pólizas, conciliaciones, impuestos, acuses, cuentas, facturas, balanza y dashboard.</span></div>`;
+    const delAnio = archivosGen.filter(a=>a.anio===year && !a.mes).sort((a,b)=>String(b.subido).localeCompare(String(a.subido)));
+    const delAnioHtml = delAnio.length ? `<div class="bpanel" style="margin-bottom:16px"><h3>Archivos del año ${year}<small>Reportes de AdminXML, pólizas y catálogo de CONTPAQi que subiste. Se guarda la última versión de cada archivo.</small></h3>${[...new Set(delAnio.map(a=>a.categoria))].map(g=>`<div style="padding:8px 14px"><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:4px">${esc(g)}</div>${delAnio.filter(a=>a.categoria===g).map(a=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)"><div style="min-width:0"><div>${esc(a.nombre)}</div><div class="fsub">subido el ${fechaCorta(a.subido)}</div></div><span style="display:flex;gap:6px"><button class="btn sm" data-agver="${esc(a.id)}">Ver</button><button class="btn sm" data-agdl="${esc(a.id)}">Descargar</button></span></div>`).join("")}</div>`).join("")}</div>` : "";
+    let html = delAnioHtml + `<div class="pairbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="docZip">Descargar todo ${MESES[docMes-1].toLowerCase()} (.zip)</button><span class="fsub" style="max-width:none">La carpeta del mes con pólizas, conciliaciones, impuestos, acuses, cuentas, facturas, balanza y dashboard.</span></div>`;
     html += `<div class="dgrid"><div class="bpanel"><h3>Archivos que subiste<small>Los originales, tal como los subiste a la app.</small></h3>${docs.length ? Object.entries(grupos).map(([g, xs])=>`<div style="padding:8px 14px"><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:4px">${esc(g)}</div>${xs.map((d,i)=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)"><div style="min-width:0"><div>${esc(d.nombre)}</div><div class="fsub" style="max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.nota||"")}</div></div><span style="display:flex;gap:6px"><button class="btn sm" data-docver="${esc(d.a.id)}">Ver</button><button class="btn sm" data-docdl="${esc(d.a.id)}">Descargar</button></span></div>`).join("")}</div>`).join("") : `<div class="empty" style="padding:16px">Aún no hay archivos guardados de este mes. Los acuses, estados de cuenta, auxiliares y balanzas que subas a partir de ahora se guardan aquí.</div>`}</div>
       <div class="bpanel"><h3>Reportes que arma la app<small>Siempre con tus datos más recientes.</small></h3><div style="padding:10px 14px;display:grid;gap:12px">
         <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Bancos</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${ctas.length ? ctas.map(c=>btn(`conc-pdf-${c.id}`, `Conciliación ${esc(c.nombre)} (PDF)`) + btn(`conc-xlsx-${c.id}`, `${esc(c.nombre)} (Excel)`)).join("") : '<span class="fsub">Sin conciliaciones este mes.</span>'}${btn("saldos", "Saldos diarios (Excel)")}</div></div>
@@ -6046,6 +6118,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("docmonths").addEventListener("click", e => { const b = e.target.closest("[data-docmes]"); if(b){ docMes = +b.dataset.docmes; renderDocumentos(); } });
   $("docbody").addEventListener("click", async e => {
     const dl = e.target.closest("[data-docdl]"); if(dl){ const d = docsDelMes(year, docMes).find(x=>x.a.id===dl.dataset.docdl); if(d) descargarAsset(d.a); return; }
+    const ag = e.target.closest("[data-agver], [data-agdl]"); if(ag){ const a = archivosGen.find(x=>x.id===(ag.dataset.agver||ag.dataset.agdl)); if(a) descargarAsset(a.asset, !!ag.dataset.agver); return; }
     const dv = e.target.closest("[data-docver]"); if(dv){ const d = docsDelMes(year, docMes).find(x=>x.a.id===dv.dataset.docver); if(d) descargarAsset(d.a, true); return; }
     if(e.target.closest("#docZip")){ if(typeof armarZip==="function"){ const prevV = vista; try{ await armarZip(docMes); } finally{ vista = prevV; renderDocumentos(); } } return; }
     const g = e.target.closest("[data-gen]"); if(!g) return; const k = g.dataset.gen, m = docMes; g.disabled = true;
