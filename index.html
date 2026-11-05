@@ -276,7 +276,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 11 · "No aplica" en pólizas de cierre</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 12 · Pendientes de impuestos con recargos y actualización</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -483,6 +483,12 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="recCfgDlg" style="width:min(640px,96vw)">
+  <h2>INPC, tasas y vencimientos</h2>
+  <div id="recCfgCuerpo"></div>
+  <div class="dlg-actions"><button class="btn" id="recCfgCancel">Cancelar</button><button class="btn primary" id="recCfgOk">Guardar</button></div>
 </dialog>
 
 <dialog id="verDlg" style="width:min(1000px,98vw);max-width:98vw;height:92vh;max-height:92vh;padding:0;display:none;flex-direction:column">
@@ -1077,6 +1083,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeDiotManual();
     subscribeDirectorio();
     subscribeCalcUsuario();
+    subscribeRecargos();
     subscribeDocsEmpresa();
     subscribeCfdi();
     subscribePolApp();
@@ -3192,7 +3199,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(m%3===0){ filasIng += `<tr style="background:var(--group)"><td><strong>Trimestre ${m/3}</strong></td><td class="num"><strong>${f(trim)}</strong></td><td></td><td></td></tr>`; trim = 0; }
     }
     const tablaIng = `<div class="bpanel"><h3>Ingresos nominales ${year}<small>Facturas emitidas vigentes, por mes, acumulado y por trimestre, comparadas con la cuenta 401 de tu balanza.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Mes</th><th class="num">Ingresos del mes</th><th class="num">Acumulado</th><th class="num">Balanza (401)</th></tr></thead><tbody>${filasIng}<tr><td><strong>Total del año</strong></td><td class="num"><strong>${f(acum)}</strong></td><td></td><td></td></tr></tbody></table></div></div>`;
-    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}`;
+    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}`;
   }
 
   $("imonths").addEventListener("click", e => { const b = e.target.closest("[data-imes]"); if(b){ iMes = +b.dataset.imes; renderImpuestos(); } });
@@ -3208,6 +3215,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     catch(e){ toast("No se pudo descargar el archivo."); }
   }
   $("ibody").addEventListener("click", async e => {
+    if(e.target.closest("#pendCfg")){ abrirCfgRecargos(); return; }
     if(e.target.closest("#cuBorrar")){ if(!await confirmar("¿Quitar tu cálculo de este mes?")) return; try{ await db.doc(`empresas/${empresa}/calcUsuario/${mesKey(year, iMes)}`).delete(); const c = {...calcUsr}; delete c[mesKey(year, iMes)]; calcUsr = c; renderImpuestos(); }catch(err){ handleWriteError(err); } return; }
   });
   $("ibody").addEventListener("click", async e => {
@@ -3279,6 +3287,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   $("ibody").addEventListener("change", async e => {
     if(e.target.id==="impNota"){ guardarNM(year, iMes, {impuestos: e.target.value}); return; }
+    if(e.target.id==="pendFecha"){ pendFecha = e.target.value || null; renderImpuestos(); return; }
     const s = e.target.closest("[data-tipoop]"); if(!s) return;
     try{ setSaving("Guardando…"); await db.doc(`empresas/${empresa}/proveedores/${s.dataset.tipoop}`).set({...(proveedores[s.dataset.tipoop]||{}), tipoOp: s.value}); setSaving("Guardado"); }catch(err){ handleWriteError(err); }
   });
@@ -5324,6 +5333,85 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       </tbody></table></div>${canWrite?`<div class="pairbar" style="padding:10px 14px"><button class="linkbtn" id="cuBorrar">Quitar tu cálculo de este mes</button></div>`:""}</div>`;
   }
 
+  // ---------- Pendientes de presentar o pagar, con actualización y recargos ----------
+  // INPC (base 2a quincena julio 2018 = 100) publicado por INEGI; los meses que falten se pueden capturar
+  const INPC_BASE = {"2025-01":138.343,"2025-02":138.726,"2025-03":139.161,"2025-04":139.620,"2025-05":140.012,"2025-06":140.405,"2025-07":140.780,"2025-08":140.867,"2025-09":141.197,"2025-10":141.708,"2025-11":142.645,"2025-12":143.042,
+    "2026-01":143.588,"2026-02":144.307,"2026-03":145.544,"2026-05":145.527,"2026-08":145.462};
+  const TASA_MORA = {2025:1.47, 2026:2.07};
+  let recCfg = {}, unsubRC = null, pendFecha = null;
+  function subscribeRecargos(){
+    if(unsubRC) unsubRC(); recCfg = {};
+    if(!db || !empresa) return;
+    unsubRC = db.doc(`empresas/${empresa}/config/recargos`).onSnapshot(s => { recCfg = s.exists ? s.data() : {}; if(vista==="impuestos") renderImpuestos(); }, () => {});
+  }
+  const inpcDe = mk => { const t = {...INPC_BASE, ...(recCfg.inpc||{})}; if(t[mk]) return {v:+t[mk], real:true}; const ks = Object.keys(t).filter(k=>k<=mk).sort(); return ks.length ? {v:+t[ks[ks.length-1]], real:false, de:ks[ks.length-1]} : null; };
+  const mesAnt = (y, m) => m===1 ? mesKey(y-1, 12) : mesKey(y, m-1);
+  function calcRecargos(monto, venceISO, pagoISO){
+    if(!(monto>0) || !venceISO || pagoISO <= venceISO) return {act:0, rec:0, meses:0, factor:1, aprox:false};
+    const [yv, mv, dv] = venceISO.split("-").map(Number), [yp, mp, dp] = pagoISO.split("-").map(Number);
+    // Actualización (art. 17-A CFF): INPC del mes anterior al pago entre INPC del mes anterior al vencimiento
+    const a = inpcDe(mesAnt(yp, mp)), b = inpcDe(mesAnt(yv, mv));
+    let factor = a && b ? a.v / b.v : 1; if(factor < 1) factor = 1; factor = Math.floor(factor*10000)/10000;
+    const actualizado = r2(monto * factor), act = r2(actualizado - monto);
+    // Recargos (art. 21 CFF): por cada mes o fracción desde el vencimiento, a la tasa de mora de cada año
+    let meses = (yp - yv)*12 + (mp - mv) + (dp > dv ? 1 : 0); meses = Math.max(1, meses);
+    let tasa = 0; for(let i=0;i<meses;i++){ const yy = yv + Math.floor((mv - 1 + i)/12); tasa += +((recCfg.tasa||{})[yy] ?? TASA_MORA[yy] ?? 2.07); }
+    const rec = r2(actualizado * tasa / 100);
+    return {act, rec, meses, factor, tasa: r2(tasa), aprox: !(a && a.real && b && b.real)};
+  }
+  function pendientesImpuestos(y){
+    const hoy = pendFecha || hoyISO, out = [], dia = aut => +((recCfg.dias||{})[aut] ?? 17);
+    const ult = y < now.getFullYear() ? 12 : y===now.getFullYear() ? now.getMonth()+1 : 0;
+    for(let m=1; m<=ult; m++){
+      const k = calcMes(y, m);
+      for(const o of OBLIG){
+        if(o.info || o.clave==="diot") continue;
+        const e = estadoOblig(o, k); if(!e.visible || e.porTablero) continue;
+        const fc = e.d && e.d.presentada && !e.d.revisadaOk ? faltaComp(o, e, k) : 0;
+        if(!(e.st==="sinpres" || e.st==="porpagar" || fc > 1)) continue;
+        const vm = m===12 ? 1 : m+1, vy = m===12 ? y+1 : y, vence = `${vy}-${String(vm).padStart(2,"0")}-${String(dia(o.aut)).padStart(2,"0")}`;
+        let sit, base;
+        const d = e.d || {};
+        if(e.st==="sinpres"){ sit = "Sin presentar"; base = o.clave==="iva" && k.ivaNeto<0 ? 0 : Math.max(0, r2(+e.calc||0)); if(o.clave==="imss") base = null; }
+        else if(e.st==="porpagar"){ sit = "Por pagar"; base = d.impuesto!=null && +d.impuesto ? r2(+d.impuesto) : r2((+d.aPagar||0) - (+d.recargos||0) - (+d.actualizacion||0)); }
+        else { sit = "Falta complementaria"; base = r2(faltaComp(o, e, k)); }
+        if(o.clave==="imss" && d.imssDet && e.st==="porpagar") base = r2((+d.aPagar||0) - (+d.imssDet.recargos||0) - (+d.imssDet.actualizacion||0));
+        const r = base ? calcRecargos(base, vence, hoy) : {act:0, rec:0, meses:0, aprox:false};
+        out.push({m, o, sit, base, vence, atraso: hoy > vence ? -diasEntre(hoy, vence) : 0, ...r, total: base!=null ? r2(base + r.act + r.rec) : null});
+      }
+    }
+    return out;
+  }
+  function faltaComp(o, e, k){
+    const d = e.d || {}; if(!d.presentada || o.clave==="iva" || o.sinCalculo) return 0;
+    const vers = d.versiones || [], tot = vers.length ? r2(vers.reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0) - (+d.aFavor||0)) : r2(+d.aPagar||0);
+    return r2((+e.calc||0) - tot) > 1 ? r2((+e.calc||0) - tot) : 0;
+  }
+  function htmlPendientes(){
+    const f = money.format, P = pendientesImpuestos(year), hoy = pendFecha || hoyISO;
+    const porAut = a => P.filter(x=>x.o.aut===a), sum = (xs, k) => r2(xs.reduce((s,x)=>s+(+x[k]||0),0));
+    let h = `<div class="bpanel" style="margin-top:16px"><h3>Pendientes de presentar o pagar en ${year}<small>Impuestos sin presentar, por pagar o con complementaria pendiente, con la actualización (INPC) y los recargos (mora ${((recCfg.tasa||{})[2026] ?? 2.07)}% mensual en 2026) calculados a la fecha de pago que elijas.</small></h3>
+      <div class="pairbar" style="padding:8px 14px;flex-wrap:wrap;gap:10px;align-items:center"><label for="pendFecha" style="margin:0;font-weight:600">Si pago el</label><input type="date" id="pendFecha" value="${hoy}" style="width:auto">${canWrite?`<button class="linkbtn" id="pendCfg">INPC, tasas y días de vencimiento</button>`:""}</div>`;
+    if(!P.length) return h + `<div class="empty" style="padding:16px">No tienes impuestos pendientes en ${year}. 🎉</div></div>`;
+    h += `<div class="kpis" style="padding:0 14px 10px">${["SAT","SATEG","IMSS"].map(a=>{ const xs = porAut(a); return `<div class="kpi"><span>${a}</span><b>${f(sum(xs,"total"))}</b><small>${xs.length} ${xs.length===1?"pendiente":"pendientes"}${sum(xs,"rec")?` · recargos ${f(sum(xs,"rec"))}`:""}</small></div>`; }).join("")}<div class="kpi"><span>Total</span><b>${f(sum(P,"total"))}</b><small>impuesto ${f(sum(P,"base"))} + act. ${f(sum(P,"act"))} + rec. ${f(sum(P,"rec"))}</small></div></div>`;
+    h += `<div class="sheet" style="border:none;border-radius:0"><table class="ft" style="min-width:900px"><thead><tr><th>Mes</th><th>Autoridad</th><th>Impuesto</th><th>Situación</th><th>Vence</th><th class="num">Atraso</th><th class="num">Impuesto</th><th class="num">Actualización</th><th class="num">Recargos</th><th class="num">Total a pagar</th></tr></thead><tbody>`;
+    for(const a of ["SAT","SATEG","IMSS"]){ const xs = porAut(a); if(!xs.length) continue;
+      h += xs.map(x=>`<tr><td>${MESES[x.m-1]}</td><td><span class="st na">${a}</span></td><td>${esc(x.o.nombre)}</td><td><span class="st ${x.sit==="Por pagar"?"parcial":"vencido"}">${x.sit}</span>${x.base===0?'<div class="fsub">presentar en ceros</div>':""}</td><td>${fechaCorta(x.vence)}</td><td class="num ${x.atraso?"late":""}">${x.atraso?`${x.atraso} días`:"—"}</td>
+        <td class="num">${x.base==null?'<span class="fsub">sin línea</span>':f(x.base)}</td><td class="num">${x.act?f(x.act):""}${x.factor>1?`<div class="fsub">factor ${x.factor.toFixed(4)}</div>`:""}</td><td class="num">${x.rec?f(x.rec):""}${x.meses&&x.rec?`<div class="fsub">${x.meses} ${x.meses===1?"mes":"meses"} · ${x.tasa}%</div>`:""}</td><td class="num"><strong>${x.total==null?"—":f(x.total)}</strong>${x.aprox?'<div class="fsub" title="Falta el INPC de algún mes: se usó el último publicado">INPC aprox.</div>':""}</td></tr>`).join("");
+      h += `<tr style="background:var(--group)"><td colspan="6"><strong>Total ${a}</strong></td><td class="num"><strong>${f(sum(xs,"base"))}</strong></td><td class="num"><strong>${f(sum(xs,"act"))}</strong></td><td class="num"><strong>${f(sum(xs,"rec"))}</strong></td><td class="num"><strong>${f(sum(xs,"total"))}</strong></td></tr>`; }
+    h += `<tr><td colspan="6"><strong>Total general</strong></td><td class="num"><strong>${f(sum(P,"base"))}</strong></td><td class="num"><strong>${f(sum(P,"act"))}</strong></td><td class="num"><strong>${f(sum(P,"rec"))}</strong></td><td class="num"><strong>${f(sum(P,"total"))}</strong></td></tr></tbody></table></div>
+      <div class="fsub" style="padding:8px 14px;max-width:none;white-space:normal">Es una estimación para planear el pago: el SAT, el SATEG y el IMSS calculan el importe exacto en la línea de captura. Las cuotas del IMSS solo se calculan cuando subes la línea del SIPARE. Para estatales, revisa en "INPC, tasas y días" la tasa y el día de vencimiento de tu estado.</div></div>`;
+    return h;
+  }
+  function abrirCfgRecargos(){
+    const meses = []; for(let y=year-1; y<=year; y++) for(let m=1;m<=12;m++) meses.push(mesKey(y,m));
+    const t = {...INPC_BASE, ...(recCfg.inpc||{})};
+    $("recCfgCuerpo").innerHTML = `<label>Tasa de recargos por mora (% mensual)</label><div style="display:flex;gap:10px">${[year-1, year].map(y=>`<div><span class="fsub">${y}</span><input data-rtasa="${y}" type="number" step="0.01" value="${(recCfg.tasa||{})[y] ?? TASA_MORA[y] ?? 2.07}" style="width:90px"></div>`).join("")}</div>
+      <label>Día de vencimiento del mes siguiente</label><div style="display:flex;gap:10px">${["SAT","SATEG","IMSS"].map(a=>`<div><span class="fsub">${a}</span><input data-rdia="${a}" type="number" min="1" max="31" value="${(recCfg.dias||{})[a] ?? 17}" style="width:70px"></div>`).join("")}</div>
+      <label>INPC (INEGI, base 2018). Captura los meses vacíos cuando se publiquen.</label><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-height:36vh;overflow:auto">${meses.map(mk=>`<div><span class="fsub">${ABR[+mk.slice(5)-1]} ${mk.slice(0,4)}</span><input data-rinpc="${mk}" type="number" step="0.001" value="${t[mk] ?? ""}" placeholder="—"></div>`).join("")}</div>`;
+    $("recCfgDlg").showModal();
+  }
+
   // ---------- Conciliación de facturas PPD contra complementos de pago ----------
   let cppdSolo = true;
   function conciliacionPPD(tipo){
@@ -6251,6 +6339,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       styles:{fontSize:7, cellPadding:3}, headStyles:{fillColor:[24,36,29]}, columnStyles: Object.fromEntries(Array.from({length:meses.length+1},(_,i)=>[i+1,{halign:"right"}])), margin:{left:30, right:30}});
     await guardarArchivo(`Resumen ${empresaNombre} ${year}.pdf`, doc.output("blob"));
   }
+
+  $("recCfgCancel").onclick = () => $("recCfgDlg").close();
+  $("recCfgOk").onclick = async () => {
+    const inpc = {}, tasa = {}, dias = {};
+    document.querySelectorAll("[data-rinpc]").forEach(i=>{ if(i.value!=="" && +i.value!==INPC_BASE[i.dataset.rinpc]) inpc[i.dataset.rinpc] = +i.value; });
+    document.querySelectorAll("[data-rtasa]").forEach(i=>{ if(i.value!=="") tasa[i.dataset.rtasa] = +i.value; });
+    document.querySelectorAll("[data-rdia]").forEach(i=>{ if(i.value!=="") dias[i.dataset.rdia] = +i.value; });
+    recCfg = {inpc: {...(recCfg.inpc||{}), ...inpc}, tasa, dias};
+    try{ await db.doc(`empresas/${empresa}/config/recargos`).set(recCfg); }catch(err){ handleWriteError(err); }
+    $("recCfgDlg").close(); renderImpuestos();
+  };
 
   // ---------- Arranque ----------
 
