@@ -272,11 +272,11 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 6 · Provisión, Contabilidad y CxC automáticas · Ver sin descargar</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 8 · Resumen con clientes, proveedores y días de pago</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -338,6 +338,10 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vResumen" hidden>
+    <div id="resbody"></div>
   </section>
 
   <section id="vDocumentos" hidden>
@@ -874,7 +878,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -924,6 +928,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="conta"){ renderConta(); return; }
     if(vista==="directorio"){ renderDirectorio(); return; }
     if(vista==="documentos"){ renderDocumentos(); return; }
+    if(vista==="resumen"){ renderResumenAnual(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1224,6 +1229,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="activos") return exportActivos("xlsx");
     if(vista==="conta") return exportConta("xlsx");
     if(vista==="directorio") return exportDirectorio();
+    if(vista==="resumen") return exportResumenAnual("xlsx");
     const btn=$("xlsxBtn"); btn.disabled=true;
     try{
       await loadLibs("excel");
@@ -1257,6 +1263,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
 
   $("pdfBtn").onclick = async () => {
+    if(vista==="resumen") return exportResumenAnual("pdf");
     if(vista==="facturas") return exportFacturas("pdf");
     if(vista==="cuentas") return exportCuentas("pdf");
     if(vista==="bancos") return exportBancos("pdf");
@@ -1316,14 +1323,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || !canWrite;
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || !canWrite;
     const sinPdf = ["expediente","notas","conta","directorio","documentos"].includes(v), sinXls = ["expediente","notas","documentos"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
@@ -5389,6 +5396,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     expediente: "Pólizas impresas, invoices de licencias y la carpeta final del mes en .zip para Drive, más el respaldo completo de la app.",
     notas: "Tus pendientes, preguntas para tu jefe y notas. Las abiertas se cuentan en el tablero.",
     activos: "Registra tus activos fijos (la app detecta facturas con uso de CFDI de inversión). Calcula depreciación contable mensual, la póliza del mes y la deducción fiscal anual, y la compara contra tu balanza.",
+    resumen: "Cuánto entró y cuánto salió cada mes: ingresos facturados y cobrados, fondeo (depósitos que no son cobros ni traspasos), gastos con proveedores, nómina (sueldos y asimilados), impuestos separados en SAT, SATEG e IMSS, y el flujo neto. Toca un mes para ver el detalle de impuestos, el fondeo y en qué se gastó.",
     directorio: "Los datos fiscales de tus clientes y proveedores para facturar: razón social, RFC, régimen, código postal, uso de CFDI, forma y método de pago, correo, banco, CLABE y notas. La app arma la lista con tus facturas y te propone el régimen y uso que vienen en ellas; tú completas el resto o subes su constancia de situación fiscal en PDF para llenarlo solo.",
     conta: "Sube tu catálogo de cuentas y tus pólizas exportadas en .txt de CONTPAQi. La app arma las pólizas del mes (provisiones PPD, egresos e ingresos) con tus cuentas y tu formato, y te las da para importar en CONTPAQi o capturarlas a mano.",
   };
@@ -5957,7 +5965,155 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("verPdfBtn").onclick = () => { modoVer = true; $("pdfBtn").click(); setTimeout(()=>{ modoVer = false; }, 30000); };
   $("verXlsBtn").onclick = () => { modoVer = true; $("xlsxBtn").click(); setTimeout(()=>{ modoVer = false; }, 30000); };
 
+  // ---------- Resumen del año: ingresos, gastos, nómina, impuestos y fondeo por mes ----------
+  let resSel = null;
+  function resumenMes(y, m){
+    const mk = mesKey(y, m), enMes = x => String(x||"").slice(0,7)===mk;
+    const em = facturas.filter(f=>f.tipo==="emitida" && vigente(f) && enMes(f.fecha)), re = facturas.filter(f=>f.tipo==="recibida" && vigente(f) && enMes(f.fecha));
+    const cobros = abonos.filter(a=>a.tipo==="cobro" && enMes(a.fecha)), pagos = abonos.filter(a=>a.tipo==="pago" && enMes(a.fecha));
+    const puePag = re.filter(f=>f.metodo==="PUE" && !abonos.some(a=>a.uuid===f.uuid));
+    const pueCob = em.filter(f=>f.metodo==="PUE" && !abonos.some(a=>a.uuid===f.uuid));
+    const S = (xs, fn) => r2(xs.reduce((s,x)=>s+(+fn(x)||0),0));
+    const noms = nominas.filter(n=>vigente(n) && enMes(n.fechaPago));
+    const sue = noms.filter(n=>+n.imss>0), asi = noms.filter(n=>!(+n.imss>0));
+    const neto = xs => S(xs, n=>(+n.percepciones||0)-(+n.isr||0)-(+n.imss||0));
+    // Impuestos del periodo: lo declarado (normal + complementarias, con recargos) o, si no hay declaración, lo calculado
+    const k = calcMes(y, m), imp = {SAT:0, SATEG:0, IMSS:0}, det = [];
+    for(const o of OBLIG){ if(o.info) continue; const e = estadoOblig(o, k); if(!e.visible || e.st==="noaplica") continue;
+      const d = e.d || {}; let monto, fuente;
+      if(d.presentada){ monto = r2((d.versiones||[]).reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0)); fuente = d.pagada || !(+d.aPagar) ? "pagado" : "por pagar"; }
+      else { monto = Math.max(0, r2(+e.calc||0)); fuente = "estimado"; if(o.clave==="iva" && k.ivaNeto<0) monto = 0; }
+      if(o.clave==="diot") continue;
+      if(monto>0.004){ imp[o.aut] = r2((imp[o.aut]||0) + monto); det.push({aut:o.aut, nombre:o.nombre, monto, fuente}); } }
+    // Fondeo: depósitos del banco que no son cobros a clientes ni traspasos entre tus cuentas
+    const deps = [], usados = new Set();
+    for(const c of concs.filter(x=>x.anio===y && x.mes===m)){ const cta = cuentasB.find(x=>x.id===c.cuenta) || {nombre:c.cuenta};
+      for(const b of (c.banco||[])) if(b.tipo==="dep") deps.push({...b, banco: cta.nombre, cuenta: c.cuenta}); }
+    const retsOtras = concs.filter(x=>x.anio===y && x.mes===m).flatMap(c=>(c.banco||[]).filter(b=>b.tipo==="ret").map(b=>({...b, cuenta:c.cuenta})));
+    const fondeo = [], cobrosBanco = [], traspasos = [];
+    for(const d of deps){
+      const cob = abonos.find(a=>a.tipo==="cobro" && !usados.has(a.id||a.uuid+a.fecha) && Math.abs((+a.monto||0)-d.monto)<1 && Math.abs(diasEntre(String(a.fecha).slice(0,10), d.fecha))<=7);
+      if(cob){ usados.add(cob.id||cob.uuid+cob.fecha); cobrosBanco.push(d); continue; }
+      const pue = pueCob.find(f=>Math.abs((+f.total||0)-d.monto)<1 && Math.abs(diasEntre(f.fecha, d.fecha))<=10); if(pue){ cobrosBanco.push(d); continue; }
+      const tr = retsOtras.find(r=>r.cuenta!==d.cuenta && Math.abs(r.monto-d.monto)<1 && Math.abs(diasEntre(r.fecha, d.fecha))<=3);
+      if(tr || /TRASPASO|ENTRE CUENTAS|CUENTA PROPIA/i.test(`${d.nombre} ${d.concepto}`)){ traspasos.push(d); continue; }
+      if(/RENDIMIENTO|INTERES|DEVOLUCI|REINTEGRO|LIBERACI[OÓ]N DE DINERO|EBANX/i.test(`${d.nombre} ${d.concepto}`)) { cobrosBanco.push(d); continue; }
+      fondeo.push(d);
+    }
+    const r = {
+      ingFact: S(em, f=>f.subtotal), ingCob: r2(S(cobros, a=>a.monto) + S(pueCob, f=>f.total)),
+      gasFact: S(re, f=>f.subtotal), gasPag: r2(S(pagos, a=>a.monto) + S(puePag, f=>f.total)),
+      nomSue: S(sue, n=>n.percepciones), nomAsi: S(asi, n=>n.percepciones), nomNeto: neto(noms),
+      impSAT: imp.SAT||0, impSATEG: imp.SATEG||0, impIMSS: imp.IMSS||0, impDet: det,
+      fondeo: S(fondeo, d=>d.monto), fondeoDet: fondeo, traspasos: S(traspasos, d=>d.monto), hayBanco: concs.some(x=>x.anio===y && x.mes===m && (x.banco||[]).length),
+      topGastos: Object.entries(re.reduce((o,f)=>{ o[f.nombre] = (o[f.nombre]||0) + (+f.subtotal||0); return o; },{})).sort((a,b)=>b[1]-a[1]).slice(0,8)
+    };
+    r.nom = r2(r.nomSue + r.nomAsi); r.imp = r2(r.impSAT + r.impSATEG + r.impIMSS);
+    r.salidas = r2(r.gasPag + r.nomNeto + r.imp); r.entradas = r2(r.ingCob + r.fondeo); r.flujo = r2(r.entradas - r.salidas);
+    return r;
+  }
+  // --- Clientes y proveedores: cuántos, cuánto se cobra/paga cada mes y en cuántos días en promedio ---
+  let resTer = "emitida";
+  function resumenTerceros(y, tipo){
+    const tAb = tipo==="emitida" ? "cobro" : "pago", g = {};
+    const fs = facturas.filter(f=>f.tipo===tipo && vigente(f) && (f.anio===y || abonos.some(a=>a.uuid===f.uuid && String(a.fecha).startsWith(String(y)))));
+    for(const f of fs){
+      const k = String(f.rfc||f.nombre).toUpperCase(), x = g[k] ||= {nombre:f.nombre, rfc:f.rfc, n:0, fact:0, meses:Array(12).fill(0), dias:0, peso:0, pue:0, ultimo:""};
+      if(f.anio===y){ x.n++; x.fact += +f.total||0; }
+      const abs = abonos.filter(a=>a.uuid===f.uuid && a.tipo===tAb);
+      if(f.metodo==="PUE" && !abs.length){ if(f.anio===y){ x.meses[+f.fecha.slice(5,7)-1] += +f.total||0; x.pue++; if(f.fecha > x.ultimo) x.ultimo = f.fecha; } continue; }
+      for(const a of abs){ const fa = String(a.fecha).slice(0,10); if(!fa.startsWith(String(y))) continue;
+        x.meses[+fa.slice(5,7)-1] += +a.monto||0; if(fa > x.ultimo) x.ultimo = fa;
+        const d = Math.max(0, -diasEntre(fa, f.fecha)); x.dias += d*(+a.monto||0); x.peso += +a.monto||0; }
+    }
+    return Object.values(g).map(x=>({...x, total: r2(x.meses.reduce((s,v)=>s+v,0)), prom: x.peso ? Math.round(x.dias/x.peso) : null})).sort((a,b)=>b.total-a.total || b.fact-a.fact);
+  }
+  function htmlTerceros(){
+    const f = money.format, ult = year<now.getFullYear() ? 12 : year===now.getFullYear() ? now.getMonth()+1 : 12, meses = Array.from({length:ult},(_,i)=>i+1);
+    const C = resumenTerceros(year, "emitida"), P = resumenTerceros(year, "recibida");
+    const promG = xs => { const p = xs.reduce((s,x)=>s+x.peso,0); return p ? Math.round(xs.reduce((s,x)=>s+x.dias,0)/p) : null; };
+    const L = resTer==="emitida" ? C : P, quien = resTer==="emitida" ? "Cliente" : "Proveedor", verbo = resTer==="emitida" ? "cobrado" : "pagado";
+    const kpis = `<div class="kpis" style="margin-top:16px">
+      <div class="kpi"><span>Clientes en ${year}</span><b>${C.filter(x=>x.n).length}</b><small>con facturas emitidas en el año</small></div>
+      <div class="kpi"><span>Proveedores en ${year}</span><b>${P.filter(x=>x.n).length}</b><small>con facturas recibidas en el año</small></div>
+      <div class="kpi"><span>Nos pagan en promedio</span><b>${promG(C)!=null?`${promG(C)} días`:"—"}</b><small>desde la factura hasta el cobro (PPD)</small></div>
+      <div class="kpi"><span>Pagamos en promedio</span><b>${promG(P)!=null?`${promG(P)} días`:"—"}</b><small>desde la factura hasta el pago (PPD)</small></div></div>`;
+    let t = `<div class="bpanel" style="margin-top:16px"><h3 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">Por ${quien.toLowerCase()} y por mes<span class="seg" style="margin-left:auto"><button data-resterc="emitida" aria-pressed="${resTer==="emitida"}">Clientes</button><button data-resterc="recibida" aria-pressed="${resTer==="recibida"}">Proveedores</button></span><small style="width:100%">Lo ${verbo} a cada uno en cada mes (con IVA), cuántas facturas, y en cuántos días ${resTer==="emitida"?"nos paga":"le pagamos"} en promedio. Se basa en los ${resTer==="emitida"?"cobros":"pagos"} registrados en Cuentas y en las facturas PUE.</small></h3>`;
+    t += L.length ? `<div class="sheet" style="border:none;border-radius:0"><table class="ft" style="min-width:${420+meses.length*100}px"><thead><tr><th>${quien}</th><th class="num">Facturas</th><th class="num">Días promedio</th>${meses.map(m=>`<th class="num">${ABR[m-1]}</th>`).join("")}<th class="num">Total ${verbo}</th><th>Último</th></tr></thead><tbody>
+      ${L.map(x=>`<tr><td><div class="fname" title="${esc(x.nombre)}">${esc(x.nombre||"—")}</div><div class="fsub">${esc(x.rfc||"")}</div></td><td class="num">${x.n||""}</td><td class="num">${x.prom!=null?`<strong>${x.prom}</strong> días`:x.pue?'<span class="fsub">PUE</span>':'<span class="fsub">—</span>'}</td>${meses.map(m=>`<td class="num">${x.meses[m-1]?f(x.meses[m-1]):'<span class="fsub">—</span>'}</td>`).join("")}<td class="num"><strong>${f(x.total)}</strong></td><td>${x.ultimo?`${fechaCorta(x.ultimo)}`:"—"}</td></tr>`).join("")}
+      <tr style="background:var(--group)"><td><strong>Total</strong></td><td class="num"><strong>${L.reduce((s,x)=>s+x.n,0)}</strong></td><td class="num"><strong>${promG(L)!=null?`${promG(L)} días`:""}</strong></td>${meses.map(m=>`<td class="num"><strong>${f(L.reduce((s,x)=>s+x.meses[m-1],0))}</strong></td>`).join("")}<td class="num"><strong>${f(L.reduce((s,x)=>s+x.total,0))}</strong></td><td></td></tr></tbody></table></div>` : `<div class="empty" style="padding:16px">Sin ${quien.toLowerCase()}s en ${year}.</div>`;
+    return kpis + t + `</div>`;
+  }
+  function renderResumenAnual(){
+    $("yearLabel").textContent = year;
+    const f = money.format, M = Array.from({length:12},(_,i)=>resumenMes(year, i+1)), ult = year<now.getFullYear() ? 12 : year===now.getFullYear() ? now.getMonth()+1 : 0;
+    const filas = [
+      ["Ingresos", null],
+      ["Facturado (sin IVA)", "ingFact", "Facturas emitidas vigentes del mes, sin IVA."],
+      ["Cobrado (con IVA)", "ingCob", "Cobros registrados en Cuentas y facturas PUE del mes."],
+      ["Fondeo y otros depósitos", "fondeo", "Depósitos del banco que no son cobros a clientes ni traspasos entre tus cuentas: aportaciones, préstamos de socios, etc. Toca el mes para ver cuáles."],
+      ["Gastos", null],
+      ["Facturado por proveedores (sin IVA)", "gasFact", "Facturas recibidas vigentes del mes, sin IVA."],
+      ["Pagado a proveedores (con IVA)", "gasPag", "Pagos registrados en Cuentas y facturas PUE del mes."],
+      ["Nómina", null],
+      ["Sueldos y salarios", "nomSue", "Total de percepciones de los recibos de nómina con IMSS."],
+      ["Asimilados a salarios", "nomAsi", "Total de percepciones de los recibos sin IMSS."],
+      ["Pagado neto a trabajadores", "nomNeto", "Percepciones menos ISR e IMSS retenidos."],
+      ["Impuestos y cuotas", null],
+      ["SAT", "impSAT", "ISR, IVA y retenciones del mes: lo declarado (normal + complementarias, con recargos) o lo calculado si aún no presentas."],
+      ["SATEG", "impSATEG", "Impuesto sobre nómina y cedulares del mes."],
+      ["IMSS", "impIMSS", "Cuotas obrero-patronales de la línea de captura del mes."],
+      ["Total impuestos", "imp"],
+      ["Flujo", null],
+      ["Entradas (cobrado + fondeo)", "entradas"],
+      ["Salidas (proveedores + nómina neta + impuestos)", "salidas"],
+      ["Flujo neto", "flujo"]
+    ];
+    const meses = Array.from({length:12},(_,i)=>i+1).filter(m=>m<=Math.max(ult,1));
+    let t = `<div class="sheet"><table class="ft" style="min-width:${180+meses.length*110}px"><thead><tr><th>Concepto</th>${meses.map(m=>`<th class="num"><button class="linkbtn" data-resmes="${m}" style="font-weight:700">${ABR[m-1]}</button></th>`).join("")}<th class="num">Total ${year}</th></tr></thead><tbody>`;
+    for(const [lbl, k, ayuda] of filas){
+      if(!k){ t += `<tr style="background:var(--group)"><td colspan="${meses.length+2}"><strong>${lbl}</strong></td></tr>`; continue; }
+      const tot = r2(meses.reduce((s,m)=>s+M[m-1][k],0)), fuerte = ["imp","flujo","entradas","salidas"].includes(k);
+      t += `<tr><td>${fuerte?`<strong>${lbl}</strong>`:lbl}${ayuda?` <button type="button" class="ayuda" data-tip="${esc(ayuda)}" aria-label="${esc(ayuda)}">i</button>`:""}</td>${meses.map(m=>{ const v = M[m-1][k];
+        const extra = k==="fondeo" && !M[m-1].hayBanco ? ' title="Sin estados de cuenta de este mes"' : "";
+        return `<td class="num ${k==="flujo"&&v<0?"late":""}"${extra}>${v ? (fuerte?`<strong>${f(v)}</strong>`:f(v)) : (k==="fondeo"&&!M[m-1].hayBanco ? '<span class="fsub">sin banco</span>' : '<span class="fsub">—</span>')}</td>`; }).join("")}<td class="num"><strong>${f(tot)}</strong></td></tr>`;
+    }
+    t += `</tbody></table></div>`;
+    // Detalle del mes seleccionado
+    if(!resSel){ resSel = Math.max(1, ult); for(let m=ult;m>=1;m--){ const x = M[m-1]; if(x.ingFact||x.gasFact||x.nom){ resSel = m; break; } } }
+    const R = M[resSel-1];
+    const d = `<div class="dgrid" style="margin-top:16px">
+      <div class="bpanel"><h3>Impuestos de ${MESES[resSel-1].toLowerCase()}<small>Por autoridad. "Estimado" es lo calculado por la app mientras no subes la declaración.</small></h3>${R.impDet.length ? `<table class="decl" style="width:100%"><tbody>${R.impDet.map(x=>`<tr><td><span class="st na" style="font-size:11px">${x.aut}</span> ${esc(x.nombre)}</td><td class="num">${f(x.monto)}</td><td><span class="st ${x.fuente==="pagado"?"pagado":x.fuente==="por pagar"?"vencido":"parcial"}">${x.fuente}</span></td></tr>`).join("")}</tbody></table>` : '<div class="empty" style="padding:14px">Sin impuestos este mes.</div>'}</div>
+      <div class="bpanel"><h3>Fondeo de ${MESES[resSel-1].toLowerCase()}<small>Depósitos que no son cobros a clientes ni traspasos. Revísalos: si alguno es cobro, regístralo en Cuentas.</small></h3>${R.fondeoDet.length ? `<table class="decl" style="width:100%"><tbody>${R.fondeoDet.map(x=>`<tr><td>${fechaCorta(x.fecha)}</td><td>${esc(x.banco)}<div class="fsub">${esc(x.nombre)}</div></td><td class="num">${f(x.monto)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty" style="padding:14px">${R.hayBanco ? "Sin fondeo este mes." : "Sube los estados de cuenta del mes para detectar el fondeo."}</div>`}${R.traspasos?`<div class="fsub" style="padding:8px 14px;max-width:none">Traspasos entre tus cuentas (no cuentan): ${f(R.traspasos)}</div>`:""}</div>
+      <div class="bpanel"><h3>En qué se gastó en ${MESES[resSel-1].toLowerCase()}<small>Proveedores con más facturación del mes, sin IVA.</small></h3>${R.topGastos.length ? `<table class="decl" style="width:100%"><tbody>${R.topGastos.map(([n,v])=>`<tr><td>${esc(n)}</td><td class="num">${f(v)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty" style="padding:14px">Sin gastos facturados este mes.</div>'}</div>
+    </div>`;
+    $("resbody").innerHTML = `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="fsub" style="max-width:none">Toca un mes para ver su detalle abajo. Mes seleccionado: <strong>${MESES[resSel-1]}</strong>.</span></div>` + t + d + htmlTerceros();
+    $("statusLine").innerHTML = `${year}: cobrado <strong>${f(M.slice(0,ult).reduce((s,x)=>s+x.ingCob,0))}</strong> · pagado a proveedores <strong>${f(M.slice(0,ult).reduce((s,x)=>s+x.gasPag,0))}</strong> · nómina <strong>${f(M.slice(0,ult).reduce((s,x)=>s+x.nom,0))}</strong> · impuestos <strong>${f(M.slice(0,ult).reduce((s,x)=>s+x.imp,0))}</strong>.`;
+  }
+  $("resbody").addEventListener("click", e => { const b = e.target.closest("[data-resmes]"); if(b){ resSel = +b.dataset.resmes; renderResumenAnual(); return; } const tc = e.target.closest("[data-resterc]"); if(tc){ resTer = tc.dataset.resterc; renderResumenAnual(); } });
+  async function exportResumenAnual(fmt){
+    const ult = year<now.getFullYear() ? 12 : now.getMonth()+1, meses = Array.from({length:ult},(_,i)=>i+1), M = meses.map(m=>resumenMes(year, m));
+    const filas = [["Facturado (sin IVA)","ingFact"],["Cobrado (con IVA)","ingCob"],["Fondeo y otros depósitos","fondeo"],["Facturado por proveedores (sin IVA)","gasFact"],["Pagado a proveedores (con IVA)","gasPag"],["Sueldos y salarios","nomSue"],["Asimilados a salarios","nomAsi"],["Pagado neto a trabajadores","nomNeto"],["SAT","impSAT"],["SATEG","impSATEG"],["IMSS","impIMSS"],["Total impuestos","imp"],["Entradas","entradas"],["Salidas","salidas"],["Flujo neto","flujo"]];
+    if(fmt==="xlsx"){ await loadLibs("excel"); const wb = new ExcelJS.Workbook(), w = wb.addWorksheet("Resumen"), Mf = '"$"#,##0.00;-"$"#,##0.00';
+      w.columns = [{width:38}, ...meses.map(()=>({width:14})), {width:16}];
+      w.addRow([`${empresaNombre} · Resumen ${year}`]).font = {bold:true, size:13}; w.addRow([]);
+      w.addRow(["Concepto", ...meses.map(m=>ABR[m-1]), "Total"]).font = {bold:true};
+      for(const [l,k] of filas){ const r = w.addRow([l, ...M.map(x=>x[k]), r2(M.reduce((s,x)=>s+x[k],0))]); for(let i=2;i<=meses.length+2;i++) r.getCell(i).numFmt = Mf; }
+      for(const [tipo, nom] of [["emitida","Clientes"],["recibida","Proveedores"]]){
+        const ws = wb.addWorksheet(nom), L = resumenTerceros(year, tipo); ws.columns = [{width:40},{width:15},{width:10},{width:12}, ...meses.map(()=>({width:13})), {width:15}];
+        ws.addRow([nom, "RFC", "Facturas", "Días prom.", ...meses.map(m=>ABR[m-1]), "Total"]).font = {bold:true};
+        L.forEach(x=>{ const r = ws.addRow([x.nombre, x.rfc||"", x.n, x.prom!=null ? x.prom : (x.pue ? "PUE" : ""), ...meses.map(m=>r2(x.meses[m-1])||null), x.total]); for(let i=5;i<=meses.length+5;i++) r.getCell(i).numFmt = Mf; });
+      }
+      await guardarArchivo(`Resumen ${empresaNombre} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()])); return; }
+    await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({orientation:"landscape", unit:"pt", format:"letter"});
+    doc.setFontSize(13); doc.text(`${empresaNombre} · Resumen ${year}`, 40, 40);
+    doc.autoTable({startY:56, head:[["Concepto", ...meses.map(m=>ABR[m-1]), "Total"]], body: filas.map(([l,k])=>[l, ...M.map(x=>money.format(x[k])), money.format(M.reduce((s,x)=>s+x[k],0))]),
+      styles:{fontSize:7, cellPadding:3}, headStyles:{fillColor:[24,36,29]}, columnStyles: Object.fromEntries(Array.from({length:meses.length+1},(_,i)=>[i+1,{halign:"right"}])), margin:{left:30, right:30}});
+    await guardarArchivo(`Resumen ${empresaNombre} ${year}.pdf`, doc.output("blob"));
+  }
+
   // ---------- Arranque ----------
+
 
   render();
   (async () => {
