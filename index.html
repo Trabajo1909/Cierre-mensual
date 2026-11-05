@@ -274,11 +274,11 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 23 · IMSS por trabajador y ver estados de cuenta</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 25 · Ver tus pólizas de CONTPAQi</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -340,6 +340,12 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vEstados" hidden>
+    <div class="tabs2" id="eftabs" aria-label="Estado financiero"></div>
+    <div class="months" id="efmonths"></div>
+    <div id="efbody"></div>
   </section>
 
   <section id="vPresupuesto" hidden>
@@ -907,7 +913,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -960,6 +966,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="resumen"){ renderResumenAnual(); return; }
     if(vista==="accesos"){ renderAccesos(); return; }
     if(vista==="presupuesto"){ renderPresupuesto(); return; }
+    if(vista==="estados"){ renderEstados(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1268,6 +1275,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="directorio") return exportDirectorio();
     if(vista==="resumen") return exportResumenAnual("xlsx");
     if(vista==="presupuesto") return exportPresupuesto();
+    if(vista==="estados") return exportEstados("xlsx");
     const btn=$("xlsxBtn"); btn.disabled=true;
     try{
       await loadLibs("excel");
@@ -1302,6 +1310,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   $("pdfBtn").onclick = async () => {
     if(vista==="resumen") return exportResumenAnual("pdf");
+    if(vista==="estados") return exportEstados("pdf");
     if(vista==="facturas") return exportFacturas("pdf");
     if(vista==="cuentas") return exportCuentas("pdf");
     if(vista==="bancos") return exportBancos("pdf");
@@ -1361,14 +1370,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || !canWrite;
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || !canWrite;
     const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto"].includes(v), sinXls = ["expediente","notas","documentos","accesos"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
@@ -5017,7 +5026,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   // ---------- Contabilidad automática (pólizas para CONTPAQi) ----------
   let catalogo = [], terceros = {}, contaCfg = {}, unsubCat = null, unsubTer = null, unsubCC = null, coTab = "provProv", coMes = null;
-  const CO_TABS = [["provProv","Provisión proveedores"],["provCli","Provisión clientes"],["egresos","Egresos"],["ingresos","Ingresos"],["manual","Pólizas a mano"]];
+  const CO_TABS = [["provProv","Provisión proveedores"],["provCli","Provisión clientes"],["egresos","Egresos"],["ingresos","Ingresos"],["manual","Pólizas a mano"],["cq","Tus pólizas en CONTPAQi"]];
   const CTA_DEF = {iva119:"119-01-000", iva118:"118-01-000", iva209:"209-01-000", iva208:"208-01-000", ingresos:"401-01-000",
     retIsrResico:"216-12-004", retIvaResico:"216-12-006", retCedResico:"216-12-005", retIsrHon:"213-07-004", retIvaHon:"213-07-003", retCedHon:"213-07-005", ivaRetCli:"113-01-000", isrRetCli:"113-02-000"};
   const CTA_NOM = {iva119:"IVA pendiente de pago", iva118:"IVA acreditable pagado", iva209:"IVA trasladado no cobrado", iva208:"IVA trasladado cobrado", ingresos:"Ingresos",
@@ -5182,10 +5191,30 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const e = {firma, total: ps.length, ya, fuera, falta: ps.length - ya - fuera, hayPol: !!polCQ[mk]};
     memoConta[mk] = e; return e;
   }
+  // Las pólizas que subiste de CONTPAQi, tal cual, para revisarlas (incluye las que no tienen factura)
+  let cqBuscar = "", cqTipo = "";
+  function renderPolizasCQ(){
+    const f = money.format, mk = mesKey(year, coMes), ps = ((polCQ[mk]||{}).polizas||[]);
+    const R = (()=>{ try{ return conciliarXml(); }catch(_){ return null; } })(), conCfdi = new Set();
+    if(R && R.asig) Object.values(R.asig).forEach(a=>{ if(a && a.p) conCfdi.add(a.p.id); });
+    const q = normTxt(cqBuscar), lista = ps.filter(p=>(!cqTipo || p.tipo===cqTipo) && (!q || normTxt(`${p.tipo} ${p.num} ${p.concepto} ${p.movs.map(m=>m.c+" "+m.n+" "+m.r+" "+(ctaN(m.c)||"")).join(" ")}`).includes(q)));
+    $("statusLine").innerHTML = ps.length ? `${ps.length} pólizas de ${MESES[coMes-1].toLowerCase()} subidas de CONTPAQi · ${ps.filter(p=>!conCfdi.has(`${p.tipo} ${p.num}`)).length} sin factura relacionada.` : `No has subido pólizas de ${MESES[coMes-1].toLowerCase()}.`;
+    if(!ps.length){ $("cobody").innerHTML = `<div class="empty">Sube tus pólizas de ${MESES[coMes-1].toLowerCase()} (Excel "Diarios y pólizas" o .txt) con <strong>Subir catálogo o pólizas</strong> y aquí las ves todas, incluidas las que no tienen factura (por ejemplo, otros ingresos, traspasos o reembolsos).</div>`; return; }
+    let h = `<div class="pairbar" style="margin:0 0 12px;flex-wrap:wrap;gap:8px"><input id="cqBuscar" type="search" placeholder="Buscar por concepto, cuenta o número" value="${esc(cqBuscar)}" style="max-width:280px"><div class="seg">${["","Diario","Ingresos","Egresos"].map(t=>`<button data-cqtipo="${t}" aria-pressed="${cqTipo===t}">${t||"Todas"}</button>`).join("")}</div></div>`;
+    for(const p of lista){ const id = `${p.tipo} ${p.num}`, ca = r2(p.movs.reduce((s,m)=>s+(+m.ca||0),0)), ab = r2(p.movs.reduce((s,m)=>s+(+m.ab||0),0));
+      h += `<div class="bpanel" style="margin-bottom:10px"><h3 style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span>${esc(id)}</span><span style="font-weight:600">${fechaCorta(p.fecha)} · ${esc(p.concepto)}</span>${conCfdi.has(id)?'<span class="st pagado">Con factura</span>':'<span class="st na">Sin factura relacionada</span>'}</h3>
+        <div class="sheet" style="border:none;border-radius:0"><table class="pt" style="min-width:0;width:100%"><thead><tr><th>Cuenta</th><th>Concepto</th><th class="num">Cargo</th><th class="num">Abono</th></tr></thead><tbody>
+        ${p.movs.map(m=>`<tr><td><strong>${esc(m.c)}</strong> ${esc(ctaN(m.c)||"")}</td><td class="fsub" style="max-width:none">${esc([m.n, m.r].filter(Boolean).join(" · "))}</td><td class="num">${m.ca?f(m.ca):""}</td><td class="num">${m.ab?f(m.ab):""}</td></tr>`).join("")}
+        <tr><td colspan="2"><strong>Sumas</strong>${Math.abs(ca-ab)>0.01?` <span class="difw">No cuadra por ${f(Math.abs(r2(ca-ab)))}</span>`:""}</td><td class="num"><strong>${f(ca)}</strong></td><td class="num"><strong>${f(ab)}</strong></td></tr></tbody></table></div></div>`; }
+    if(!lista.length) h += `<div class="empty">Ninguna póliza coincide con la búsqueda.</div>`;
+    $("cobody").innerHTML = h;
+  }
+  $("cobody").addEventListener("input", e => { if(e.target.id==="cqBuscar"){ cqBuscar = e.target.value; const pos = e.target.selectionStart; renderPolizasCQ(); const i = $("cqBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
+  $("cobody").addEventListener("click", e => { const b = e.target.closest("[data-cqtipo]"); if(b){ cqTipo = b.dataset.cqtipo; renderPolizasCQ(); } });
   function renderConta(){
     $("yearLabel").textContent = year;
     if(!coMes) coMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
-    const pendTab = k => { if(k==="manual" || !catalogo.length) return 0; const ex = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[])); return polizasMesSinNum(year, coMes, k).filter(p=>!p.ya && !ex.has(p.key)).length; };
+    const pendTab = k => { if(k==="manual" || k==="cq" || !catalogo.length) return 0; const ex = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[])); return polizasMesSinNum(year, coMes, k).filter(p=>!p.ya && !ex.has(p.key)).length; };
     $("ctabs").innerHTML = CO_TABS.map(([k,n])=>{ const pn = pendTab(k); return `<button data-cotab="${k}" aria-pressed="${coTab===k}">${n}${pn?` <span class="st vencido" style="font-size:11px;padding:1px 6px">${pn}</span>`:""}</button>`; }).join("");
     const ultC = year<now.getFullYear() ? 12 : year===now.getFullYear() ? now.getMonth()+1 : 0;
     $("cmonths2").innerHTML = Array.from({length:12},(_,i)=>{ if(!catalogo.length || i+1>ultC) return `<button class="mchip" data-comes="${i+1}" aria-current="${coMes===i+1}"><b>${ABR[i]}</b><small>—</small></button>`;
@@ -5195,6 +5224,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const f = money.format;
     if(!catalogo.length){ $("statusLine").textContent = "Sube tu catálogo de cuentas de CONTPAQi para empezar.";
       $("cobody").innerHTML = `<div class="empty">Sube con <strong>Subir catálogo o pólizas (.txt)</strong> tu <strong>catálogo de cuentas</strong> exportado de CONTPAQi. Si también subes tus <strong>pólizas exportadas en .txt</strong>, la app aprende qué cuentas usas con cada proveedor y cliente.</div>`; return; }
+    if(coTab==="cq"){ renderPolizasCQ(); return; }
     const ps = polizasMes(year, coMes, coTab), excl = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[]));
     const nuevas = ps.filter(p=>!p.ya), faltan = ps.filter(p=>p.lin.some(l=>l.falta || (l.c && !esDetalle(l.c))) || Math.abs(p.dif)>0.009);
     const eM = estadoContaMes(year, coMes);
@@ -5788,6 +5818,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     expediente: "Pólizas impresas, invoices de licencias y la carpeta final del mes en .zip para Drive, más el respaldo completo de la app.",
     notas: "Tus pendientes, preguntas para tu jefe y notas. Las abiertas se cuentan en el tablero.",
     activos: "Registra tus activos fijos (la app detecta facturas con uso de CFDI de inversión). Calcula depreciación contable mensual, la póliza del mes y la deducción fiscal anual, y la compara contra tu balanza.",
+    estados: "Los estados financieros que piden los dueños, armados con tus balanzas de CONTPAQi: balanza de comprobación, estado de resultados (del mes y acumulado, con % sobre ingresos), balance general al cierre del mes y flujo de efectivo por el método indirecto. Descárgalos en PDF o Excel con los botones de arriba.",
     presupuesto: "Sube el presupuesto que hace administración (Excel con la hoja PRESUPUESTO; si trae HOJA CONTROL y ENVIO, también se leen). Al inicio del mes el inicial; al cierre, el actualizado. La app compara inicial, actualizado y lo pagado por subcategoría, te muestra lo que salió fuera de presupuesto, el saldo inicial y final de bancos, y cuánto fondear para el siguiente mes.",
     accesos: "Tus links a las plataformas que usas (SAT, IMSS, bancos, portales estatales…), agrupados por categoría. Toca Abrir para entrar. No guardes contraseñas aquí.",
     resumen: "Cuánto entró y cuánto salió cada mes: ingresos facturados y cobrados, fondeo (depósitos que no son cobros ni traspasos), gastos con proveedores, nómina (sueldos y asimilados), impuestos separados en SAT, SATEG e IMSS, y el flujo neto. Toca un mes para ver el detalle de impuestos, el fondeo y en qué se gastó.",
@@ -6801,6 +6832,137 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const w2 = wb.addWorksheet("Pagado por subcategoría"); w2.addRow(["Subcategoría","Pagado"]).font = {bold:true};
     [...new Set(ctl.map(c=>c.sub||"Sin subcategoría"))].forEach(s=>{ const r = w2.addRow([s, s==="Sin subcategoría" ? r2(ctl.filter(c=>!c.sub).reduce((a,c)=>a+c.monto,0)) : real(s)]); r.getCell(2).numFmt = M; });
     await guardarArchivo(`Presupuesto ${empresaNombre} ${ABR[preMes-1]} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
+  }
+
+  // ---------- Estados financieros: balanza, resultados, balance general y flujo de efectivo ----------
+  let efTab = "resultados", efMes = null, efModo = "mes";
+  const EF_TABS = [["balanza","Balanza"],["resultados","Estado de resultados"],["balance","Balance general"],["flujo","Flujo de efectivo"]];
+  const esMayor = c => /-00-000$/.test(c.cuenta), esNivel2 = c => /-\d\d-000$/.test(c.cuenta) && !esMayor(c);
+  const grupoDe = c => +c.cuenta.slice(0,3);
+  function estadosDe(y, m){
+    const b = balanzas[mesKey(y, m)]; if(!b) return null;
+    const ctas = b.cuentas, mayores = ctas.filter(esMayor), hijos = c => ctas.filter(x=>esNivel2(x) && x.cuenta.slice(0,3)===c.cuenta.slice(0,3));
+    const movRes = c => r2((+c.cargos||0) - (+c.abonos||0));
+    // Estado de resultados (mes y acumulado del año)
+    const res = mayores.filter(c=>grupoDe(c)>=400 && grupoDe(c)<800).map(c=>{ const ing = grupoDe(c)<500, s = ing ? -1 : 1;
+      return {c, ing, mes: r2(s*movRes(c)), acum: r2(s*(+c.sf||0)), hijos: hijos(c).map(h=>({c:h, mes: r2(s*movRes(h)), acum: r2(s*(+h.sf||0))})).filter(h=>h.mes||h.acum)}; });
+    const sumR = (f, k) => r2(res.filter(f).reduce((s,x)=>s+x[k],0));
+    const R = k => { const ingOp = sumR(x=>grupoDe(x.c)>=400 && grupoDe(x.c)<403, k), otrosIng = sumR(x=>grupoDe(x.c)>=403 && grupoDe(x.c)<500, k), costo = sumR(x=>grupoDe(x.c)>=500 && grupoDe(x.c)<600, k), gastos = sumR(x=>grupoDe(x.c)>=600 && grupoDe(x.c)<700, k), fin = sumR(x=>grupoDe(x.c)>=700 && grupoDe(x.c)<800, k);
+      const bruta = r2(ingOp - costo), operacion = r2(bruta - gastos), antes = r2(operacion - fin + otrosIng); return {ingOp, otrosIng, costo, gastos, fin, bruta, operacion, antes}; };
+    // Balance general al cierre del mes
+    const bal = mayores.filter(c=>grupoDe(c)<400).map(c=>({c, saldo: grupoDe(c)<200 ? r2(+c.sf||0) : r2(-(+c.sf||0)), ini: grupoDe(c)<200 ? r2(+c.si||0) : r2(-(+c.si||0))}));
+    const sumB = f => r2(bal.filter(f).reduce((s,x)=>s+x.saldo,0));
+    const resultadoEj = R("acum").antes;
+    const B = {actC: sumB(x=>grupoDe(x.c)<150), actNC: sumB(x=>grupoDe(x.c)>=150 && grupoDe(x.c)<200), pasCP: sumB(x=>grupoDe(x.c)>=200 && grupoDe(x.c)<250), pasLP: sumB(x=>grupoDe(x.c)>=250 && grupoDe(x.c)<300), cap: sumB(x=>grupoDe(x.c)>=300 && grupoDe(x.c)<400), resultadoEj};
+    B.activo = r2(B.actC + B.actNC); B.pasivo = r2(B.pasCP + B.pasLP); B.capital = r2(B.cap + resultadoEj); B.dif = r2(B.activo - B.pasivo - B.capital);
+    return {b, ctas, res, R, bal, B};
+  }
+  function flujoDe(y, m, modo){
+    const E = estadosDe(y, m); if(!E) return null;
+    const ini = modo==="acum" ? estadosDe(y, Object.keys(balanzas).filter(k=>k.startsWith(String(y))).map(k=>+k.slice(5)).sort((a,b)=>a-b)[0]) : null;
+    const delta = (c) => { const fin = +c.sf||0; let si = +c.si||0; if(ini){ const x = ini.ctas.find(z=>z.cuenta===c.cuenta); si = x ? +x.si||0 : 0; } return r2(fin - si); };
+    const may = E.ctas.filter(c=>esMayor(c) && grupoDe(c)<400), esDep = c => /deprec|amortiz/i.test(sinAcento(c.nombre));
+    const efectivo = may.filter(c=>grupoDe(c)>=101 && grupoDe(c)<=103), utilidad = modo==="acum" ? E.R("acum").antes : E.R("mes").antes;
+    const lin = (c, signo) => ({nombre: `${c.cuenta.slice(0,3)} ${c.nombre}`, monto: r2(signo * delta(c))});
+    // Operación: utilidad + partidas que no son dinero (depreciación) ± cambios en capital de trabajo
+    const dep = may.filter(c=>grupoDe(c)>=150 && grupoDe(c)<200 && esDep(c)).map(c=>({nombre:`${c.cuenta.slice(0,3)} ${c.nombre} (no es salida de dinero)`, monto: r2(-delta(c))}));
+    const ct = [...may.filter(c=>grupoDe(c)>103 && grupoDe(c)<150).map(c=>lin(c, -1)), ...may.filter(c=>grupoDe(c)>=200 && grupoDe(c)<250).map(c=>lin(c, -1))].filter(x=>Math.abs(x.monto)>0.004);
+    const inv = may.filter(c=>grupoDe(c)>=150 && grupoDe(c)<200 && !esDep(c)).map(c=>lin(c, -1)).filter(x=>Math.abs(x.monto)>0.004);
+    // Los resultados de ejercicios anteriores son traspasos contables, no movimientos de dinero
+    const fin = [...may.filter(c=>grupoDe(c)>=250 && grupoDe(c)<300), ...may.filter(c=>grupoDe(c)>=300 && grupoDe(c)<400 && !/resultado|utilidad|perdida/i.test(sinAcento(c.nombre)))].map(c=>lin(c, -1)).filter(x=>Math.abs(x.monto)>0.004);
+    const S = xs => r2(xs.reduce((s,x)=>s+x.monto,0));
+    const op = r2(utilidad + S(dep) + S(ct)), tInv = S(inv), tFin = S(fin), dEf = r2(efectivo.reduce((s,c)=>s+delta(c),0));
+    const efIni = r2(efectivo.reduce((s,c)=>s+(+c.sf||0),0) - dEf);
+    return {utilidad, dep, ct, inv, fin, op, tInv, tFin, dEf, efIni, efFin: r2(efIni + dEf), dif: r2(op + tInv + tFin - dEf)};
+  }
+  function renderEstados(){
+    $("yearLabel").textContent = year;
+    const meses = Object.keys(balanzas).filter(k=>k.startsWith(String(year))).map(k=>+k.slice(5)).sort((a,b)=>a-b);
+    if(!efMes || !meses.includes(efMes)) efMes = meses[meses.length-1] || null;
+    $("eftabs").innerHTML = EF_TABS.map(([k,n])=>`<button data-eftab="${k}" aria-pressed="${efTab===k}">${n}</button>`).join("");
+    $("efmonths").innerHTML = Array.from({length:12},(_,i)=>`<button class="mchip ${meses.includes(i+1)?"ok":""}" data-efmes="${i+1}" aria-current="${efMes===i+1}" ${meses.includes(i+1)?"":"disabled"}><b>${ABR[i]}</b><small>${meses.includes(i+1)?"Balanza":"—"}</small></button>`).join("");
+    const f = money.format;
+    if(!efMes){ $("statusLine").textContent = "Sube tus balanzas para ver los estados financieros."; $("efbody").innerHTML = `<div class="empty">Los estados financieros se arman con tus <strong>balanzas de comprobación</strong> de CONTPAQi. Súbelas en <strong>Balanza</strong> (PDF o Excel) y aquí aparecen.</div>`; return; }
+    const E = estadosDe(year, efMes), per = efModo==="acum" ? `enero a ${MESES[efMes-1].toLowerCase()} ${year}` : `${MESES[efMes-1].toLowerCase()} ${year}`;
+    const modoSel = `<div class="seg" style="margin-bottom:12px"><button data-efmodo="mes" aria-pressed="${efModo==="mes"}">Del mes</button><button data-efmodo="acum" aria-pressed="${efModo==="acum"}">Acumulado del año</button></div>`;
+    let h = "";
+    if(efTab==="balanza"){
+      const q = normTxt(($("efBuscar")||{}).value||"");
+      h = `<div class="pairbar" style="margin-bottom:10px"><input id="efBuscar" type="search" placeholder="Buscar cuenta" value="${esc(($("efBuscar")||{}).value||"")}" style="max-width:260px"><label class="check inline" style="margin:0"><input type="checkbox" id="efSoloMay" ${window.__efSoloMay?"checked":""}> Solo cuentas de mayor</label></div>
+        <div class="sheet"><table class="ft" style="min-width:900px"><thead><tr><th>Cuenta</th><th>Nombre</th><th class="num">Saldo inicial</th><th class="num">Cargos</th><th class="num">Abonos</th><th class="num">Saldo final</th></tr></thead><tbody>
+        ${E.ctas.filter(c=>(!window.__efSoloMay || esMayor(c)) && (!q || normTxt(c.cuenta+" "+c.nombre).includes(q))).map(c=>`<tr style="${esMayor(c)?"background:var(--group);font-weight:700":""}"><td class="uuid">${esc(c.cuenta)}</td><td style="padding-left:${esMayor(c)?8:esNivel2(c)?20:34}px">${esc(c.nombre)}</td><td class="num">${f(+c.si||0)}</td><td class="num">${f(+c.cargos||0)}</td><td class="num">${f(+c.abonos||0)}</td><td class="num">${f(+c.sf||0)}</td></tr>`).join("")}</tbody></table></div>
+        <div class="fsub" style="max-width:none;margin-top:6px">Saldos positivos son deudores y negativos acreedores. Para revisar diferencias contra la app, usa la sección Balanza.</div>`;
+    } else if(efTab==="resultados"){
+      const k = efModo==="acum" ? "acum" : "mes", R = E.R(k), base = R.ingOp || 1, pct = v => R.ingOp ? `${(v/base*100).toFixed(1)}%` : "";
+      const bloque = (titulo, filtro) => E.res.filter(filtro).map(x=>`<tr><td style="padding-left:20px">${esc(x.c.nombre)}</td><td class="num">${f(x[k])}</td><td class="num fsub">${pct(x[k])}</td></tr>${x.hijos.length>1 || (x.hijos[0] && x.hijos[0].c.nombre!==x.c.nombre) ? x.hijos.filter(hh=>hh[k]).map(hh=>`<tr><td style="padding-left:38px" class="fsub">${esc(hh.c.nombre)}</td><td class="num fsub">${f(hh[k])}</td><td></td></tr>`).join("") : ""}`).join("");
+      const tot = (l, v, fuerte) => `<tr style="${fuerte?"background:var(--group)":""}"><td><strong>${l}</strong></td><td class="num"><strong>${f(v)}</strong></td><td class="num fsub">${pct(v)}</td></tr>`;
+      h = modoSel + `<div class="sheet"><table class="ft" style="min-width:560px"><thead><tr><th>Estado de resultados · ${per}</th><th class="num">Importe</th><th class="num">% ingresos</th></tr></thead><tbody>
+        ${bloque("", x=>grupoDe(x.c)>=400 && grupoDe(x.c)<403)}${tot("Total ingresos", R.ingOp)}
+        ${bloque("", x=>grupoDe(x.c)>=500 && grupoDe(x.c)<600)}${R.costo?tot("Total costo de ventas", R.costo):""}
+        ${tot("Utilidad bruta", R.bruta, true)}
+        ${bloque("", x=>grupoDe(x.c)>=600 && grupoDe(x.c)<700)}${tot("Total gastos de operación", R.gastos)}
+        ${tot(R.operacion>=0?"Utilidad de operación":"Pérdida de operación", R.operacion, true)}
+        ${bloque("", x=>grupoDe(x.c)>=700 && grupoDe(x.c)<800)}${R.fin?tot("Total gastos financieros", R.fin):""}
+        ${bloque("", x=>grupoDe(x.c)>=403 && grupoDe(x.c)<500)}${R.otrosIng?tot("Total otros ingresos", R.otrosIng):""}
+        ${tot(R.antes>=0?"Utilidad antes de impuestos":"Pérdida antes de impuestos", R.antes, true)}</tbody></table></div>
+        <div class="fsub" style="max-width:none;margin-top:6px">Con los movimientos de tu balanza de CONTPAQi. No incluye ISR ni PTU del ejercicio (se determinan en la anual).</div>`;
+    } else if(efTab==="balance"){
+      const B = E.B, fila = x => `<tr><td style="padding-left:20px">${esc(x.c.nombre)}</td><td class="num">${f(x.saldo)}</td></tr>`, tot = (l, v, fuerte) => `<tr style="${fuerte?"background:var(--group)":""}"><td><strong>${l}</strong></td><td class="num"><strong>${f(v)}</strong></td></tr>`;
+      const sec = (filtro) => E.bal.filter(x=>filtro(grupoDe(x.c)) && Math.abs(x.saldo)>0.004).map(fila).join("");
+      h = `<div class="dgrid"><div class="bpanel"><h3>Activo<small>al ${new Date(Date.UTC(year, efMes, 0)).getUTCDate()} de ${MESES[efMes-1].toLowerCase()} ${year}</small></h3><table class="decl"><tbody>
+          <tr><td><strong>Activo circulante</strong></td><td></td></tr>${sec(g=>g<150)}${tot("Total activo circulante", B.actC)}
+          <tr><td><strong>Activo no circulante</strong></td><td></td></tr>${sec(g=>g>=150 && g<200)}${tot("Total activo no circulante", B.actNC)}
+          ${tot("TOTAL ACTIVO", B.activo, true)}</tbody></table></div>
+        <div class="bpanel"><h3>Pasivo y capital<small>&nbsp;</small></h3><table class="decl"><tbody>
+          <tr><td><strong>Pasivo a corto plazo</strong></td><td></td></tr>${sec(g=>g>=200 && g<250)}${tot("Total pasivo a corto plazo", B.pasCP)}
+          ${B.pasLP?`<tr><td><strong>Pasivo a largo plazo</strong></td><td></td></tr>${sec(g=>g>=250 && g<300)}${tot("Total pasivo a largo plazo", B.pasLP)}`:""}
+          ${tot("TOTAL PASIVO", B.pasivo, true)}
+          <tr><td><strong>Capital contable</strong></td><td></td></tr>${sec(g=>g>=300 && g<400)}<tr><td style="padding-left:20px">Resultado del ejercicio</td><td class="num">${f(B.resultadoEj)}</td></tr>${tot("Total capital contable", B.capital)}
+          ${tot("TOTAL PASIVO Y CAPITAL", r2(B.pasivo + B.capital), true)}</tbody></table></div></div>
+        <div class="fsub" style="max-width:none">${Math.abs(B.dif)<=1 ? "✓ Activo = Pasivo + Capital." : `⚠️ No cuadra por ${f(B.dif)}: revisa que la balanza esté completa (todas las cuentas de mayor).`}</div>`;
+    } else {
+      const F = flujoDe(year, efMes, efModo), fila = x => `<tr><td style="padding-left:20px">${esc(x.nombre)}</td><td class="num">${f(x.monto)}</td></tr>`, tot = (l, v, fuerte) => `<tr style="${fuerte?"background:var(--group)":""}"><td><strong>${l}</strong></td><td class="num"><strong>${f(v)}</strong></td></tr>`;
+      h = modoSel + `<div class="sheet"><table class="ft" style="min-width:560px"><thead><tr><th>Flujo de efectivo · ${per} (método indirecto)</th><th class="num">Importe</th></tr></thead><tbody>
+        <tr><td><strong>Actividades de operación</strong></td><td></td></tr><tr><td style="padding-left:20px">${F.utilidad>=0?"Utilidad":"Pérdida"} del periodo</td><td class="num">${f(F.utilidad)}</td></tr>${F.dep.map(fila).join("")}
+        <tr><td style="padding-left:20px" class="fsub">Cambios en capital de trabajo (aumento de activos = salida, aumento de pasivos = entrada):</td><td></td></tr>${F.ct.map(fila).join("")}
+        ${tot("Flujo de operación", F.op, true)}
+        <tr><td><strong>Actividades de inversión</strong></td><td></td></tr>${F.inv.map(fila).join("") || '<tr><td style="padding-left:20px" class="fsub">Sin movimientos</td><td></td></tr>'}${tot("Flujo de inversión", F.tInv, true)}
+        <tr><td><strong>Actividades de financiamiento</strong></td><td></td></tr>${F.fin.map(fila).join("") || '<tr><td style="padding-left:20px" class="fsub">Sin movimientos</td><td></td></tr>'}${tot("Flujo de financiamiento", F.tFin, true)}
+        ${tot("Aumento (disminución) de efectivo", F.dEf, true)}
+        <tr><td>Efectivo al inicio del periodo</td><td class="num">${f(F.efIni)}</td></tr><tr><td><strong>Efectivo al final del periodo</strong></td><td class="num"><strong>${f(F.efFin)}</strong></td></tr></tbody></table></div>
+        <div class="fsub" style="max-width:none;margin-top:6px">${Math.abs(F.dif)<=1 ? "✓ Operación + inversión + financiamiento = cambio en caja y bancos." : `⚠️ Diferencia de ${f(F.dif)} contra el cambio en caja y bancos: revisa que la balanza esté completa.`}</div>`;
+    }
+    $("efbody").innerHTML = h;
+    const B = E.B, R = E.R(efModo==="acum"?"acum":"mes");
+    $("statusLine").innerHTML = `${MESES[efMes-1]} ${year} · ingresos <strong>${f(R.ingOp)}</strong> · ${R.antes>=0?"utilidad":"pérdida"} <strong>${f(R.antes)}</strong> (${efModo==="acum"?"acumulado":"del mes"}) · activo <strong>${f(B.activo)}</strong> · bancos <strong>${f(r2(E.bal.filter(x=>grupoDe(x.c)>=101 && grupoDe(x.c)<=103).reduce((s,x)=>s+x.saldo,0)))}</strong>.`;
+  }
+  $("eftabs").addEventListener("click", e => { const b = e.target.closest("[data-eftab]"); if(b){ efTab = b.dataset.eftab; renderEstados(); } });
+  $("efmonths").addEventListener("click", e => { const b = e.target.closest("[data-efmes]"); if(b && !b.disabled){ efMes = +b.dataset.efmes; renderEstados(); } });
+  $("efbody").addEventListener("click", e => { const b = e.target.closest("[data-efmodo]"); if(b){ efModo = b.dataset.efmodo; renderEstados(); } });
+  $("efbody").addEventListener("input", e => { if(e.target.id==="efBuscar"){ const v = e.target.value, pos = e.target.selectionStart; renderEstados(); const i = $("efBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
+  $("efbody").addEventListener("change", e => { if(e.target.id==="efSoloMay"){ window.__efSoloMay = e.target.checked; renderEstados(); } });
+  async function exportEstados(fmt){
+    if(!efMes){ toast("Sube tus balanzas primero."); return; }
+    const E = estadosDe(year, efMes), F = flujoDe(year, efMes, efModo), kR = efModo==="acum"?"acum":"mes", R = E.R(kR), B = E.B, per = efModo==="acum" ? `Enero a ${MESES[efMes-1]} ${year}` : `${MESES[efMes-1]} ${year}`;
+    const filasRes = [["ESTADO DE RESULTADOS", null], ...E.res.filter(x=>grupoDe(x.c)<403).map(x=>[`  ${x.c.nombre}`, x[kR]]), ["Ingresos", R.ingOp], ...E.res.filter(x=>grupoDe(x.c)>=500 && grupoDe(x.c)<600).map(x=>[`  ${x.c.nombre}`, x[kR]]), ["Utilidad bruta", R.bruta],
+      ...E.res.filter(x=>grupoDe(x.c)>=600 && grupoDe(x.c)<700).flatMap(x=>[[`  ${x.c.nombre}`, x[kR]], ...x.hijos.filter(h=>h[kR] && h.c.nombre!==x.c.nombre).map(h=>[`      ${h.c.nombre}`, h[kR]])]), ["Gastos de operación", R.gastos], ["Resultado de operación", R.operacion],
+      ...E.res.filter(x=>grupoDe(x.c)>=700).map(x=>[`  ${x.c.nombre}`, x[kR]]), ...E.res.filter(x=>grupoDe(x.c)>=403 && grupoDe(x.c)<500).map(x=>[`  ${x.c.nombre}`, x[kR]]), ["Resultado antes de impuestos", R.antes]];
+    const filasBal = [["BALANCE GENERAL", null], ["Activo circulante", null], ...E.bal.filter(x=>grupoDe(x.c)<150 && x.saldo).map(x=>[`  ${x.c.nombre}`, x.saldo]), ["Total activo circulante", B.actC], ["Activo no circulante", null], ...E.bal.filter(x=>grupoDe(x.c)>=150 && grupoDe(x.c)<200 && x.saldo).map(x=>[`  ${x.c.nombre}`, x.saldo]), ["Total activo no circulante", B.actNC], ["TOTAL ACTIVO", B.activo],
+      ["Pasivo", null], ...E.bal.filter(x=>grupoDe(x.c)>=200 && grupoDe(x.c)<300 && x.saldo).map(x=>[`  ${x.c.nombre}`, x.saldo]), ["TOTAL PASIVO", B.pasivo], ["Capital contable", null], ...E.bal.filter(x=>grupoDe(x.c)>=300 && grupoDe(x.c)<400 && x.saldo).map(x=>[`  ${x.c.nombre}`, x.saldo]), ["  Resultado del ejercicio", B.resultadoEj], ["TOTAL CAPITAL", B.capital], ["TOTAL PASIVO Y CAPITAL", r2(B.pasivo+B.capital)]];
+    const filasFlu = [["FLUJO DE EFECTIVO (método indirecto)", null], ["Resultado del periodo", F.utilidad], ...F.dep.map(x=>[`  ${x.nombre}`, x.monto]), ...F.ct.map(x=>[`  ${x.nombre}`, x.monto]), ["Flujo de operación", F.op], ...F.inv.map(x=>[`  ${x.nombre}`, x.monto]), ["Flujo de inversión", F.tInv], ...F.fin.map(x=>[`  ${x.nombre}`, x.monto]), ["Flujo de financiamiento", F.tFin], ["Aumento (disminución) de efectivo", F.dEf], ["Efectivo al inicio", F.efIni], ["Efectivo al final", F.efFin]];
+    if(fmt==="xlsx"){ await loadLibs("excel"); const wb = new ExcelJS.Workbook(), M = '"$"#,##0.00;-"$"#,##0.00';
+      for(const [nom, filas] of [["Resultados", filasRes], ["Balance general", filasBal], ["Flujo de efectivo", filasFlu]]){ const w = wb.addWorksheet(nom); w.columns = [{width:50},{width:18}];
+        w.addRow([`${empresaNombre} · ${nom} · ${nom==="Balance general" ? `al cierre de ${MESES[efMes-1]} ${year}` : per}`]).font = {bold:true, size:13}; w.addRow([]);
+        filas.forEach(([l,v])=>{ const r = w.addRow([l, v]); r.getCell(2).numFmt = M; if(v==null || !/^\s/.test(l)) r.font = {bold:true}; }); }
+      const wB = wb.addWorksheet("Balanza"); wB.columns = [{width:14},{width:40},{width:16},{width:16},{width:16},{width:16}]; wB.addRow(["Cuenta","Nombre","Saldo inicial","Cargos","Abonos","Saldo final"]).font = {bold:true};
+      E.ctas.forEach(c=>{ const r = wB.addRow([c.cuenta, c.nombre, +c.si||0, +c.cargos||0, +c.abonos||0, +c.sf||0]); [3,4,5,6].forEach(i=>r.getCell(i).numFmt = M); if(esMayor(c)) r.font = {bold:true}; });
+      await guardarArchivo(`Estados financieros ${empresaNombre} ${ABR[efMes-1]} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()])); return; }
+    await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt", format:"letter"}), M = v => v==null ? "" : money.format(v);
+    const pagina = (titulo, sub, filas, primera) => { if(!primera) doc.addPage(); doc.setFontSize(14); doc.text(empresaNombre, 40, 44); doc.setFontSize(11); doc.text(`${titulo} · ${sub}`, 40, 62);
+      doc.autoTable({startY:76, body: filas.map(([l,v])=>[l, M(v)]), styles:{fontSize:8.5, cellPadding:3}, columnStyles:{1:{halign:"right"}}, theme:"plain", margin:{left:40, right:40},
+        didParseCell: d => { const l = filas[d.row.index][0]; if(!/^\s/.test(l)) d.cell.styles.fontStyle = "bold"; } }); };
+    pagina("Estado de resultados", per, filasRes.slice(1), true); pagina("Balance general", `al cierre de ${MESES[efMes-1]} ${year}`, filasBal.slice(1)); pagina("Flujo de efectivo", per, filasFlu.slice(1));
+    await guardarArchivo(`Estados financieros ${empresaNombre} ${ABR[efMes-1]} ${year}.pdf`, doc.output("blob"));
   }
 
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
