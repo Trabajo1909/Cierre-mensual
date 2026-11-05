@@ -217,6 +217,8 @@ table.calc tr.res td{font-weight:800}
 table.calc tr.sub td{color:var(--muted)}
 table.calc input{width:110px;text-align:right;padding:4px 7px;font-size:14px}
 table.decl{min-width:640px}
+.bpanel > table.decl,.dgrid table.decl,.bpanel > div > table.decl:not(.ancha){min-width:0;width:100%}
+.bpanel > table.decl td:not(.num),.dgrid table.decl td:not(.num){white-space:normal;overflow-wrap:anywhere}
 table.decl th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line-strong)}
 table.decl td{padding:9px 10px;font-size:13px;vertical-align:top;border-bottom:1px solid var(--line)}
 table.decl td.num{text-align:right;white-space:nowrap}
@@ -276,7 +278,7 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 16 · Presupuesto mensual</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 20 · Calculadora de fondeo</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1109,6 +1111,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeRecargos();
     subscribeAccesos();
     subscribePresupuesto();
+    subscribePreReglas();
     subscribeDocsEmpresa();
     subscribeCfdi();
     subscribePolApp();
@@ -6458,6 +6461,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("accBorrar").onclick = async () => { if(!accEdit || !await confirmar("¿Borrar este acceso?")) return; try{ await db.doc(`empresas/${empresa}/accesos/${accEdit}`).delete(); $("accDlg").close(); }catch(err){ handleWriteError(err); } };
 
   // ---------- Presupuesto mensual: inicial, real y actualizado; flujo y fondeo ----------
+  let preRapidos = {};
   let presup = {}, unsubPre = null, preMes = null, preAbiertos = new Set(), preTipoSubida = "inicial";
   function subscribePresupuesto(){
     if(unsubPre) unsubPre(); presup = {};
@@ -6494,7 +6498,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // Solicitud de fondeo
     const envio = {}, he = wb.SheetNames.find(n=>/envio|envío/i.test(n));
     if(he){ const E = XLSX.utils.sheet_to_json(wb.Sheets[he], {header:1, defval:"", raw:true});
-      for(const row of E) row.forEach((x,i)=>{ const t = nPre(x), v = row.slice(i+1).find(y=>typeof y==="number");
+      for(const row of E) row.forEach((x,i)=>{ const t = nPre(x), v = typeof row[i+1]==="number" ? row[i+1] : null;
         if(v==null) return; if(/^total a fondear/.test(t)) envio.total = r2(v); else if(/fondeo.*nomina/.test(t)) envio.nomina = envio.nomina ?? r2(v); else if(/fondeo a cuenta/.test(t) && !/nomina/.test(t)) envio.cuenta = envio.cuenta ?? r2(v); else if(/^entradas/.test(t)) envio.entradas = r2(v); else if(/^presupuesto /.test(t)) envio.presupuesto = r2(v); }); }
     let mes = null; const nm = sinAcento(String(nombre)).toUpperCase(); Object.entries(MES_NOMBRE).forEach(([k,v])=>{ if(!mes && nm.includes(k)) mes = v; });
     return {items, control, envio, mes, total: r2(items.reduce((s,i)=>s+i.monto,0))};
@@ -6509,6 +6513,32 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     try{ await db.doc(`empresas/${empresa}/presupuestos/${key}`).set(d); presup = {...presup, [key]: d}; preMes = mes; toast(`Presupuesto ${tipo} de ${MESES[mes-1].toLowerCase()}: ${p.items.length} conceptos por ${money.format(p.total)}${p.control.length?` y ${p.control.length} pagos de la hoja de control`:""}.`); renderPresupuesto(); }
     catch(err){ handleWriteError(err); }
   }
+  // Todos los pagos del mes: los de la hoja de control y los que están en la app (pagos a proveedores, nómina e impuestos)
+  let preReglas = {}, unsubPR = null, preSoloSin = false;
+  function subscribePreReglas(){ if(unsubPR) unsubPR(); preReglas = {}; if(!db || !empresa) return;
+    unsubPR = db.doc(`empresas/${empresa}/config/presupuestoReglas`).onSnapshot(s => { preReglas = s.exists ? (s.data().reglas||{}) : {}; if(vista==="presupuesto") renderPresupuesto(); }, () => {}); }
+  function pagosDelMes(y, m, P, subsLista){
+    const key = mesKey(y, m), enMes = x => String(x||"").slice(0,7)===key, out = [];
+    const control = (P.control||[]).filter(c=>!c.fecha || enMes(c.fecha) || !/^\d{4}-\d{2}/.test(c.fecha));
+    const subPorNombre = s => { const x = subsLista.find(g=>nPre(g.sub)===nPre(s)); return x ? `${x.cat}|${x.sub}` : ""; };
+    control.forEach((c,i)=>out.push({key:`c:${i}:${nPre(c.concepto)}:${c.monto}`, fecha:c.fecha, nombre:c.concepto, monto:c.monto, origen:"Hoja de control", sugerido: subPorNombre(c.sub), regla: nPre(c.concepto)}));
+    const yaEnControl = (monto, fecha) => control.some(c=>Math.abs(c.monto - monto) < 1 && (!c.fecha || !fecha || Math.abs(diasEntre(c.fecha, fecha)) <= 7));
+    const sug = nombre => preReglas[nPre(nombre)] || "";
+    abonos.filter(a=>a.tipo==="pago" && enMes(a.fecha)).forEach(a=>{ const f = facturas.find(x=>x.uuid===a.uuid) || {}; const fe = String(a.fecha).slice(0,10), mo = r2(+a.monto||0);
+      if(!yaEnControl(mo, fe)) out.push({key:`a:${a.uuid}:${fe}:${mo}`, fecha:fe, nombre:f.nombre||"Pago a proveedor", monto:mo, origen:"Pagos (Cuentas)", sugerido: sug(f.nombre), regla: nPre(f.nombre)}); });
+    facturas.filter(f=>f.tipo==="recibida" && vigente(f) && f.metodo==="PUE" && enMes(f.fecha) && !abonos.some(a=>a.uuid===f.uuid)).forEach(f=>{ const mo = r2(+f.total||0);
+      if(!yaEnControl(mo, f.fecha)) out.push({key:`p:${f.uuid}`, fecha:f.fecha, nombre:f.nombre, monto:mo, origen:"Factura PUE", sugerido: sug(f.nombre), regla: nPre(f.nombre)}); });
+    nominas.filter(n=>vigente(n) && enMes(n.fechaPago)).forEach(n=>{ const mo = r2((+n.percepciones||0)-(+n.isr||0)-(+n.imss||0));
+      if(!yaEnControl(mo, n.fechaPago)) out.push({key:`n:${n.uuid}`, fecha:n.fechaPago, nombre:`Nómina ${n.nombre}`, monto:mo, origen:"Nómina", sugerido: sug(`nomina ${n.nombre}`) || (()=>{ const g = subsLista.find(x=>/nomina/.test(nPre(x.sub))); return g ? `${g.cat}|${g.sub}` : ""; })(), regla: nPre(`nomina ${n.nombre}`)}); });
+    declaraciones.filter(d=>d.pagada && enMes(d.fechaPago) && +d.aPagar>0).forEach(d=>{ const o = OBLIG.find(x=>x.clave===d.clave) || {nombre:d.clave, aut:""}; const mo = r2(+d.pagadoReal || +d.aPagar);
+      if(yaEnControl(mo, d.fechaPago)) return;
+      const re = o.aut==="SATEG" ? /estatal/ : o.aut==="IMSS" ? /cargas sociales|imss/ : /federal/; const g = subsLista.find(x=>re.test(nPre(x.sub)));
+      out.push({key:`i:${d.id||d.clave+d.anio+d.mes}`, fecha:d.fechaPago, nombre:`${o.nombre} (${MESES[d.mes-1].toLowerCase()})`, monto:mo, origen:`Impuestos ${o.aut}`, sugerido: sug(o.nombre) || (g ? `${g.cat}|${g.sub}` : ""), regla: nPre(o.nombre)}); });
+    (P.manuales||[]).filter(x=>!x.fecha || enMes(x.fecha)).forEach(x=>out.push({key:`m:${x.id}`, id:x.id, fecha:x.fecha, nombre:x.concepto, monto:r2(+x.monto||0), origen:`A mano${x.pagadoPor?` · pagó ${x.pagadoPor}`:""}`, sugerido: x.asig||"", manual:true}));
+    const asig = P.asignaciones || {};
+    out.forEach(x=>{ x.asig = asig[x.key] ?? x.sugerido ?? ""; });
+    return out.sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+  }
   function saldoBancosAl(fecha){ return r2(cuentasB.reduce((s,c)=>{ const x = ultimoSaldo(c.id, fecha); return s + (x ? +x.saldo : 0); },0)); }
   function renderPresupuesto(){
     $("yearLabel").textContent = year;
@@ -6519,37 +6549,55 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!P){ $("statusLine").textContent = `Sin presupuesto de ${MESES[preMes-1].toLowerCase()}.`; $("prebody").innerHTML = `<div class="empty">Sube el presupuesto de ${MESES[preMes-1].toLowerCase()} con <strong>Subir presupuesto inicial</strong>. A fin de mes, sube la versión con <strong>Subir presupuesto actualizado</strong>.</div>`; return; }
     const ini = P.inicial || {items:[], total:0}, act = P.actualizado || null, base = act || ini;
     const control = (P.control||[]).filter(c=>!c.fecha || c.fecha.slice(0,7)===key || !/^\d{4}-\d{2}/.test(c.fecha));
-    const realDe = sub => r2(control.filter(c=>nPre(c.sub)===nPre(sub)).reduce((s,c)=>s+c.monto,0));
     // Agrupa por clasificación y subcategoría
     const subs = {}; const addS = (it, campo) => { const k = `${it.cat}|${it.sub}`; const g = subs[k] ||= {cat: it.cat, sub: it.sub, ini:0, act:0, items:{}}; g[campo] = r2(g[campo] + it.monto); const ik = nPre(it.concepto); (g.items[ik] ||= {concepto: it.concepto, ini:0, act:0})[campo] += it.monto; };
     ini.items.forEach(it=>addS(it, "ini")); (act ? act.items : []).forEach(it=>addS(it, "act"));
-    const cats = {}; Object.values(subs).forEach(g=>{ g.real = realDe(g.sub); g.pres = act ? g.act : g.ini; (cats[g.cat] ||= []).push(g); });
-    const fuera = control.filter(c=>!c.sub || !Object.values(subs).some(g=>nPre(g.sub)===nPre(c.sub)));
-    const realTot = r2(control.reduce((s,c)=>s+c.monto,0)), presTot = base.total;
+    const subsLista = Object.values(subs), PAG = pagosDelMes(year, preMes, P, subsLista);
+    const cats = {}; subsLista.forEach(g=>{ const k = `${g.cat}|${g.sub}`; g.pagos = PAG.filter(x=>x.asig===k); g.real = r2(g.pagos.reduce((s,x)=>s+x.monto,0)); g.pres = act ? g.act : g.ini; (cats[g.cat] ||= []).push(g); });
+    const fuera = PAG.filter(x=>x.asig!=="__no" && !subsLista.some(g=>`${g.cat}|${g.sub}`===x.asig));
+    const realTot = r2(PAG.filter(x=>x.asig!=="__no").reduce((s,x)=>s+x.monto,0)), presTot = base.total;
     const st = (pres, real) => !pres && real ? ["vencido","Fuera de presupuesto"] : real > pres + 1 ? ["vencido",`Pasado ${f(r2(real-pres))}`] : real >= pres*0.9 && pres ? ["parcial","Casi completo"] : ["pagado", pres ? `Disponible ${f(r2(pres-real))}` : ""];
     let h = `<div class="kpis">
-      <div class="kpi"><span>Presupuesto inicial</span><b>${f(ini.total)}</b><small>${ini.archivo?esc(ini.archivo.nombre):"sin archivo"}</small></div>
-      <div class="kpi"><span>Presupuesto actualizado</span><b>${act?f(act.total):"—"}</b><small>${act ? `${act.total>ini.total?"+":""}${f(r2(act.total-ini.total))} vs. inicial` : "súbelo al cierre del mes"}</small></div>
+      <div class="kpi"><span>Presupuesto inicial</span><b>${P.inicial?f(ini.total):"—"}</b><small>${P.inicial ? (ini.archivo?esc(ini.archivo.nombre):"") : "no se subió"}</small></div>
+      <div class="kpi"><span>Presupuesto actualizado</span><b>${act?f(act.total):"—"}</b><small>${act ? (P.inicial ? `${act.total>ini.total?"+":""}${f(r2(act.total-ini.total))} vs. inicial` : (act.archivo?esc(act.archivo.nombre):"")) : "súbelo al cierre del mes"}</small></div>
       <div class="kpi"><span>Pagado (hoja de control)</span><b>${f(realTot)}</b><small>${presTot?Math.round(realTot/presTot*100):0}% ejercido · ${control.length} pagos</small></div>
       <div class="kpi"><span>${realTot>presTot?"Te pasaste por":"Disponible"}</span><b style="color:${realTot>presTot?"var(--late-ink)":"inherit"}">${f(Math.abs(r2(presTot-realTot)))}</b><small>contra el presupuesto ${act?"actualizado":"inicial"}</small></div></div>`;
     h += `<div class="sheet" style="margin-top:14px"><table class="ft"><thead><tr><th>Concepto</th><th class="num">Inicial</th><th class="num">Actualizado</th><th class="num">Pagado</th><th class="num">Diferencia</th><th>Estatus</th></tr></thead><tbody>`;
     for(const [cat, gs] of Object.entries(cats)){
       const ti = r2(gs.reduce((s,g)=>s+g.ini,0)), ta = r2(gs.reduce((s,g)=>s+g.act,0)), tr = r2(gs.reduce((s,g)=>s+g.real,0)), tp = act ? ta : ti;
-      h += `<tr style="background:var(--group)"><td><strong>${esc(cat)}</strong></td><td class="num"><strong>${f(ti)}</strong></td><td class="num"><strong>${act?f(ta):"—"}</strong></td><td class="num"><strong>${f(tr)}</strong></td><td class="num ${tr>tp+1?"late":""}"><strong>${f(r2(tp-tr))}</strong></td><td></td></tr>`;
+      h += `<tr style="background:var(--group)"><td><strong>${esc(cat)}</strong></td><td class="num"><strong>${P.inicial?f(ti):"—"}</strong></td><td class="num"><strong>${act?f(ta):"—"}</strong></td><td class="num"><strong>${f(tr)}</strong></td><td class="num ${tr>tp+1?"late":""}"><strong>${f(r2(tp-tr))}</strong></td><td></td></tr>`;
       for(const g of gs){ const [c, t] = st(g.pres, g.real), k = `${g.cat}|${g.sub}`, ab = preAbiertos.has(k);
-        h += `<tr class="row" data-presub="${esc(k)}" style="cursor:pointer"><td style="padding-left:22px">${ab?"▾":"▸"} ${esc(g.sub)}</td><td class="num">${f(g.ini)}</td><td class="num">${act?f(g.act):"—"}</td><td class="num">${g.real?f(g.real):'<span class="fsub">—</span>'}</td><td class="num ${g.real>g.pres+1?"late":""}">${f(r2(g.pres-g.real))}</td><td>${t?`<span class="st ${c}">${t}</span>`:""}</td></tr>`;
+        h += `<tr class="row" data-presub="${esc(k)}" style="cursor:pointer"><td style="padding-left:22px">${ab?"▾":"▸"} ${esc(g.sub)}</td><td class="num">${P.inicial?f(g.ini):"—"}</td><td class="num">${act?f(g.act):"—"}</td><td class="num">${g.real?f(g.real):'<span class="fsub">—</span>'}</td><td class="num ${g.real>g.pres+1?"late":""}">${f(r2(g.pres-g.real))}</td><td>${t?`<span class="st ${c}">${t}</span>`:""}</td></tr>`;
         if(ab){ Object.values(g.items).forEach(it=>{ h += `<tr><td style="padding-left:44px" class="fsub">${esc(it.concepto)}</td><td class="num fsub">${f(it.ini)}</td><td class="num fsub">${act?f(it.act):""}</td><td colspan="3"></td></tr>`; });
-          control.filter(c=>nPre(c.sub)===nPre(g.sub)).forEach(c=>{ h += `<tr><td style="padding-left:44px" class="fsub">💳 ${esc(c.concepto)} · ${c.fecha?fechaCorta(c.fecha):""}</td><td></td><td></td><td class="num fsub">${f(c.monto)}</td><td colspan="2"></td></tr>`; }); }
+          g.pagos.forEach(c=>{ h += `<tr><td style="padding-left:44px" class="fsub">💳 ${esc(c.nombre)} · ${c.fecha?fechaCorta(c.fecha):""} · ${esc(c.origen)}</td><td></td><td></td><td class="num fsub">${f(c.monto)}</td><td colspan="2"></td></tr>`; }); }
       }
     }
-    h += `<tr><td><strong>Total</strong></td><td class="num"><strong>${f(ini.total)}</strong></td><td class="num"><strong>${act?f(act.total):"—"}</strong></td><td class="num"><strong>${f(realTot)}</strong></td><td class="num ${realTot>presTot?"late":""}"><strong>${f(r2(presTot-realTot))}</strong></td><td></td></tr></tbody></table></div>`;
-    if(fuera.length) h += `<div class="bpanel" style="margin-top:16px"><h3>Pagos fuera de presupuesto<small>En la hoja de control, sin subcategoría o con una que no está en el presupuesto.</small></h3><table class="decl" style="width:100%"><tbody>${fuera.map(c=>`<tr><td>${c.fecha?fechaCorta(c.fecha):""}</td><td>${esc(c.concepto)}<div class="fsub">${esc(c.sub||"sin subcategoría")}</div></td><td class="num">${f(c.monto)}</td></tr>`).join("")}</tbody></table></div>`;
+    h += `<tr><td><strong>Total</strong></td><td class="num"><strong>${P.inicial?f(ini.total):"—"}</strong></td><td class="num"><strong>${act?f(act.total):"—"}</strong></td><td class="num"><strong>${f(realTot)}</strong></td><td class="num ${realTot>presTot?"late":""}"><strong>${f(r2(presTot-realTot))}</strong></td><td></td></tr></tbody></table></div>`;
+    // Pagos del mes y a qué renglón del presupuesto corresponden
+    const opts = sel => `<option value="">Sin asignar (fuera de presupuesto)</option>${Object.entries(cats).map(([c, gs])=>`<optgroup label="${esc(c)}">${gs.map(g=>`<option value="${esc(g.cat+"|"+g.sub)}" ${sel===g.cat+"|"+g.sub?"selected":""}>${esc(g.sub)}</option>`).join("")}</optgroup>`).join("")}<option value="__no" ${sel==="__no"?"selected":""}>No contar (traspaso, duplicado…)</option>`;
+    const lista = preSoloSin ? PAG.filter(x=>!x.asig || (x.asig!=="__no" && !subsLista.some(g=>`${g.cat}|${g.sub}`===x.asig))) : PAG;
+    h += `<div class="bpanel" style="margin-top:16px"><h3>Pagos del mes y a qué corresponden<small>Los pagos de la hoja de control y los que tienes en la app (pagos a proveedores, facturas PUE, nómina e impuestos) que no están en la hoja de control. Elige a qué renglón del presupuesto corresponde cada uno; la app lo recuerda por proveedor para los siguientes meses.</small></h3>
+      <div class="pairbar" style="padding:8px 14px;flex-wrap:wrap;gap:10px"><label class="check inline" style="margin:0"><input type="checkbox" id="preSoloSin" ${preSoloSin?"checked":""}> Solo los que no tienen renglón (${fuera.length})</label></div>
+      ${canWrite?`<details style="padding:0 14px 10px"><summary style="cursor:pointer;font-weight:600">+ Agregar un pago a mano (pagado por un tercero, fuera de los bancos de la empresa)</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px;align-items:end">
+          <div><label for="pmaFecha" style="margin:0 0 2px">Fecha</label><input id="pmaFecha" type="date" value="${key}-${String(Math.min(new Date().getDate(), 28)).padStart(2,"0")}"></div>
+          <div style="grid-column:span 2"><label for="pmaConc" style="margin:0 0 2px">Concepto</label><input id="pmaConc" autocomplete="off" placeholder="Ej.: Pauta Hom pagada con tarjeta de Camilo"></div>
+          <div><label for="pmaMonto" style="margin:0 0 2px">Monto</label><input id="pmaMonto" type="number" step="0.01" min="0"></div>
+          <div><label for="pmaQuien" style="margin:0 0 2px">¿Quién lo pagó?</label><input id="pmaQuien" autocomplete="off" placeholder="Ej.: Camilo Puig"></div>
+          <div style="grid-column:span 2"><label for="pmaAsig" style="margin:0 0 2px">Renglón del presupuesto</label><select id="pmaAsig">${opts("")}</select></div>
+          <div><button class="btn sm primary" id="pmaOk">Agregar</button></div></div>
+        <div class="fsub" style="max-width:none;margin-top:6px">Solo cuenta para el presupuesto: no afecta tus bancos ni tu contabilidad.</div></details>`:""}
+      ${lista.length ? `<div class="sheet" style="border:none;border-radius:0"><table class="decl" style="width:100%;min-width:720px"><thead><tr><th>Fecha</th><th>Pago</th><th>De dónde sale</th><th class="num">Monto</th><th>Renglón del presupuesto</th></tr></thead><tbody>
+      ${lista.map(x=>`<tr><td>${x.fecha?fechaCorta(x.fecha):""}</td><td>${esc(x.nombre)}</td><td><span class="st na" style="font-size:11px">${esc(x.origen)}</span></td><td class="num">${f(x.monto)}</td><td>${canWrite?`<select data-preasig="${esc(x.key)}" data-regla="${esc(x.regla||"")}" style="max-width:300px">${opts(x.asig)}</select>${x.manual?` <button class="linkbtn" data-premdel="${esc(x.id)}" style="font-size:12px">quitar</button>`:""}`:esc(x.asig.split("|")[1]||"—")}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty" style="padding:14px">${preSoloSin?"Todos los pagos tienen renglón. 🎉":"Sin pagos este mes."}</div>`}</div>`;
     // Flujo de bancos y fondeo
     const ini0 = `${key}-01`, prevDia = new Date(Date.UTC(year, preMes-1, 0)).toISOString().slice(0,10), finDia = new Date(Date.UTC(year, preMes, 0)).toISOString().slice(0,10), corte = finDia < hoyISO ? finDia : hoyISO;
     const sIni = saldoBancosAl(prevDia), sFin = saldoBancosAl(corte), R = resumenMes(year, preMes);
     const sigKey = preMes===12 ? mesKey(year+1,1) : mesKey(year, preMes+1), Psig = presup[sigKey], presSig = Psig ? (Psig.actualizado||Psig.inicial||{}).total||0 : null;
     const pendImp = (()=>{ try{ return r2(pendientesImpuestos(year).filter(x=>x.total).reduce((s,x)=>s+x.total,0)); }catch(_){ return 0; } })();
     const cxp = (()=>{ const idx = indices(); return r2(facturas.filter(x=>x.tipo==="recibida" && vigente(x)).reduce((s,x)=>s+cuentaDe(x, idx, corte).saldo,0)); })();
+    const cxc = (()=>{ const idx = indices(); return r2(facturas.filter(x=>x.tipo==="emitida" && vigente(x)).reduce((s,x)=>s+cuentaDe(x, idx, corte).saldo,0)); })();
+    const ajF = P.ajustesFondeo || [], ajNeto = r2(ajF.reduce((s,a)=>s+(a.signo<0?-1:1)*(+a.monto||0),0));
+    preRapidos = {cxp, imp: pendImp, cxc};
     h += `<div class="dgrid" style="margin-top:16px"><div class="bpanel"><h3>Bancos en ${MESES[preMes-1].toLowerCase()}<small>Con tus estados de cuenta y saldos diarios. ${cuentasB.map(c=>esc(c.nombre)).join(", ")}.</small></h3><table class="decl" style="width:100%"><tbody>
       <tr><td>Saldo inicial (${fechaCorta(prevDia)})</td><td class="num">${f(sIni)}</td></tr>
       <tr><td>(+) Cobros a clientes</td><td class="num">${f(R.ingCob)}</td></tr>
@@ -6559,7 +6607,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       <div class="bpanel"><h3>Fondeo para ${MESES[preMes===12?0:preMes].toLowerCase()}<small>Lo que se necesita para cubrir el siguiente presupuesto con lo que queda en bancos.</small></h3><table class="decl" style="width:100%"><tbody>
       <tr><td>Presupuesto de ${MESES[preMes===12?0:preMes].toLowerCase()}</td><td class="num">${presSig!=null?f(presSig):'<span class="fsub">súbelo para calcular</span>'}</td></tr>
       <tr><td>(−) Saldo que queda en bancos</td><td class="num">${f(sFin)}</td></tr>
-      <tr><td><strong>Fondeo sugerido</strong></td><td class="num"><strong>${presSig!=null?f(Math.max(0, r2(presSig - sFin))):"—"}</strong></td></tr>
+      ${ajF.map(a=>`<tr><td>${a.signo<0?"(−)":"(+)"} ${esc(a.concepto)}${canWrite?` <button class="linkbtn" data-ajdel="${esc(a.id)}" style="font-size:12px">quitar</button>`:""}</td><td class="num">${f(+a.monto)}</td></tr>`).join("")}
+      <tr><td><strong>Fondeo sugerido</strong></td><td class="num"><strong>${presSig!=null?f(Math.max(0, r2(presSig - sFin + ajNeto))):"—"}</strong>${ajF.length?`<div class="fsub">${ajNeto>=0?"+":"−"}${f(Math.abs(ajNeto))} en ajustes</div>`:""}</td></tr>
+      ${canWrite?`<tr><td colspan="2"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-top:4px">
+        <select id="ajSigno" style="width:auto" aria-label="Sumar o restar"><option value="1">(+) Sumar: gasto extra</option><option value="-1">(−) Restar: ingreso que va a entrar</option></select>
+        <input id="ajConc" placeholder="Concepto" autocomplete="off" style="flex:1;min-width:140px"><input id="ajMonto" type="number" step="0.01" min="0" placeholder="Monto" style="width:120px">
+        <button class="btn sm primary" id="ajOk">Agregar</button></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"><button class="linkbtn" data-ajrap="cxp" style="font-size:12px">+ sumar proveedores pendientes</button><button class="linkbtn" data-ajrap="imp" style="font-size:12px">+ sumar impuestos pendientes</button><button class="linkbtn" data-ajrap="cxc" style="font-size:12px">− restar cobros pendientes de clientes</button></div></td></tr>`:""}
       <tr><td class="fsub" colspan="2" style="padding-top:10px">Para revisar si ya vienen en el presupuesto:</td></tr>
       <tr><td class="fsub">Proveedores pendientes de pagar al cierre</td><td class="num fsub">${f(cxp)}</td></tr>
       <tr><td class="fsub">Impuestos pendientes (con recargos)</td><td class="num fsub">${f(pendImp)}</td></tr>
@@ -6569,6 +6623,36 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("statusLine").innerHTML = `${MESES[preMes-1]}: presupuesto ${act?"actualizado":"inicial"} <strong>${f(presTot)}</strong> · pagado <strong>${f(realTot)}</strong> · ${realTot>presTot?`<strong style="color:var(--late-ink)">pasado por ${f(r2(realTot-presTot))}</strong>`:`disponible <strong>${f(r2(presTot-realTot))}</strong>`}.`;
   }
   $("premonths").addEventListener("click", e => { const b = e.target.closest("[data-premes]"); if(b){ preMes = +b.dataset.premes; renderPresupuesto(); } });
+  $("prebody").addEventListener("change", async e => {
+    if(e.target.id==="preSoloSin"){ preSoloSin = e.target.checked; renderPresupuesto(); return; }
+    const s = e.target.closest("[data-preasig]"); if(!s) return;
+    const key = mesKey(year, preMes), P = presup[key] || {}, asig = {...(P.asignaciones||{}), [s.dataset.preasig]: s.value};
+    try{ await db.doc(`empresas/${empresa}/presupuestos/${key}`).set({...P, asignaciones: asig}); presup = {...presup, [key]: {...P, asignaciones: asig}};
+      if(s.dataset.regla && s.value && s.value!=="__no" && !s.dataset.preasig.startsWith("c:")){ preReglas = {...preReglas, [s.dataset.regla]: s.value}; await db.doc(`empresas/${empresa}/config/presupuestoReglas`).set({reglas: preReglas}); }
+      renderPresupuesto(); }catch(err){ handleWriteError(err); }
+  });
+  $("prebody").addEventListener("click", async e => {
+    const key = mesKey(year, preMes), P = presup[key] || {};
+    if(e.target.closest("#pmaOk")){
+      const conc = $("pmaConc").value.trim(), monto = r2(+$("pmaMonto").value||0);
+      if(!conc){ $("pmaConc").focus(); return; } if(!(monto>0)){ $("pmaMonto").focus(); return; }
+      const nuevo = {id:`m${Date.now().toString(36)}`, fecha: $("pmaFecha").value, concepto: conc, monto, pagadoPor: $("pmaQuien").value.trim(), asig: $("pmaAsig").value};
+      const d = {...P, manuales: [...(P.manuales||[]), nuevo]};
+      try{ await db.doc(`empresas/${empresa}/presupuestos/${key}`).set(d); presup = {...presup, [key]: d}; renderPresupuesto(); toast("Pago agregado al presupuesto."); }catch(err){ handleWriteError(err); }
+      return;
+    }
+    const guardarAj = async lista => { const d = {...P, ajustesFondeo: lista}; try{ await db.doc(`empresas/${empresa}/presupuestos/${key}`).set(d); presup = {...presup, [key]: d}; renderPresupuesto(); }catch(err){ handleWriteError(err); } };
+    if(e.target.closest("#ajOk")){ const c = $("ajConc").value.trim(), m = r2(+$("ajMonto").value||0); if(!c){ $("ajConc").focus(); return; } if(!(m>0)){ $("ajMonto").focus(); return; }
+      return guardarAj([...(P.ajustesFondeo||[]), {id:`aj${Date.now().toString(36)}`, concepto:c, monto:m, signo:+$("ajSigno").value}]); }
+    const rap = e.target.closest("[data-ajrap]");
+    if(rap){ const k = rap.dataset.ajrap, m = r2(preRapidos[k]||0); if(!m){ toast("No hay importe pendiente para agregar."); return; }
+      const c = {cxp:"Proveedores pendientes de pagar", imp:"Impuestos pendientes (con recargos)", cxc:"Cobros pendientes de clientes"}[k];
+      return guardarAj([...(P.ajustesFondeo||[]).filter(a=>a.concepto!==c), {id:`aj${Date.now().toString(36)}`, concepto:c, monto:m, signo: k==="cxc" ? -1 : 1}]); }
+    const ajd = e.target.closest("[data-ajdel]"); if(ajd) return guardarAj((P.ajustesFondeo||[]).filter(a=>a.id!==ajd.dataset.ajdel));
+    const del = e.target.closest("[data-premdel]");
+    if(del){ if(!await confirmar("¿Quitar este pago?")) return; const d = {...P, manuales: (P.manuales||[]).filter(x=>x.id!==del.dataset.premdel)};
+      try{ await db.doc(`empresas/${empresa}/presupuestos/${key}`).set(d); presup = {...presup, [key]: d}; renderPresupuesto(); }catch(err){ handleWriteError(err); } return; }
+  });
   $("prebody").addEventListener("click", e => { const r = e.target.closest("[data-presub]"); if(r){ preAbiertos.has(r.dataset.presub) ? preAbiertos.delete(r.dataset.presub) : preAbiertos.add(r.dataset.presub); renderPresupuesto(); } });
   $("preIni").onclick = () => { preTipoSubida = "inicial"; $("preFile").click(); };
   $("preAct").onclick = () => { preTipoSubida = "actualizado"; $("preFile").click(); };
