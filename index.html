@@ -272,11 +272,11 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 14 · Contabilidad completa por mes</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 15 · Accesos a plataformas</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -338,6 +338,11 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vAccesos" hidden>
+    <div class="ftools"><input id="accBuscar" type="search" placeholder="Buscar acceso" style="max-width:260px" aria-label="Buscar acceso"><button class="btn sm primary" id="accNuevo">Agregar acceso</button></div>
+    <div id="accbody"></div>
   </section>
 
   <section id="vResumen" hidden>
@@ -483,6 +488,16 @@ input,select{width:100%;font-family:inherit;font-size:15px;padding:9px 10px;bord
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="accDlg" style="width:min(520px,94vw)">
+  <h2 id="accTitulo">Nuevo acceso</h2>
+  <label for="accNombre">Nombre</label><input id="accNombre" autocomplete="off" placeholder="Ej.: Portal de Finanzas Guanajuato">
+  <label for="accUrl">Dirección (link)</label><input id="accUrl" type="url" autocomplete="off" inputmode="url" placeholder="https://…">
+  <label for="accCat">Categoría</label><select id="accCat"></select>
+  <label for="accNota">Nota (opcional)</label><input id="accNota" autocomplete="off" placeholder="Ej.: entrar con e.firma · usuario contabilidad@…">
+  <label class="check" id="accTodasFila"><input type="checkbox" id="accTodas"><span>Agregarlo también en todas mis empresas</span></label>
+  <div class="dlg-actions"><button class="linkbtn" id="accBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="accCancel">Cancelar</button><button class="btn primary" id="accOk">Guardar</button></div>
 </dialog>
 
 <dialog id="recCfgDlg" style="width:min(640px,96vw)">
@@ -884,7 +899,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -935,6 +950,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="directorio"){ renderDirectorio(); return; }
     if(vista==="documentos"){ renderDocumentos(); return; }
     if(vista==="resumen"){ renderResumenAnual(); return; }
+    if(vista==="accesos"){ renderAccesos(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1084,6 +1100,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeDirectorio();
     subscribeCalcUsuario();
     subscribeRecargos();
+    subscribeAccesos();
     subscribeDocsEmpresa();
     subscribeCfdi();
     subscribePolApp();
@@ -1331,15 +1348,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || !canWrite;
-    const sinPdf = ["expediente","notas","conta","directorio","documentos"].includes(v), sinXls = ["expediente","notas","documentos"].includes(v);
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || !canWrite;
+    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos"].includes(v), sinXls = ["expediente","notas","documentos","accesos"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
@@ -5647,6 +5664,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     expediente: "Pólizas impresas, invoices de licencias y la carpeta final del mes en .zip para Drive, más el respaldo completo de la app.",
     notas: "Tus pendientes, preguntas para tu jefe y notas. Las abiertas se cuentan en el tablero.",
     activos: "Registra tus activos fijos (la app detecta facturas con uso de CFDI de inversión). Calcula depreciación contable mensual, la póliza del mes y la deducción fiscal anual, y la compara contra tu balanza.",
+    accesos: "Tus links a las plataformas que usas (SAT, IMSS, bancos, portales estatales…), agrupados por categoría. Toca Abrir para entrar. No guardes contraseñas aquí.",
     resumen: "Cuánto entró y cuánto salió cada mes: ingresos facturados y cobrados, fondeo (depósitos que no son cobros ni traspasos), gastos con proveedores, nómina (sueldos y asimilados), impuestos separados en SAT, SATEG e IMSS, y el flujo neto. Toca un mes para ver el detalle de impuestos, el fondeo y en qué se gastó.",
     directorio: "Los datos fiscales de tus clientes y proveedores para facturar: razón social, RFC, régimen, código postal, uso de CFDI, forma y método de pago, correo, banco, CLABE y notas. La app arma la lista con tus facturas y te propone el régimen y uso que vienen en ellas; tú completas el resto o subes su constancia de situación fiscal en PDF para llenarlo solo.",
     conta: "Sube tu catálogo de cuentas y tus pólizas exportadas en .txt de CONTPAQi. La app arma las pólizas del mes (provisiones PPD, egresos e ingresos) con tus cuentas y tu formato, y te las da para importar en CONTPAQi o capturarlas a mano.",
@@ -6362,6 +6380,72 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       styles:{fontSize:7, cellPadding:3}, headStyles:{fillColor:[24,36,29]}, columnStyles: Object.fromEntries(Array.from({length:meses.length+1},(_,i)=>[i+1,{halign:"right"}])), margin:{left:30, right:30}});
     await guardarArchivo(`Resumen ${empresaNombre} ${year}.pdf`, doc.output("blob"));
   }
+
+  // ---------- Accesos: links a las plataformas que usas ----------
+  let accesos = [], unsubAcc = null, accEdit = null;
+  const CATS_ACC = ["SAT", "Estatal", "IMSS e INFONAVIT", "Bancos", "Facturación", "Herramientas", "Otros"];
+  const SUGERIDOS_ACC = [
+    {nombre:"SAT", url:"https://www.sat.gob.mx", cat:"SAT"},
+    {nombre:"Factura electrónica SAT", url:"https://portal.facturaelectronica.sat.gob.mx", cat:"SAT"},
+    {nombre:"Consulta y descarga de CFDI (SAT)", url:"https://portalcfdi.facturaelectronica.sat.gob.mx", cat:"SAT"},
+    {nombre:"IDSE (IMSS)", url:"https://idse.imss.gob.mx", cat:"IMSS e INFONAVIT"},
+    {nombre:"SIPARE (IMSS)", url:"https://sipare.imss.gob.mx", cat:"IMSS e INFONAVIT"},
+    {nombre:"INFONAVIT empresarios", url:"https://empresarios.infonavit.org.mx", cat:"IMSS e INFONAVIT"},
+    {nombre:"BBVA", url:"https://www.bbva.mx", cat:"Bancos"},
+    {nombre:"Banamex", url:"https://www.banamex.com", cat:"Bancos"},
+    {nombre:"Mercado Pago", url:"https://www.mercadopago.com.mx", cat:"Bancos"},
+    {nombre:"CEDI", url:"https://www.soycedi.com", cat:"Bancos"}
+  ];
+  function subscribeAccesos(){
+    if(unsubAcc) unsubAcc(); accesos = [];
+    if(!db || !empresa) return;
+    unsubAcc = db.collection(`empresas/${empresa}/accesos`).onSnapshot(qs => { accesos = qs.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>(a.orden||0)-(b.orden||0) || String(a.nombre).localeCompare(String(b.nombre))); if(vista==="accesos") renderAccesos(); }, () => {});
+  }
+  const urlBien = u => { u = String(u||"").trim(); if(!u) return ""; if(!/^https?:\/\//i.test(u)) u = "https://" + u; try{ return new URL(u).href; }catch(_){ return ""; } };
+  function renderAccesos(){
+    $("yearLabel").textContent = year;
+    const q = normTxt(($("accBuscar")||{}).value||"");
+    const lista = accesos.filter(a=>!q || normTxt(`${a.nombre} ${a.cat} ${a.nota||""} ${a.url}`).includes(q));
+    $("statusLine").innerHTML = `${accesos.length} ${accesos.length===1?"acceso guardado":"accesos guardados"} para ${esc(empresaNombre)}.`;
+    let h = "";
+    if(!accesos.length) h += `<div class="empty">Guarda aquí los links de las plataformas que usas: SAT, IMSS, bancos, portales estatales, facturación… Toca <strong>Agregar acceso</strong> o agrega de un toque los más comunes de abajo.</div>`;
+    for(const c of CATS_ACC){ const xs = lista.filter(a=>(a.cat||"Otros")===c); if(!xs.length) continue;
+      h += `<div style="margin:6px 0 16px"><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:8px">${esc(c)}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">
+        ${xs.map(a=>{ let host = ""; try{ host = new URL(a.url).hostname.replace(/^www\./,""); }catch(_){}
+          return `<div class="bpanel" style="padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin:0"><a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer" style="font-weight:700;font-size:15px;color:var(--ink);text-decoration:none">${esc(a.nombre)} ↗</a><div class="fsub" style="max-width:none">${esc(host)}</div>${a.nota?`<div class="fsub" style="max-width:none;white-space:normal">${esc(a.nota)}</div>`:""}
+            <div style="display:flex;gap:10px;margin-top:auto"><a class="btn sm primary" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Abrir</a>${canWrite?`<button class="linkbtn" data-accedit="${esc(a.id)}">Editar</button>`:""}</div></div>`; }).join("")}</div></div>`; }
+    const faltan = SUGERIDOS_ACC.filter(s=>!accesos.some(a=>a.url.replace(/\/$/,"")===s.url));
+    if(canWrite && faltan.length) h += `<div class="bpanel" style="margin-top:8px"><h3>Agregar de un toque<small>Los portales más comunes. Toca uno para guardarlo en tus accesos.</small></h3><div class="pairbar" style="padding:10px 14px;flex-wrap:wrap;gap:8px">${faltan.map((s,i)=>`<button class="btn sm" data-accsug="${SUGERIDOS_ACC.indexOf(s)}">+ ${esc(s.nombre)}</button>`).join("")}</div></div>`;
+    h += `<div class="fsub" style="max-width:none;white-space:normal;margin-top:10px">🔒 Por seguridad, no guardes contraseñas aquí: usa el llavero de tu iPad o computadora. En notas puedes poner, por ejemplo, con qué correo o usuario entras.</div>`;
+    $("accbody").innerHTML = h;
+  }
+  function abrirAcc(a){
+    accEdit = a && a.id ? a.id : null;
+    $("accTitulo").textContent = accEdit ? "Editar acceso" : "Nuevo acceso";
+    $("accNombre").value = (a && a.nombre) || ""; $("accUrl").value = (a && a.url) || ""; $("accNota").value = (a && a.nota) || "";
+    $("accCat").innerHTML = CATS_ACC.map(c=>`<option ${((a&&a.cat)||"Otros")===c?"selected":""}>${c}</option>`).join("");
+    $("accTodas").checked = false; $("accTodasFila").style.display = empresas.length>1 && !accEdit ? "" : "none";
+    $("accBorrar").style.display = accEdit ? "" : "none"; $("accDlg").showModal(); $("accNombre").focus();
+  }
+  async function guardarAcceso(d, todas){
+    const id = accEdit || `acc-${Date.now().toString(36)}`;
+    const destinos = todas ? empresas.map(e=>e.id) : [empresa];
+    for(const em of destinos) await db.doc(`empresas/${em}/accesos/${id}`).set({...d, orden: d.orden ?? accesos.length});
+  }
+  $("accNuevo").onclick = () => abrirAcc(null);
+  $("accBuscar").addEventListener("input", () => renderAccesos());
+  $("accbody").addEventListener("click", async e => {
+    const ed = e.target.closest("[data-accedit]"); if(ed){ abrirAcc(accesos.find(a=>a.id===ed.dataset.accedit)); return; }
+    const sg = e.target.closest("[data-accsug]"); if(sg){ const s = SUGERIDOS_ACC[+sg.dataset.accsug]; accEdit = null; try{ await guardarAcceso({nombre:s.nombre, url:s.url, cat:s.cat, nota:""}, false); toast(`${s.nombre} agregado.`); }catch(err){ handleWriteError(err); } return; }
+  });
+  $("accCancel").onclick = () => $("accDlg").close();
+  $("accOk").onclick = async () => {
+    const nombre = $("accNombre").value.trim(), url = urlBien($("accUrl").value);
+    if(!nombre){ $("accNombre").focus(); return; } if(!url){ toast("Revisa la dirección (por ejemplo: www.sat.gob.mx)."); $("accUrl").focus(); return; }
+    if(/contrase|password|clave:/i.test($("accNota").value) && !await confirmar("Parece que estás guardando una contraseña en la nota. Es más seguro no guardarla aquí. ¿Guardar de todos modos?")) return;
+    try{ await guardarAcceso({nombre, url, cat: $("accCat").value, nota: $("accNota").value.trim()}, $("accTodas").checked); $("accDlg").close(); }catch(err){ handleWriteError(err); }
+  };
+  $("accBorrar").onclick = async () => { if(!accEdit || !await confirmar("¿Borrar este acceso?")) return; try{ await db.doc(`empresas/${empresa}/accesos/${accEdit}`).delete(); $("accDlg").close(); }catch(err){ handleWriteError(err); } };
 
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
   $("recCfgOk").onclick = async () => {
