@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 31 · Reporte de liberaciones de Mercado Pago</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 32 · Comisiones de TikTok Shop</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1229,6 +1229,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribePreReglas();
     subscribeVentasPlat();
     subscribeLiberaciones();
+    subscribePagosPlat();
     subscribeDocsEmpresa();
     subscribeCfdi();
     subscribeArchivosGen();
@@ -7177,6 +7178,41 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     return {n, nuevasV};
   }
 
+  // ---------- Reporte de ingresos (liquidaciones) de TikTok Shop ----------
+  let pagosPlat = [], unsubPP = null;
+  function subscribePagosPlat(){ if(unsubPP) unsubPP(); pagosPlat = []; if(!db || !empresa) return;
+    unsubPP = db.collection(`empresas/${empresa}/pagosPlat`).onSnapshot(qs => { pagosPlat = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="ventas") renderVentasPlat(); }, () => {}); }
+  function leerIngresosTikTok(wb){
+    const hd = wb.SheetNames.find(n=>/detalles del pedido|order details/i.test(n)); if(!hd) return null;
+    const F = XLSX.utils.sheet_to_json(wb.Sheets[hd], {header:1, defval:"", raw:true}); if(!F.length) return null;
+    const H = F[0].map(nPre), c = re => H.findIndex(h=>re.test(h)), n = v => +String(v||0).replace(/[^\d.-]/g,"")||0, fe = v => String(v||"").replace(/\//g,"-").slice(0,10);
+    const C = {fLiq:c(/^fecha estado de cta/), pago:c(/^id del pago/), tipo:c(/^tipo de transaccion/), orden:c(/^identificacion del pedido/), cant:c(/^cantidad$/), prod:c(/^nombre del producto/), fCrea:c(/^fecha de creacion/),
+      neto:c(/^importe total de la liquidacion/), ventas:c(/^ventas netas de productos/), reemb:c(/^reembolsos de productos/), envio:c(/^costo de envio neto/), comision:c(/^cargo por comision/), servicio:c(/^tarifas de servicio/),
+      isr:c(/^isr$/), iva:c(/^iva$/), ced:c(/^impuesto cedular/), afil:c(/^comisiones de afiliado/), ads:c(/^tarifa de anuncios/), ajuste:c(/^monto del ajuste/)};
+    if(C.orden<0 || C.neto<0) return null;
+    const ped = {};
+    for(const r of F.slice(1)){ const o = String(r[C.orden]||"").trim(); if(!o || o==="/") continue;
+      const p = ped[o] ||= {orden:o, fecha: fe(r[C.fCrea]), producto: String(r[C.prod]||"").trim(), cantidad:0, bruto:0, reembolso:0, envio:0, comision:0, impuestos:0, neto:0, liquidado: fe(r[C.fLiq]), idPago: String(r[C.pago]||"")};
+      if(/pedido|order/i.test(String(r[C.tipo]))){ p.cantidad += n(r[C.cant]) || 0; p.bruto = r2(p.bruto + n(r[C.ventas])); }
+      p.reembolso = r2(p.reembolso + Math.abs(n(r[C.reemb]))); p.envio = r2(p.envio + Math.abs(n(r[C.envio])));
+      p.comision = r2(p.comision + Math.abs(n(r[C.comision])) + Math.abs(n(r[C.servicio])) + Math.abs(n(r[C.afil])) + Math.abs(n(r[C.ads])));
+      p.impuestos = r2(p.impuestos + Math.abs(n(r[C.isr])) + Math.abs(n(r[C.iva])) + Math.abs(n(r[C.ced])));
+      p.neto = r2(p.neto + n(r[C.neto])); if(fe(r[C.fLiq]) > p.liquidado) p.liquidado = fe(r[C.fLiq]); }
+    const pagos = []; const hp = wb.SheetNames.find(n=>/^pagos$|payouts?/i.test(n));
+    if(hp){ const P = XLSX.utils.sheet_to_json(wb.Sheets[hp], {header:1, defval:"", raw:true}); const h2 = (P[0]||[]).map(nPre), ci = re => h2.findIndex(h=>re.test(h));
+      const iId = ci(/^id del pago/), iM = ci(/^monto del pago/), iF = ci(/^fecha de inicio/), iF2 = ci(/^fecha de finalizacion/);
+      for(const r of P.slice(1)){ if(!String(r[iId]||"").trim()) continue; pagos.push({plataforma:"TikTok Shop", idPago:String(r[iId]).trim(), monto:r2(n(r[iM])), fecha: fe(r[iF2]||r[iF])}); } }
+    return {pedidos: Object.values(ped), pagos};
+  }
+  async function guardarIngresosTikTok(R){
+    const ventas = R.pedidos.map(p=>{ const prev = ventasP.find(v=>/tiktok/i.test(v.plataforma) && String(v.orden)===p.orden) || {};
+      return {plataforma:"TikTok Shop", orden:p.orden, fecha: prev.fecha || p.fecha, estado: prev.estado || "Liquidado", producto: prev.producto || p.producto, cantidad: prev.cantidad || p.cantidad || 1,
+        bruto: prev.bruto || p.bruto, reembolso: p.reembolso, cargos: p.comision, impuestos: p.impuestos, envio: p.envio, neto: p.neto, liquidado: p.liquidado, idPago: p.idPago, sku: prev.sku || ""}; });
+    await guardarVentas(ventas);
+    for(const pg of R.pagos) await conReintento(()=>db.doc(`empresas/${empresa}/pagosPlat/tiktok_${pg.idPago}`).set(pg));
+    return ventas.length;
+  }
+
   // ---------- Conciliación de ventas contra el estado de cuenta de Mercado Pago ----------
   function conciliarMP(y, m){
     const mpCtas = cuentasB.filter(c=>/mercado ?pago/i.test(c.nombre)).map(c=>c.id);
@@ -7214,7 +7250,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const tk = ventasP.filter(v=>/tiktok/i.test(v.plataforma) && String(v.fecha).slice(0,7)===mesKey(y,m) && !esCancelada(v));
     const libTk = liberaciones.filter(l=>plataformaLib(l)==="TikTok Shop" && String(l.fecha).slice(0,7)===mesKey(y,m));
     if(libTk.length && !(grupos["Pago de TikTok Shop (EBANX)"]||[]).length) grupos["Pago de TikTok Shop (EBANX)"] = libTk.map(l=>({fecha:l.fecha, nombre:"Pago TikTok Shop (EBANX)", concepto:`Op. ${l.op}`, monto:l.credito, tipo:"dep"}));
-    return {pares, pendientes, grupos, hayMovs: movs.length>0, tiktokVentas: r2(tk.reduce((s,v)=>s+ventaNeta(v),0)), tiktokPagos: r2((grupos["Pago de TikTok Shop (EBANX)"]||[]).reduce((s,b)=>s+b.monto,0))};
+    // Pagos de TikTok (reporte de ingresos) contra lo que llegó por EBANX a Mercado Pago
+    const ebanx = [...movs.filter(b=>b.tipo==="dep" && /ebanx/i.test(`${b.nombre} ${b.concepto}`)), ...liberaciones.filter(l=>/tiktok/i.test(l.ident)).map(l=>({id:`lib-${l.op}`, fecha:l.fecha, monto:l.credito}))];
+    const tkPagos = pagosPlat.filter(p=>/tiktok/i.test(p.plataforma) && String(p.fecha).slice(0,7)===mesKey(y,m)), usE = new Set();
+    const tkPares = tkPagos.map(p=>{ const e = ebanx.find(b=>!usE.has(b.id) && Math.abs(b.monto - p.monto) <= 0.5 && Math.abs(diasEntre(p.fecha, b.fecha)) <= 4); if(e) usE.add(e.id); return {p, e}; });
+    const tkMes = ventasP.filter(v=>/tiktok/i.test(v.plataforma) && String(v.fecha).slice(0,7)===mesKey(y,m));
+    const tiktok = {ventas: r2(tkMes.filter(v=>!esCancelada(v)).reduce((s,v)=>s+ventaNeta(v),0)), comision: r2(tkMes.reduce((s,v)=>s+(+v.cargos||0),0)), impuestos: r2(tkMes.reduce((s,v)=>s+(+v.impuestos||0),0)), envio: r2(tkMes.reduce((s,v)=>s+(+v.envio||0),0)),
+      neto: r2(tkMes.filter(v=>v.liquidado).reduce((s,v)=>s+(+v.neto||0),0)), conLiq: tkMes.filter(v=>v.liquidado).length, total: tkMes.length, pagos: tkPares};
+    return {tiktok, pares, pendientes, grupos, hayMovs: movs.length>0, tiktokVentas: r2(tk.reduce((s,v)=>s+ventaNeta(v),0)), tiktokPagos: r2((grupos["Pago de TikTok Shop (EBANX)"]||[]).reduce((s,b)=>s+b.monto,0))};
   }
   function htmlConcMP(){
     const C = conciliarMP(year, vpMes), f = money.format;
@@ -7226,7 +7269,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       <div class="kpis" style="padding:0 14px 10px"><div class="kpi"><span>Ventas con su depósito</span><b>${C.pares.length}</b><small>${f(r2(C.pares.reduce((s,p)=>s+p.v.neto,0)))} · en promedio ${C.pares.length?Math.round(C.pares.reduce((s,p)=>s+p.dias,0)/C.pares.length):0} días después</small></div>
       <div class="kpi"><span>Ventas sin depósito</span><b style="color:${viejas.length?"var(--late-ink)":"inherit"}">${C.pendientes.length}</b><small>${recientes.length} recientes (aún por liberar) · ${viejas.length} para revisar</small></div>
       ${Object.entries(C.grupos).map(([g, xs])=>`<div class="kpi"><span>${esc(g)}</span><b>${f(r2(xs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0)))}</b><small>${xs.length} movimientos</small></div>`).join("")}</div>`;
-    if(C.tiktokVentas || C.tiktokPagos) h += `<div class="fsub" style="padding:0 14px 10px;max-width:none;white-space:normal">TikTok Shop: vendiste ${f(C.tiktokVentas)} y EBANX te pagó ${f(C.tiktokPagos)} en el mes. La diferencia (${f(r2(C.tiktokVentas - C.tiktokPagos))}) suele ser la comisión de TikTok y los pagos que llegan el mes siguiente; con el reporte de liquidaciones de TikTok se cruza pedido por pedido.</div>`;
+    const T = C.tiktok;
+    if(T && T.conLiq) h += `<div style="padding:4px 14px 10px"><strong>TikTok Shop · ventas de ${MESES[vpMes-1].toLowerCase()}</strong><div class="kpis" style="margin-top:6px"><div class="kpi"><span>Vendido</span><b>${f(T.ventas)}</b><small>${T.conLiq} de ${T.total} pedidos ya liquidados</small></div><div class="kpi"><span>Comisiones y tarifas</span><b>${f(T.comision)}</b><small>comisión, servicio, afiliados y anuncios</small></div><div class="kpi"><span>Impuestos retenidos</span><b>${f(T.impuestos)}</b><small>ISR, IVA y cedular que retuvo TikTok</small></div><div class="kpi"><span>Envíos</span><b>${f(T.envio)}</b><small>costo neto de envío</small></div><div class="kpi"><span>Neto liquidado</span><b>${f(T.neto)}</b><small>de los ${T.conLiq} pedidos ya liquidados</small></div></div>
+      ${T.pagos.length?`<div class="fsub" style="max-width:none;margin-top:6px">Pagos de TikTok en el mes: ${T.pagos.filter(x=>x.e).length} de ${T.pagos.length} encontrados en Mercado Pago (EBANX)${T.pagos.some(x=>!x.e)?` · sin encontrar: ${T.pagos.filter(x=>!x.e).map(x=>`${fechaCorta(x.p.fecha)} ${f(x.p.monto)}`).join(", ")}`:""}.</div>`:""}</div>`;
+    else if(C.tiktokVentas || C.tiktokPagos) h += `<div class="fsub" style="padding:0 14px 10px;max-width:none;white-space:normal">TikTok Shop: vendiste ${f(C.tiktokVentas)} y EBANX te pagó ${f(C.tiktokPagos)} en el mes. La diferencia (${f(r2(C.tiktokVentas - C.tiktokPagos))}) suele ser la comisión de TikTok y los pagos que llegan el mes siguiente; con el reporte de liquidaciones de TikTok se cruza pedido por pedido.</div>`;
     if(viejas.length) h += `<div style="padding:4px 14px 10px"><strong>Ventas sin depósito para revisar</strong>${viejas.map(v=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${fechaCorta(v.fecha)} · ${esc(v.orden)} · ${esc((v.producto||"").slice(0,50))}<div class="fsub">${esc(v.estado||"")}</div></span><strong>${f(v.neto)}</strong></div>`).join("")}<div class="fsub" style="max-width:none;margin-top:4px">Pueden estar en un estado de cuenta que no has subido, haberse liberado junto con otras ventas, o seguir retenidas por un reclamo.</div></div>`;
     for(const [g, xs] of Object.entries(C.grupos)) h += `<details style="padding:0 14px 8px"><summary style="cursor:pointer;font-weight:600">${esc(g)} (${xs.length})</summary>${xs.map(b=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(b.fecha)} · ${esc(b.nombre)}<span class="fsub"> ${esc(b.concepto||"")}</span></span><span>${b.tipo==="dep"?"":"−"}${f(b.monto)}</span></div>`).join("")}</details>`;
     if(C.pares.length) h += `<details style="padding:0 14px 12px"><summary style="cursor:pointer;font-weight:600">Ventas con su depósito (${C.pares.length})</summary>${C.pares.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(p.v.fecha)} venta ${esc(p.v.orden)} → liberado el ${fechaCorta(p.b.fecha)} (${p.dias} días)${p.porReporte?` · <span class="fsub">${p.enBanco?"✓ en el estado de cuenta":"no encontré la operación en el estado de cuenta"}</span>`:""}${p.difNeto?` · <strong style="color:var(--late-ink)">liberado ${f(p.v.neto + p.difNeto)} vs. neto ${f(p.v.neto)}</strong>`:""}</span><span>${f(p.v.neto)}</span></div>`).join("")}</details>`;
@@ -7282,6 +7328,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("vpFile").onchange = async e => {
     const files = [...e.target.files]; e.target.value = ""; if(!files.length) return; await loadLibs("xlsx"); let total = 0, vacios = [];
     for(const file of files){ try{ const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellDates:false});
+        const TK = leerIngresosTikTok(wb);
+        if(TK){ const nn = await guardarIngresosTikTok(TK); guardarArchivoGeneral(file, "Reportes de ingresos de TikTok", year, null); toast(`TikTok Shop: ${nn} pedidos con sus comisiones e impuestos, y ${TK.pagos.length} pagos.`); total += 0;
+          const ms = TK.pedidos.map(p=>p.fecha).filter(Boolean).sort(); if(ms.length) vpMes = +ms[ms.length-1].slice(5,7); continue; }
         const LB = leerLiberaciones(wb);
         if(LB){ if(!LB.length){ vacios.push(`${file.name} (liberaciones)`); continue; } const res = await guardarLiberaciones(LB); guardarArchivoGeneral(file, "Reportes de liberaciones", year, null);
           toast(`Liberaciones: ${res.n} movimientos${res.nuevasV?` y ${res.nuevasV} ventas de Mercado Libre que no estaban en tus reportes`:""}.`); total += 0; const ms = LB.map(l=>l.origen.slice(0,7)).sort(); vpMes = +ms[0].slice(5,7); continue; }
