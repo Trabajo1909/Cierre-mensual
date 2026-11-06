@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 35 · Constancias de retenciones</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 36 · Retenciones de Mercado Libre</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1231,6 +1231,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeLiberaciones();
     subscribePagosPlat();
     subscribeRetencionesP();
+    subscribeRetReportes();
     subscribeDocsEmpresa();
     subscribeCfdi();
     subscribeArchivosGen();
@@ -5233,7 +5234,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(com) lin.push(L(cfg("platComision"), cb, 0)); if(env) lin.push(L(cfg("platEnvio"), eb, 0)); lin.push(L(cfg("iva118"), r2(com+env-cb-eb), 0)); lin.push(L(puente, 0, r2(com+env)));
         out.push({key:key("comis"), tipo:"Diario", fecha:fin, concepto:`COMISIONES Y ENVIOS ${nom} ${MES}`, ref:"COMISIONES", lin, ct:{}, plat:true}); }
       const ret = r2(vs.reduce((s,v)=>s+(+v.impuestos||0),0));
-      if(ret>0){ const cons = retencionesP.filter(x=>x.plataforma===plat && x.anio===y && x.mesIni<=m && x.mesFin>=m), conT = r2(cons.reduce((s,x)=>s+x.isr+x.iva,0)), dif = r2(ret - conT);
+      if(ret>0){ const cons = retencionesP.filter(x=>platR(x)===plat && x.anio===y && x.mesIni<=m && x.mesFin>=m), conT = r2(cons.reduce((s,x)=>s+x.isr+x.iva,0)), dif = r2(ret - conT);
         // Si la constancia cuadra con el reporte (diferencia de centavos), el redondeo va a su cuenta; si no, se registra lo del reporte
         const lin = cons.length && Math.abs(dif) < 1 ? [L(cfg("platRet"), conT, 0), ...(Math.abs(dif)>0.004 ? [L(dif>0 ? cfg("platRedondeo")||cfg("platRet") : cfg("platRet"), dif>0?dif:0, dif<0?-dif:0)] : []), L(puente, 0, ret)] : [L(cfg("platRet"), ret, 0), L(puente, 0, ret)];
         out.push({key:key("ret"), tipo:"Diario", fecha:fin, concepto:`IMPUESTOS RETENIDOS ${nom} ${MES}`, ref: cons.length ? `CFDI RET ${String(cons[0].uuid).slice(0,8)}` : "SIN CONSTANCIA", lin, ct:{}, plat:true}); }
@@ -7258,7 +7259,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   let retencionesP = [], unsubRet = null;
   function subscribeRetencionesP(){ if(unsubRet) unsubRet(); retencionesP = []; if(!db || !empresa) return;
     unsubRet = db.collection(`empresas/${empresa}/retenciones`).onSnapshot(qs => { retencionesP = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="ventas") renderVentasPlat(); }, () => {}); }
-  const platDeRfc = (rfc, nombre) => /^TMT2011241B9$/i.test(rfc) || /tiktok/i.test(nombre) ? "TikTok Shop" : /mercado ?libre|mercadolibre/i.test(nombre) ? "Mercado Libre" : /mercado ?pago/i.test(nombre) ? "Mercado Pago" : /amazon/i.test(nombre) ? "Amazon" : (nombre || rfc || "Otra plataforma");
+  const platDeRfc = (rfc, nombre) => /^TMT2011241B9$/i.test(rfc) || /tiktok/i.test(nombre) ? "TikTok Shop" : /^DCM991109KR2$/i.test(rfc) || /mercado ?libre|mercadolibre|deremate/i.test(nombre) ? "Mercado Libre" : /mercado ?pago/i.test(nombre) ? "Mercado Pago" : /amazon/i.test(nombre) ? "Amazon" : (nombre || rfc || "Otra plataforma");
   function leerRetencionXml(txt){
     const d = new DOMParser().parseFromString(txt, "application/xml"), el = n => d.getElementsByTagNameNS("*", n)[0], at = (e, a) => e ? e.getAttribute(a) || "" : "";
     const R = el("Retenciones"); if(!R) return null;
@@ -7270,15 +7271,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   function leerRetencionPdf(texto){
     const T = sinAcento(texto).replace(/\s+/g," ");
-    if(!/RETENCIONES E INFORMACION DE PAGOS/i.test(T)) return null;
+    if(!/RETENCIONES E INFORMACION DE PAGOS|CONSTANCIA DE PAGOS Y RETENCIONES/i.test(T)) return null;
     const uuid = (T.match(/\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i)||[])[1] || "";
-    const per = T.match(/PERIODO:?\s*(\d{1,2})\s+(\d{1,2})\s+(\d{4})/i);
+    const per = T.match(/PERIODO:?\s*(\d{1,2})\s+(\d{1,2})\s+(\d{4})/i) || T.match(/\b(0[1-9]|1[0-2])\s+(0[1-9]|1[0-2])\s+(20\d{2})\b/);
     const rfcs = [...T.matchAll(/\b([A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3})\b/g)].map(m=>m[1]);
-    const nom = (T.match(/Razon social\)?\s*([A-Z0-9 .,&]+?)\s+Regimen Fiscal Emisor/i)||[])[1] || "";
+    const nom = (T.match(/Razon social\)?\s*([A-Z0-9 .,&]+?)\s+Regimen Fiscal Emisor/i)||[])[1] || (rfcs[0] ? (T.match(new RegExp(rfcs[0]+"\\s+([A-Z0-9 .,&]+?)\\s+6\\d\\d\\b"))||[])[1] : "") || "";
     const n = s => +String(s).replace(/[$,\s]/g,"")||0;
-    const iva = (T.match(/\$\s*([\d,]+\.\d{2})\s+002\s*-\s*IVA\s+\$\s*([\d,]+\.\d{2})/i)||[])[2], isr = (T.match(/\$\s*([\d,]+\.\d{2})\s+001\s*-\s*ISR\s+\$\s*([\d,]+\.\d{2})/i)||[])[2];
+    // TikTok: "$base 002 - IVA $monto"; Mercado Libre: "002 $monto 01 $base"
+    const iva = (T.match(/\$\s*([\d,]+\.\d{2})\s+002\s*-\s*IVA\s+\$\s*([\d,]+\.\d{2})/i)||[])[2] || (T.match(/\b002\s+\$\s*([\d,]+\.\d{2})\s+0\d\s+\$/)||[])[1];
+    const isr = (T.match(/\$\s*([\d,]+\.\d{2})\s+001\s*-\s*ISR\s+\$\s*([\d,]+\.\d{2})/i)||[])[2] || (T.match(/\b001\s+\$\s*([\d,]+\.\d{2})\s+0\d\s+\$/)||[])[1];
     const op = (T.match(/Monto Total Retenido\s+\$\s*([\d,]+\.\d{2})/i)||[])[1];
-    const fe = (T.match(/Fecha de Emision:?\s*(\d{4}-\d{2}-\d{2})/i)||[])[1] || "";
+    const fe = (T.match(/Fecha de Emision:?\s*(\d{4}-\d{2}-\d{2})/i)||[])[1] || (T.match(/\b(20\d{2}-\d{2}-\d{2})T\d{2}:\d{2}/)||[])[1] || "";
     if(!per) return null;
     return {uuid: uuid.toUpperCase(), rfcEmisor: rfcs[0]||"", emisor: nom.trim(), plataforma: platDeRfc(rfcs[0]||"", nom), anio: +per[3], mesIni: +per[1], mesFin: +per[2], operacion: op ? n(op) : 0, isr: isr ? n(isr) : 0, iva: iva ? n(iva) : 0, fecha: fe};
   }
@@ -7287,16 +7290,40 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const id = (r.uuid || `${r.plataforma}-${r.anio}-${r.mesIni}`).replace(/[^\w-]+/g,"_"), prev = retencionesP.find(x=>x.id===id) || {};
     const d = {...r, archivos: [...(prev.archivos||[]).filter(a=>a.nombre!==(asset&&asset.nombre)), ...(asset?[asset]:[])]}; await conReintento(()=>db.doc(`empresas/${empresa}/retenciones/${id}`).set(d));
   }
+  const platR = x => platDeRfc(x.rfcEmisor||"", x.emisor || x.plataforma || "");
+  // Reportes de Mercado Libre "Base gravable de retención" y "Recobros de retención": lo retenido por mes, igual que en la constancia
+  let retReportes = [], unsubRR = null;
+  function subscribeRetReportes(){ if(unsubRR) unsubRR(); retReportes = []; if(!db || !empresa) return;
+    unsubRR = db.collection(`empresas/${empresa}/retReportes`).onSnapshot(qs => { retReportes = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="ventas") renderVentasPlat(); }, () => {}); }
+  function leerReporteRetencionML(wb, nombre){
+    const F = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:"", raw:true});
+    const plano = F.slice(0,8).flat().map(x=>nPre(x)).join(" "), esBase = /total renta en certificado|base gravable/.test(plano) && /total iva en certificado/.test(plano), esRecobro = /recobro de impuestos|total declarado al fisco/.test(plano) || /recobros/i.test(nombre);
+    if(!esBase && !esRecobro) return null;
+    const MA = {ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
+    let mm = sinAcento(nombre).toLowerCase().match(/(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-z]*[-_ ]?(20\d{2})/), anio, mes;
+    if(mm){ mes = MA[mm[1]]; anio = +mm[2]; }
+    const esNum = s => +String(s).replace(/[$\s]/g,"").replace(/\.(?=\d{3}(\D|$))/g,"").replace(",",".") || 0;
+    let isr = 0, iva = 0, base = 0, ops = 0;
+    if(esBase){ for(const row of F.slice(0,8)) row.forEach((x,i)=>{ const t = nPre(x); if(/^total renta en certificado/.test(t)) isr = esNum(row[i+1]); if(/^total iva en certificado/.test(t)) iva = esNum(row[i+1]); if(/^total base gravable renta|^total base gravable isr/.test(t)) base = esNum(row[i+1]); }); }
+    const hi = F.findIndex(row=>row.some(x=>nPre(x)==="base gravable") && row.some(x=>/^total isr|^total iva/.test(nPre(x))));
+    if(hi>=0){ const H = F[hi].map(nPre), iI = H.findIndex(x=>/^total isr/.test(x)), iV = H.findIndex(x=>/^total iva/.test(x)), iB = H.indexOf("base gravable"), iF = H.indexOf("fecha");
+      let sI = 0, sV = 0, sB = 0; for(const row of F.slice(hi+1)){ if(!String(row[iF]||"").trim()) continue; ops++; sI += +row[iI]||0; sV += +row[iV]||0; sB += +row[iB]||0;
+        if(!mes){ const d = String(row[iF]).match(/(\d{2})\/(\d{2})\/(\d{4})/); if(d){ mes = +d[2]; anio = +d[3]; } } }
+      if(!esBase || (!isr && !iva)){ isr = r2(sI); iva = r2(sV); base = r2(sB); } }
+    if(!mes) return null;
+    return {plataforma:"Mercado Libre", tipo: esBase ? "base" : "recobro", anio, mes, isr: r2(isr), iva: r2(iva), base: r2(base), ops};
+  }
   function htmlRetenciones(){
-    const f = money.format, mk = mesKey(year, vpMes), cons = retencionesP.filter(r=>r.anio===year && r.mesIni<=vpMes && r.mesFin>=vpMes);
+    const f = money.format, mk = mesKey(year, vpMes), cons = retencionesP.filter(r=>r.anio===year && r.mesIni<=vpMes && r.mesFin>=vpMes).map(x=>({...x, plataforma: platR(x)}));
+    const rrML = retReportes.filter(x=>x.anio===year && x.mes===vpMes && /mercado/i.test(x.plataforma));
     // Las plataformas retienen al liquidar o liberar: se compara por el mes de liquidación o liberación
     const repTk = r2(ventasP.filter(v=>/tiktok/i.test(v.plataforma) && String(v.liquidado||"").slice(0,7)===mk).reduce((s,v)=>s+(+v.impuestos||0),0));
-    const repML = r2(liberaciones.filter(l=>String(l.fecha).slice(0,7)===mk && /^\d{15,17}$/.test(l.ident)).reduce((s,l)=>s+(+l.impuestos||0),0));
+    const repML = rrML.length ? r2(rrML.reduce((s,x)=>s+x.isr+x.iva,0)) : r2(liberaciones.filter(l=>String(l.fecha).slice(0,7)===mk && /^\d{15,17}$/.test(l.ident)).reduce((s,l)=>s+(+l.impuestos||0),0));
     const filas = [["TikTok Shop", repTk], ["Mercado Libre", repML]].filter(([,v])=>v>0);
     const plats = [...new Set([...filas.map(x=>x[0]), ...cons.map(c=>c.plataforma)])];
     if(!plats.length) return "";
     return `<div class="bpanel" style="margin-top:16px"><h3>Constancias de retenciones · ${MESES[vpMes-1].toLowerCase()}<small>Sube aquí mismo los CFDI de retenciones (PDF o XML) que te emiten las plataformas. Con ellos acreditas el ISR y el IVA que te retuvieron.</small></h3>
-      <div class="sheet" style="border:none;border-radius:0"><table class="decl" style="width:100%"><thead><tr><th>Plataforma</th><th class="num">Retenido según reportes<div class="fsub" style="font-weight:400">liquidado o liberado en el mes</div></th><th class="num">ISR con constancia</th><th class="num">IVA con constancia</th><th>Constancia</th></tr></thead><tbody>
+      <div class="sheet" style="border:none;border-radius:0"><table class="decl" style="width:100%"><thead><tr><th>Plataforma</th><th class="num">Retenido según reportes<div class="fsub" style="font-weight:400">TikTok: liquidado en el mes · Mercado Libre: reporte de base gravable${rrML.length?"":" (o liberaciones)"}</div></th><th class="num">ISR con constancia</th><th class="num">IVA con constancia</th><th>Constancia</th></tr></thead><tbody>
       ${plats.map(p=>{ const c = cons.filter(x=>x.plataforma===p), rep = p==="TikTok Shop" ? repTk : p==="Mercado Libre" ? repML : 0, isr = r2(c.reduce((s,x)=>s+x.isr,0)), iva = r2(c.reduce((s,x)=>s+x.iva,0)), dif = r2(rep - isr - iva);
         return `<tr><td>${esc(p)}</td><td class="num">${f(rep)}</td><td class="num">${c.length?f(isr):"—"}</td><td class="num">${c.length?f(iva):"—"}</td><td>${c.length ? c.map(x=>`<div><span class="st pagado">Tienes constancia</span> <span class="uuid">${esc(String(x.uuid).slice(0,8))}…</span>${(x.archivos||[]).length?` <button class="linkbtn" data-retver="${esc(x.id)}">Ver</button>`:""}</div>`).join("") + (Math.abs(dif)>0.05 && rep ? `<div class="fsub">Diferencia contra reportes: ${f(dif)}${Math.abs(dif)<1?" (redondeo)":""}</div>` : "") : (rep ? '<span class="st vencido">Falta la constancia</span>' : "—")}</td></tr>`; }).join("")}</tbody></table></div></div>`;
   }
@@ -7433,6 +7460,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const wb = XLSX.read(buf, {type:"array", cellDates:false});
         // Algunos reportes traen mal el rango de la hoja (por ejemplo A1:BC4 aunque tengan más renglones): se recalcula con las celdas reales
         wb.SheetNames.forEach(n=>{ const ws = wb.Sheets[n]; let mr = 0, mc = 0; Object.keys(ws).forEach(k=>{ if(k[0]==="!") return; const c = XLSX.utils.decode_cell(k); if(c.r>mr) mr = c.r; if(c.c>mc) mc = c.c; }); ws["!ref"] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:mr, c:mc}}); });
+        const RR = leerReporteRetencionML(wb, file.name);
+        if(RR){ const id = `ML_${mesKey(RR.anio, RR.mes)}_${RR.tipo}`; await conReintento(()=>db.doc(`empresas/${empresa}/retReportes/${id}`).set(RR)); guardarArchivoGeneral(file, "Reportes de retenciones", RR.anio, RR.mes);
+          toast(`Mercado Libre ${RR.tipo==="base"?"base gravable":"recobros"} de ${MESES[RR.mes-1].toLowerCase()}: ISR ${money.format(RR.isr)} · IVA ${money.format(RR.iva)}.`); vpMes = RR.mes; continue; }
         const TK = leerIngresosTikTok(wb);
         if(TK){ const nn = await guardarIngresosTikTok(TK); guardarArchivoGeneral(file, "Reportes de ingresos de TikTok", year, null); toast(`TikTok Shop: ${nn} pedidos con sus comisiones e impuestos, y ${TK.pagos.length} pagos.`); total += 0;
           const ms = TK.pedidos.map(p=>p.fecha).filter(Boolean).sort(); if(ms.length) vpMes = +ms[ms.length-1].slice(5,7); continue; }
