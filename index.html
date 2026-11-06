@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 29 · Ventas: TikTok Shop</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 31 · Reporte de liberaciones de Mercado Pago</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1228,6 +1228,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribePresupuesto();
     subscribePreReglas();
     subscribeVentasPlat();
+    subscribeLiberaciones();
     subscribeDocsEmpresa();
     subscribeCfdi();
     subscribeArchivosGen();
@@ -7142,6 +7143,95 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const prev = ventasP.find(x=>x.id===id) || {}; const {id: _i, ...pv} = prev; await conReintento(()=>db.doc(`empresas/${empresa}/ventasPlat/${id}`).set({...pv, ...v, facturada: prev.facturada!=null && prev.id ? prev.facturada : !!v.facturaAdjunta})); n++; }
     return n;
   }
+  // ---------- Reporte de liberaciones de Mercado Pago ----------
+  let liberaciones = [], unsubLib = null;
+  function subscribeLiberaciones(){ if(unsubLib) unsubLib(); liberaciones = []; if(!db || !empresa) return;
+    unsubLib = db.collection(`empresas/${empresa}/liberaciones`).onSnapshot(qs => { liberaciones = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="ventas") renderVentasPlat(); }, () => {}); }
+  function leerLiberaciones(wb){
+    const F = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:"", raw:true});
+    const hi = F.slice(0,10).findIndex(r=>r.some(x=>/^fecha de liberaci/.test(nPre(x))) && r.some(x=>/^id de operaci/.test(nPre(x)))); if(hi<0) return null;
+    const H = F[hi].map(nPre), c = re => H.findIndex(h=>re.test(h)), n = v => +String(v||0).replace(/[^\d.-]/g,"")||0;
+    const C = {fecha:c(/^fecha de liberaci/), op:c(/^id de operaci/), ident:c(/^numero de identificaci/), tipo:c(/^tipo de registro/), desc:c(/^descripci/), cred:c(/^monto neto acreditado/), deb:c(/^monto neto debitado/), origen:c(/^fecha de origen/), bruto:c(/^monto bruto/),
+      com:c(/^comision de mercado pago/), comC:c(/^comision por ofrecer cuotas/), envio:c(/^costo de envio/), imp:c(/^impuestos cobrados/), sku:c(/^codigo de producto sku/), canal:c(/^canal de venta/)};
+    const out = [];
+    for(const r of F.slice(hi+1)){
+      const tipo = String(r[C.tipo]||"").trim(); if(!/liberaci|reserva|retiro|pago|cobro|devoluci|contracargo/i.test(tipo) || /^total$/i.test(tipo) || /disponible inicial/i.test(tipo)) continue;
+      const op = String(r[C.op]||"").trim(); if(!op) continue;
+      const f = String(r[C.fecha]).slice(0,10), fo = String(r[C.origen]||"").slice(0,10);
+      out.push({fecha: f, op, ident: String(r[C.ident]||"").trim(), tipo, desc: String(r[C.desc]||"").trim(), credito: r2(n(r[C.cred])), debito: r2(n(r[C.deb])), origen: /^\d{4}-\d{2}-\d{2}$/.test(fo) ? fo : f,
+        bruto: r2(n(r[C.bruto])), comision: r2(Math.abs(n(r[C.com])) + Math.abs(n(r[C.comC]))), envio: r2(Math.abs(n(r[C.envio]))), impuestos: r2(Math.abs(n(r[C.imp]))), sku: String(r[C.sku]||"").trim(), canal: String(r[C.canal]||"").trim()});
+    }
+    return out;
+  }
+  const plataformaLib = l => /tiktok/i.test(l.ident) ? "TikTok Shop" : /mercado ?libre/i.test(l.canal) || /^\d{15,17}$/.test(l.ident) ? "Mercado Libre" : "Mercado Pago";
+  async function guardarLiberaciones(L){
+    let n = 0, nuevasV = 0;
+    for(const l of L){ const id = `${l.op}_${l.ident}`.replace(/[^\w-]+/g,"_").slice(0,140); await conReintento(()=>db.doc(`empresas/${empresa}/liberaciones/${id}`).set(l)); n++; }
+    // Ventas de Mercado Libre que no estaban en tus reportes: se crean con los datos de la liberación
+    const nuevas = [];
+    for(const l of L.filter(x=>plataformaLib(x)==="Mercado Libre" && x.bruto > 0)){
+      const ya = ventasP.some(v=>/mercado/i.test(v.plataforma) && String(v.orden)===l.ident) || nuevas.some(v=>v.orden===l.ident);
+      if(!ya) nuevas.push({plataforma:"Mercado Libre", orden:l.ident, fecha:l.origen, estado:"Liberada (del reporte de liberaciones)", producto:l.sku, sku:l.sku, cantidad:1, bruto:l.bruto, cargos:r2(l.comision + l.impuestos), envio:l.envio, neto:r2(l.credito - l.debito), reembolso:0, desdeLiberacion:true});
+    }
+    if(nuevas.length){ await guardarVentas(nuevas); nuevasV = nuevas.length; }
+    return {n, nuevasV};
+  }
+
+  // ---------- Conciliación de ventas contra el estado de cuenta de Mercado Pago ----------
+  function conciliarMP(y, m){
+    const mpCtas = cuentasB.filter(c=>/mercado ?pago/i.test(c.nombre)).map(c=>c.id);
+    // Movimientos de Mercado Pago: el mes y los dos siguientes (el dinero se libera días después de la venta)
+    const meses = [0,1,2].map(i=>{ const mm = m+i; return [mm>12?y+1:y, mm>12?mm-12:mm]; });
+    if(!mpCtas.length && !liberaciones.length) return null;
+    const movs = concs.filter(c=>mpCtas.includes(c.cuenta) && meses.some(([yy,mm])=>c.anio===yy && c.mes===mm)).flatMap(c=>(c.banco||[]).map(b=>({...b, mesC: c.mes})));
+    const usados = new Set(), pares = [], pendientes = [];
+    const ventasML = ventasP.filter(v=>/mercado/i.test(v.plataforma) && String(v.fecha).slice(0,7)===mesKey(y,m) && +v.neto > 0).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+    const libPorOrden = {}; liberaciones.forEach(l=>{ (libPorOrden[l.ident] ||= []).push(l); });
+    for(const v of ventasML){
+      // 1) Con el reporte de liberaciones: por número de venta, y la operación se busca en el estado de cuenta
+      const ls = libPorOrden[String(v.orden)];
+      if(ls && ls.length){ const neto = r2(ls.reduce((s,l)=>s+l.credito-l.debito,0)), l0 = ls.slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)))[0];
+        const mov = movs.find(b=>!usados.has(b.id) && (String(b.concepto).includes(l0.op) || String(b.id).includes(l0.op)));
+        if(mov) usados.add(mov.id);
+        pares.push({v, b: mov || {fecha: l0.fecha, monto: neto, nombre: "Liberación (reporte)"}, dias: Math.abs(diasEntre(v.fecha, l0.fecha)), porReporte: true, enBanco: !!mov, difNeto: r2(neto - v.neto)}); continue; }
+      const cand = movs.filter(b=>b.tipo==="dep" && !usados.has(b.id) && /liberaci|venta|cobro/i.test(b.nombre) && Math.abs(b.monto - v.neto) <= 0.5 && b.fecha >= v.fecha && diasEntre(v.fecha, b.fecha) <= 60)
+        .sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+      if(cand[0]){ usados.add(cand[0].id); pares.push({v, b: cand[0], dias: Math.abs(diasEntre(v.fecha, cand[0].fecha))}); }
+      else pendientes.push(v);
+    }
+    // Movimientos del mes de la venta que no se emparejaron, clasificados
+    const delMes = movs.filter(b=>b.mesC===m && !usados.has(b.id));
+    const tipo = b => { const t = `${b.nombre} ${b.concepto}`;
+      if(/liberaci/i.test(t)) return "Liberación sin venta en tus reportes";
+      if(/ebanx/i.test(t)) return "Pago de TikTok Shop (EBANX)";
+      if(/transferencia enviada|retiro/i.test(t)) return "Traspaso a tu banco";
+      if(/retenido|devoluci[oó]n de dinero|reclamo/i.test(t)) return "Reclamos y devoluciones";
+      if(/cobro autom|deuda|env[ií]o de mercado libre/i.test(t)) return "Cargos de Mercado Libre (devoluciones, envíos)";
+      if(/impuesto|isr|iva/i.test(t)) return "Impuestos retenidos o devueltos";
+      if(/garant/i.test(t)) return "Dinero en garantía";
+      return "Otros movimientos"; };
+    const grupos = {}; delMes.forEach(b=>{ const g = tipo(b); (grupos[g] ||= []).push(b); });
+    const tk = ventasP.filter(v=>/tiktok/i.test(v.plataforma) && String(v.fecha).slice(0,7)===mesKey(y,m) && !esCancelada(v));
+    const libTk = liberaciones.filter(l=>plataformaLib(l)==="TikTok Shop" && String(l.fecha).slice(0,7)===mesKey(y,m));
+    if(libTk.length && !(grupos["Pago de TikTok Shop (EBANX)"]||[]).length) grupos["Pago de TikTok Shop (EBANX)"] = libTk.map(l=>({fecha:l.fecha, nombre:"Pago TikTok Shop (EBANX)", concepto:`Op. ${l.op}`, monto:l.credito, tipo:"dep"}));
+    return {pares, pendientes, grupos, hayMovs: movs.length>0, tiktokVentas: r2(tk.reduce((s,v)=>s+ventaNeta(v),0)), tiktokPagos: r2((grupos["Pago de TikTok Shop (EBANX)"]||[]).reduce((s,b)=>s+b.monto,0))};
+  }
+  function htmlConcMP(){
+    const C = conciliarMP(year, vpMes), f = money.format;
+    if(!C) return `<div class="bpanel" style="margin-top:16px"><h3>Conciliación con Mercado Pago<small>Agrega en Bancos una cuenta llamada "Mercado Pago" y sube sus estados de cuenta para cruzar cada venta con su liberación de dinero.</small></h3></div>`;
+    if(!C.hayMovs && !liberaciones.length) return `<div class="bpanel" style="margin-top:16px"><h3>Conciliación con Mercado Pago<small>Sube en Bancos el estado de cuenta de Mercado Pago de ${MESES[vpMes-1].toLowerCase()} y del mes siguiente: el dinero de cada venta se libera días después.</small></h3></div>`;
+    const S = xs => r2(xs.reduce((s,x)=>s+(x.b ? x.b.monto : x.monto),0));
+    const desde = v => Math.abs(diasEntre(v.fecha, hoyISO)), recientes = C.pendientes.filter(v=>desde(v) < 20), viejas = C.pendientes.filter(v=>desde(v) >= 20);
+    let h = `<div class="bpanel" style="margin-top:16px"><h3>Conciliación con Mercado Pago · ventas de ${MESES[vpMes-1].toLowerCase()}<small>Cada venta de Mercado Libre se cruza con su "Liberación de dinero" por el monto neto (Total) y una fecha hasta 60 días después. Por eso conviene tener cargado también el estado de cuenta del mes siguiente.</small></h3>
+      <div class="kpis" style="padding:0 14px 10px"><div class="kpi"><span>Ventas con su depósito</span><b>${C.pares.length}</b><small>${f(r2(C.pares.reduce((s,p)=>s+p.v.neto,0)))} · en promedio ${C.pares.length?Math.round(C.pares.reduce((s,p)=>s+p.dias,0)/C.pares.length):0} días después</small></div>
+      <div class="kpi"><span>Ventas sin depósito</span><b style="color:${viejas.length?"var(--late-ink)":"inherit"}">${C.pendientes.length}</b><small>${recientes.length} recientes (aún por liberar) · ${viejas.length} para revisar</small></div>
+      ${Object.entries(C.grupos).map(([g, xs])=>`<div class="kpi"><span>${esc(g)}</span><b>${f(r2(xs.reduce((s,b)=>s+(b.tipo==="dep"?b.monto:-b.monto),0)))}</b><small>${xs.length} movimientos</small></div>`).join("")}</div>`;
+    if(C.tiktokVentas || C.tiktokPagos) h += `<div class="fsub" style="padding:0 14px 10px;max-width:none;white-space:normal">TikTok Shop: vendiste ${f(C.tiktokVentas)} y EBANX te pagó ${f(C.tiktokPagos)} en el mes. La diferencia (${f(r2(C.tiktokVentas - C.tiktokPagos))}) suele ser la comisión de TikTok y los pagos que llegan el mes siguiente; con el reporte de liquidaciones de TikTok se cruza pedido por pedido.</div>`;
+    if(viejas.length) h += `<div style="padding:4px 14px 10px"><strong>Ventas sin depósito para revisar</strong>${viejas.map(v=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${fechaCorta(v.fecha)} · ${esc(v.orden)} · ${esc((v.producto||"").slice(0,50))}<div class="fsub">${esc(v.estado||"")}</div></span><strong>${f(v.neto)}</strong></div>`).join("")}<div class="fsub" style="max-width:none;margin-top:4px">Pueden estar en un estado de cuenta que no has subido, haberse liberado junto con otras ventas, o seguir retenidas por un reclamo.</div></div>`;
+    for(const [g, xs] of Object.entries(C.grupos)) h += `<details style="padding:0 14px 8px"><summary style="cursor:pointer;font-weight:600">${esc(g)} (${xs.length})</summary>${xs.map(b=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(b.fecha)} · ${esc(b.nombre)}<span class="fsub"> ${esc(b.concepto||"")}</span></span><span>${b.tipo==="dep"?"":"−"}${f(b.monto)}</span></div>`).join("")}</details>`;
+    if(C.pares.length) h += `<details style="padding:0 14px 12px"><summary style="cursor:pointer;font-weight:600">Ventas con su depósito (${C.pares.length})</summary>${C.pares.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(p.v.fecha)} venta ${esc(p.v.orden)} → liberado el ${fechaCorta(p.b.fecha)} (${p.dias} días)${p.porReporte?` · <span class="fsub">${p.enBanco?"✓ en el estado de cuenta":"no encontré la operación en el estado de cuenta"}</span>`:""}${p.difNeto?` · <strong style="color:var(--late-ink)">liberado ${f(p.v.neto + p.difNeto)} vs. neto ${f(p.v.neto)}</strong>`:""}</span><span>${f(p.v.neto)}</span></div>`).join("")}</details>`;
+    return h + `</div>`;
+  }
   function renderVentasPlat(){
     $("yearLabel").textContent = year;
     if(!vpMes) vpMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
@@ -7173,7 +7263,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         <td>${canWrite?`<label class="check inline" style="margin:0"><input type="checkbox" data-vpfac="${esc(v.id)}" ${v.facturada?"checked":""}> Individual</label>`:(v.facturada?"Individual":"Global")}${v.facturaAdjunta?'<div class="fsub">factura adjunta en la plataforma</div>':""}</td><td>${canWrite?`<button class="linkbtn" data-vpdel="${esc(v.id)}">quitar</button>`:""}</td></tr>`).join("")}
       <tr style="background:var(--group)"><td colspan="5"><strong>Total ${MESES[vpMes-1].toLowerCase()}</strong> <span class="fsub">(la venta sin canceladas; el neto incluye todo lo que te cobró la plataforma)</span></td><td class="num"><strong>${f(S(lista,"bruto"))}</strong></td><td class="num"><strong>${f(-S(lista,"reembolso"))}</strong></td><td class="num"><strong>${f(S(lista,"cargos"))}</strong></td><td class="num"><strong>${f(S(lista,"envio"))}</strong></td><td class="num"><strong>${f(S(lista,"neto"))}</strong></td><td colspan="3"></td></tr></tbody></table></div>`
       : `<div class="empty">Sin ventas en ${MESES[vpMes-1].toLowerCase()}. Sube el reporte de ventas de la plataforma (Excel o CSV) con <strong>Subir reporte de ventas</strong> o regístralas a mano.</div>`;
-    $("vpbody").innerHTML = h;
+    $("vpbody").innerHTML = h + htmlConcMP();
   }
   $("vpmonths").addEventListener("click", e => { const b = e.target.closest("[data-vpmes]"); if(b){ vpMes = +b.dataset.vpmes; renderVentasPlat(); } });
   $("vpbody").addEventListener("click", async e => {
@@ -7191,7 +7281,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("vpSubir").onclick = () => $("vpFile").click();
   $("vpFile").onchange = async e => {
     const files = [...e.target.files]; e.target.value = ""; if(!files.length) return; await loadLibs("xlsx"); let total = 0, vacios = [];
-    for(const file of files){ try{ const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellDates:false}); const R = leerReporteVentas(wb, file.name);
+    for(const file of files){ try{ const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellDates:false});
+        const LB = leerLiberaciones(wb);
+        if(LB){ if(!LB.length){ vacios.push(`${file.name} (liberaciones)`); continue; } const res = await guardarLiberaciones(LB); guardarArchivoGeneral(file, "Reportes de liberaciones", year, null);
+          toast(`Liberaciones: ${res.n} movimientos${res.nuevasV?` y ${res.nuevasV} ventas de Mercado Libre que no estaban en tus reportes`:""}.`); total += 0; const ms = LB.map(l=>l.origen.slice(0,7)).sort(); vpMes = +ms[0].slice(5,7); continue; }
+        const R = leerReporteVentas(wb, file.name);
         if(!R){ toast(`${file.name}: no reconocí las columnas (número de orden, fecha e importe).`); continue; }
         if(!R.ventas.length){ vacios.push(`${file.name} (${R.plataforma})`); continue; }
         total += await guardarVentas(R.ventas); guardarArchivoGeneral(file, "Reportes de ventas", year, null);
