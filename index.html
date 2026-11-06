@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 33 · Pólizas de ventas en plataformas</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 34 · ID de operación en cada venta</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7116,7 +7116,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
 
   // ---------- Ventas en plataformas (Mercado Libre, Mercado Pago, TikTok Shop, Amazon…) ----------
-  let ventasP = [], unsubVP = null, vpMes = null, vpPlat = "";
+  let ventasP = [], unsubVP = null, vpMes = null, vpPlat = "", vpBuscar = "";
   function subscribeVentasPlat(){ if(unsubVP) unsubVP(); ventasP = []; if(!db || !empresa) return;
     unsubVP = db.collection(`empresas/${empresa}/ventasPlat`).onSnapshot(qs => { ventasP = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="ventas") renderVentasPlat(); }, () => {}); }
   // Encabezados que usa cada plataforma para el mismo dato
@@ -7312,7 +7312,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     else if(C.tiktokVentas || C.tiktokPagos) h += `<div class="fsub" style="padding:0 14px 10px;max-width:none;white-space:normal">TikTok Shop: vendiste ${f(C.tiktokVentas)} y EBANX te pagó ${f(C.tiktokPagos)} en el mes. La diferencia (${f(r2(C.tiktokVentas - C.tiktokPagos))}) suele ser la comisión de TikTok y los pagos que llegan el mes siguiente; con el reporte de liquidaciones de TikTok se cruza pedido por pedido.</div>`;
     if(viejas.length) h += `<div style="padding:4px 14px 10px"><strong>Ventas sin depósito para revisar</strong>${viejas.map(v=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${fechaCorta(v.fecha)} · ${esc(v.orden)} · ${esc((v.producto||"").slice(0,50))}<div class="fsub">${esc(v.estado||"")}</div></span><strong>${f(v.neto)}</strong></div>`).join("")}<div class="fsub" style="max-width:none;margin-top:4px">Pueden estar en un estado de cuenta que no has subido, haberse liberado junto con otras ventas, o seguir retenidas por un reclamo.</div></div>`;
     for(const [g, xs] of Object.entries(C.grupos)) h += `<details style="padding:0 14px 8px"><summary style="cursor:pointer;font-weight:600">${esc(g)} (${xs.length})</summary>${xs.map(b=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(b.fecha)} · ${esc(b.nombre)}<span class="fsub"> ${esc(b.concepto||"")}</span></span><span>${b.tipo==="dep"?"":"−"}${f(b.monto)}</span></div>`).join("")}</details>`;
-    if(C.pares.length) h += `<details style="padding:0 14px 12px"><summary style="cursor:pointer;font-weight:600">Ventas con su depósito (${C.pares.length})</summary>${C.pares.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(p.v.fecha)} venta ${esc(p.v.orden)} → liberado el ${fechaCorta(p.b.fecha)} (${p.dias} días)${p.porReporte?` · <span class="fsub">${p.enBanco?"✓ en el estado de cuenta":"no encontré la operación en el estado de cuenta"}</span>`:""}${p.difNeto?` · <strong style="color:var(--late-ink)">liberado ${f(p.v.neto + p.difNeto)} vs. neto ${f(p.v.neto)}</strong>`:""}</span><span>${f(p.v.neto)}</span></div>`).join("")}</details>`;
+    if(C.pares.length) h += `<details style="padding:0 14px 12px"><summary style="cursor:pointer;font-weight:600">Ventas con su depósito (${C.pares.length})</summary>${C.pares.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(p.v.fecha)} venta ${esc(p.v.orden)} → ${(()=>{ const l = liberaciones.find(x=>String(x.ident)===String(p.v.orden)); return l ? `Op. ${esc(l.op)} · ` : ""; })()}liberado el ${fechaCorta(p.b.fecha)} (${p.dias} días)${p.porReporte?` · <span class="fsub">${p.enBanco?"✓ en el estado de cuenta":"no encontré la operación en el estado de cuenta"}</span>`:""}${p.difNeto?` · <strong style="color:var(--late-ink)">liberado ${f(p.v.neto + p.difNeto)} vs. neto ${f(p.v.neto)}</strong>`:""}</span><span>${f(p.v.neto)}</span></div>`).join("")}</details>`;
     return h + `</div>`;
   }
   function renderVentasPlat(){
@@ -7321,7 +7321,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const f = money.format, enAnio = ventasP.filter(v=>String(v.fecha).startsWith(String(year)));
     $("vpmonths").innerHTML = Array.from({length:12},(_,i)=>{ const xs = enAnio.filter(v=>+v.fecha.slice(5,7)===i+1 && !esCancelada(v)); return `<button class="mchip ${xs.length?"ok":""}" data-vpmes="${i+1}" aria-current="${vpMes===i+1}"><b>${ABR[i]}</b><small>${xs.length?f(r2(xs.reduce((s,v)=>s+ventaNeta(v),0))).replace(/\.\d\d$/,""):"—"}</small></button>`; }).join("");
     const mk = mesKey(year, vpMes), delMes = ventasP.filter(v=>String(v.fecha).slice(0,7)===mk), plats = [...new Set(ventasP.map(v=>v.plataforma))];
-    const lista = delMes.filter(v=>!vpPlat || v.plataforma===vpPlat).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
+    const qv = normTxt(vpBuscar), opDe = v => liberaciones.filter(l=>String(l.ident)===String(v.orden)).map(l=>l.op).join(" ");
+    const lista = (qv ? ventasP.filter(v=>String(v.fecha).startsWith(String(year))) : delMes).filter(v=>(!vpPlat || v.plataforma===vpPlat) && (!qv || normTxt(`${v.orden} ${v.producto} ${v.sku||""} ${v.idPago||""} ${opDe(v)}`).includes(qv))).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
     const vig = delMes.filter(v=>!esCancelada(v)), S = (xs, k) => r2(xs.reduce((s,v)=>s+(k==="venta" ? ventaNeta(v) : (+v[k]||0)),0));
     // Lo que te depositó Mercado Pago en el mes (liberaciones de dinero)
     const mpCtas = cuentasB.filter(c=>/mercado ?pago/i.test(c.nombre)).map(c=>c.id), liberado = r2(concs.filter(c=>mpCtas.includes(c.cuenta) && c.anio===year && c.mes===vpMes).flatMap(c=>c.banco||[]).filter(b=>b.tipo==="dep" && /liberaci/i.test(b.nombre)).reduce((s,b)=>s+b.monto,0));
@@ -7340,11 +7341,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       <div><label for="vpCargos" style="margin:0 0 2px">Comisión</label><input id="vpCargos" type="number" step="0.01" min="0"></div>
       <div><label for="vpEnvio" style="margin:0 0 2px">Envío</label><input id="vpEnvio" type="number" step="0.01" min="0"></div>
       <div><button class="btn sm primary" id="vpAgregar">Registrar venta</button></div></div></details>`;
-    h += `<div class="pairbar" style="margin:14px 0 8px;flex-wrap:wrap;gap:8px"><div class="seg"><button data-vpplat="" aria-pressed="${!vpPlat}">Todas</button>${plats.map(p=>`<button data-vpplat="${esc(p)}" aria-pressed="${vpPlat===p}">${esc(p)}</button>`).join("")}</div></div>`;
-    h += lista.length ? `<div class="sheet"><table class="ft" style="min-width:980px"><thead><tr><th>Fecha</th><th>Plataforma</th><th>Orden</th><th>Producto</th><th class="num">Cant.</th><th class="num">Venta</th><th class="num">Devolución</th><th class="num">Comisión</th><th class="num">Envío</th><th class="num">Neto</th><th>Estado</th><th>Factura</th><th></th></tr></thead><tbody>
-      ${lista.map(v=>`<tr class="${esCancelada(v)?"canc":""}"><td>${fechaCorta(v.fecha)}</td><td>${esc(v.plataforma)}</td><td class="uuid">${esc(v.orden)}</td><td><div class="fname" title="${esc(v.producto)}">${esc(v.producto||"—")}</div></td><td class="num">${v.cantidad}</td><td class="num">${f(v.bruto)}</td><td class="num">${v.reembolso?f(-v.reembolso):""}</td><td class="num">${v.cargos?f(v.cargos):""}</td><td class="num">${v.envio?f(v.envio):""}</td><td class="num"><strong>${f(v.neto)}</strong></td><td>${esc(v.estado||"")}</td>
+    h += `<div class="pairbar" style="margin:14px 0 8px;flex-wrap:wrap;gap:8px"><input id="vpBuscar" type="search" placeholder="Buscar orden, ID de operación, producto o SKU (todo el año)" value="${esc(vpBuscar)}" style="max-width:340px"><div class="seg"><button data-vpplat="" aria-pressed="${!vpPlat}">Todas</button>${plats.map(p=>`<button data-vpplat="${esc(p)}" aria-pressed="${vpPlat===p}">${esc(p)}</button>`).join("")}</div></div>`;
+    h += lista.length ? `<div class="sheet"><table class="ft" style="min-width:980px"><thead><tr><th>Fecha</th><th>Plataforma</th><th>Orden</th><th>Producto</th><th class="num">Cant.</th><th class="num">Venta</th><th class="num">Devolución</th><th class="num">Comisión</th><th class="num">Envío</th><th class="num">Neto</th><th>Liberación / pago</th><th>Estado</th><th>Factura</th><th></th></tr></thead><tbody>
+      ${lista.map(v=>`<tr class="${esCancelada(v)?"canc":""}"><td>${fechaCorta(v.fecha)}</td><td>${esc(v.plataforma)}</td><td class="uuid">${esc(v.orden)}</td><td><div class="fname" title="${esc(v.producto)}">${esc(v.producto||"—")}</div></td><td class="num">${v.cantidad}</td><td class="num">${f(v.bruto)}</td><td class="num">${v.reembolso?f(-v.reembolso):""}</td><td class="num">${v.cargos?f(v.cargos):""}</td><td class="num">${v.envio?f(v.envio):""}</td><td class="num"><strong>${f(v.neto)}</strong></td><td>${(()=>{ const ls = liberaciones.filter(l=>String(l.ident)===String(v.orden));
+        if(ls.length) return ls.map(l=>`<div style="white-space:nowrap">Op. <span class="uuid">${esc(l.op)}</span></div><div class="fsub">liberado ${fechaCorta(l.fecha)} · ${f(r2(l.credito-l.debito))}</div>`).join("");
+        if(v.idPago) return `<div style="white-space:nowrap">Pago <span class="uuid">${esc(v.idPago)}</span></div><div class="fsub">${v.liquidado?`liquidado ${fechaCorta(v.liquidado)}`:""}</div>`;
+        return '<span class="fsub">—</span>'; })()}</td><td>${esc(v.estado||"")}</td>
         <td>${canWrite?`<label class="check inline" style="margin:0"><input type="checkbox" data-vpfac="${esc(v.id)}" ${v.facturada?"checked":""}> Individual</label>`:(v.facturada?"Individual":"Global")}${v.facturaAdjunta?'<div class="fsub">factura adjunta en la plataforma</div>':""}</td><td>${canWrite?`<button class="linkbtn" data-vpdel="${esc(v.id)}">quitar</button>`:""}</td></tr>`).join("")}
-      <tr style="background:var(--group)"><td colspan="5"><strong>Total ${MESES[vpMes-1].toLowerCase()}</strong> <span class="fsub">(la venta sin canceladas; el neto incluye todo lo que te cobró la plataforma)</span></td><td class="num"><strong>${f(S(lista,"bruto"))}</strong></td><td class="num"><strong>${f(-S(lista,"reembolso"))}</strong></td><td class="num"><strong>${f(S(lista,"cargos"))}</strong></td><td class="num"><strong>${f(S(lista,"envio"))}</strong></td><td class="num"><strong>${f(S(lista,"neto"))}</strong></td><td colspan="3"></td></tr></tbody></table></div>`
+      <tr style="background:var(--group)"><td colspan="5"><strong>Total ${MESES[vpMes-1].toLowerCase()}</strong> <span class="fsub">(la venta sin canceladas; el neto incluye todo lo que te cobró la plataforma)</span></td><td class="num"><strong>${f(S(lista,"bruto"))}</strong></td><td class="num"><strong>${f(-S(lista,"reembolso"))}</strong></td><td class="num"><strong>${f(S(lista,"cargos"))}</strong></td><td class="num"><strong>${f(S(lista,"envio"))}</strong></td><td class="num"><strong>${f(S(lista,"neto"))}</strong></td><td colspan="4"></td></tr></tbody></table></div>`
       : `<div class="empty">Sin ventas en ${MESES[vpMes-1].toLowerCase()}. Sube el reporte de ventas de la plataforma (Excel o CSV) con <strong>Subir reporte de ventas</strong> o regístralas a mano.</div>`;
     $("vpbody").innerHTML = h + htmlConcMP();
   }
@@ -7359,6 +7363,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       try{ await guardarVentas([v]); toast("Venta registrada."); }catch(err){ handleWriteError(err); }
     }
   });
+  $("vpbody").addEventListener("input", e => { if(e.target.id==="vpBuscar"){ vpBuscar = e.target.value; const pos = e.target.selectionStart; renderVentasPlat(); const i = $("vpBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
   $("vpbody").addEventListener("change", async e => { const c = e.target.closest("[data-vpfac]"); if(!c) return; const v = ventasP.find(x=>x.id===c.dataset.vpfac); if(!v) return;
     const {id, ...resto} = v; try{ await db.doc(`empresas/${empresa}/ventasPlat/${id}`).set({...resto, facturada: c.checked}); }catch(err){ handleWriteError(err); } });
   $("vpSubir").onclick = () => $("vpFile").click();
