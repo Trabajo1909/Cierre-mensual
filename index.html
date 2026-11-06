@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 37 · Receptor y factura de cada venta</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 38 · Motivo de ventas sin liberación</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7197,6 +7197,24 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // 2) mismo total exacto y fecha cercana
     return base.filter(f=>Math.abs((+f.total||0) - (+v.bruto||0)) <= 1).sort(cerca)[0] || null;
   }
+  // Por qué una venta todavía no tiene liberación o pago
+  function motivoSinLiberacion(v){
+    const fv = String(v.fecha).slice(0,10), dias = Math.abs(diasEntre(fv, hoyISO)), mesV = fv.slice(0,7);
+    const sig = (()=>{ const [y,m] = mesV.split("-").map(Number); return m===12 ? mesKey(y+1,1) : mesKey(y, m+1); })();
+    if(esCancelada(v)) return "Cancelada o devuelta: no se libera";
+    if(/tiktok/i.test(v.plataforma)){
+      const cubierto = pagosPlat.some(p=>/tiktok/i.test(p.plataforma) && String(p.fecha) >= fv);
+      if(!cubierto) return dias < 20 ? "Aún por liquidar" : `Falta subir el reporte de ingresos de TikTok de ${MESES[+mesV.slice(5)-1].toLowerCase()} en adelante`;
+      return dias < 20 ? "Aún por liquidar" : "Revisar: no aparece en tus reportes de ingresos";
+    }
+    if(/mercado/i.test(v.plataforma)){
+      const cubierto = liberaciones.some(l=>String(l.fecha).slice(0,7)===mesV || String(l.fecha).slice(0,7)===sig);
+      if(!cubierto) return dias < 20 ? "Aún por liberar" : `Falta subir el reporte de liberaciones de ${MESES[+mesV.slice(5)-1].toLowerCase()} y ${MESES[+sig.slice(5)-1].toLowerCase()}`;
+      if(/reclamo|mediaci|retenid/i.test(sinAcento(v.estado||""))) return "Retenida por un reclamo";
+      return dias < 20 ? "Aún por liberar" : "Revisar: no aparece en tus liberaciones";
+    }
+    return "Sin reporte de pagos de esta plataforma";
+  }
   const esCancelada = v => /cancelad/i.test(sinAcento(v.estado||"")) || (+v.reembolso>0 && +v.reembolso >= +v.bruto - 0.01) || (/devuelto|devolucion finalizada/i.test(sinAcento(v.estado||"")) && !(+v.neto>0));
   const ventaNeta = v => r2((+v.bruto||0) - (+v.reembolso||0));
   async function guardarVentas(lista){
@@ -7443,7 +7461,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ${lista.map(v=>`<tr class="${esCancelada(v)?"canc":""}"><td>${fechaCorta(v.fecha)}</td><td>${esc(v.plataforma)}</td><td class="uuid">${esc(v.orden)}</td><td><div class="fname" title="${esc(v.producto)}">${esc(v.producto||"—")}</div></td><td class="num">${v.cantidad}</td><td class="num">${f(v.bruto)}</td><td class="num">${v.reembolso?f(-v.reembolso):""}</td><td class="num">${v.cargos?f(v.cargos):""}</td><td class="num">${v.envio?f(v.envio):""}</td><td class="num"><strong>${f(v.neto)}</strong></td><td>${(()=>{ const ls = liberaciones.filter(l=>String(l.ident)===String(v.orden));
         if(ls.length) return ls.map(l=>`<div style="white-space:nowrap">Op. <span class="uuid">${esc(l.op)}</span></div><div class="fsub">liberado ${fechaCorta(l.fecha)} · ${f(r2(l.credito-l.debito))}</div>`).join("");
         if(v.idPago) return `<div style="white-space:nowrap">Pago <span class="uuid">${esc(v.idPago)}</span></div><div class="fsub">${v.liquidado?`liquidado ${fechaCorta(v.liquidado)}`:""}</div>`;
-        return '<span class="fsub">—</span>'; })()}</td><td>${esc(v.estado||"")}</td>
+        return `<span class="fsub" style="max-width:none;white-space:normal">${esc(motivoSinLiberacion(v))}</span>`; })()}</td><td>${esc(v.estado||"")}</td>
         <td>${canWrite?`<label class="check inline" style="margin:0"><input type="checkbox" data-vpfac="${esc(v.id)}" ${v.facturada?"checked":""}> Individual</label>`:(v.facturada?"Individual":"Global")}${v.facturaAdjunta?'<div class="fsub">factura adjunta en la plataforma</div>':""}${v.receptor||v.rfcReceptor?`<div class="fsub" style="max-width:none">Receptor: ${esc(v.receptor||"")}${v.rfcReceptor?` · ${esc(v.rfcReceptor)}`:""}${v.usoCfdi?` · ${esc(v.usoCfdi)}`:""}</div>`:""}${(()=>{ const fx = facturaDeVenta(v); if(fx) return `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:3px"><span class="st pagado" style="font-size:11px">Factura ${esc(fx.folio||String(fx.uuid).slice(0,8))}</span>${botonesCfdi(fx.uuid)}</div>`; return v.facturaAdjunta || v.facturada ? '<div class="fsub" style="color:var(--late-ink)">No la encontré en tus facturas emitidas</div>' : ""; })()}</td><td>${canWrite?`<button class="linkbtn" data-vpdel="${esc(v.id)}">quitar</button>`:""}</td></tr>`).join("")}
       <tr style="background:var(--group)"><td colspan="5"><strong>Total ${MESES[vpMes-1].toLowerCase()}</strong> <span class="fsub">(la venta sin canceladas; el neto incluye todo lo que te cobró la plataforma)</span></td><td class="num"><strong>${f(S(lista,"bruto"))}</strong></td><td class="num"><strong>${f(-S(lista,"reembolso"))}</strong></td><td class="num"><strong>${f(S(lista,"cargos"))}</strong></td><td class="num"><strong>${f(S(lista,"envio"))}</strong></td><td class="num"><strong>${f(S(lista,"neto"))}</strong></td><td colspan="4"></td></tr></tbody></table></div>`
       : `<div class="empty">Sin ventas en ${MESES[vpMes-1].toLowerCase()}. Sube el reporte de ventas de la plataforma (Excel o CSV) con <strong>Subir reporte de ventas</strong> o regístralas a mano.</div>`;
