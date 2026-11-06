@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 32 · Comisiones de TikTok Shop</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 33 · Pólizas de ventas en plataformas</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -5138,11 +5138,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   // ---------- Contabilidad automática (pólizas para CONTPAQi) ----------
   let catalogo = [], terceros = {}, contaCfg = {}, unsubCat = null, unsubTer = null, unsubCC = null, coTab = "provProv", coMes = null;
-  const CO_TABS = [["provProv","Provisión proveedores"],["provCli","Provisión clientes"],["egresos","Egresos"],["ingresos","Ingresos"],["manual","Pólizas a mano"],["cq","Tus pólizas en CONTPAQi"]];
+  const CO_TABS = [["provProv","Provisión proveedores"],["provCli","Provisión clientes"],["egresos","Egresos"],["ingresos","Ingresos"],["plat","Ventas en plataformas"],["manual","Pólizas a mano"],["cq","Tus pólizas en CONTPAQi"]];
   const CTA_DEF = {iva119:"119-01-000", iva118:"118-01-000", iva209:"209-01-000", iva208:"208-01-000", ingresos:"401-01-000",
-    retIsrResico:"216-12-004", retIvaResico:"216-12-006", retCedResico:"216-12-005", retIsrHon:"213-07-004", retIvaHon:"213-07-003", retCedHon:"213-07-005", ivaRetCli:"113-01-000", isrRetCli:"113-02-000"};
+    retIsrResico:"216-12-004", retIvaResico:"216-12-006", retCedResico:"216-12-005", retIsrHon:"213-07-004", retIvaHon:"213-07-003", retCedHon:"213-07-005", ivaRetCli:"113-01-000", isrRetCli:"113-02-000", platPuenteML:"", platPuenteTK:"", platComision:"", platEnvio:"", platRet:"", platDevol:""};
   const CTA_NOM = {iva119:"IVA pendiente de pago", iva118:"IVA acreditable pagado", iva209:"IVA trasladado no cobrado", iva208:"IVA trasladado cobrado", ingresos:"Ingresos",
-    retIsrResico:"ISR retenido a RESICO", retIvaResico:"IVA retenido a RESICO", retCedResico:"Cedular retenida a RESICO", retIsrHon:"ISR retenido por honorarios", retIvaHon:"IVA retenido por honorarios", retCedHon:"Cedular retenida por honorarios", ivaRetCli:"IVA que te retienen tus clientes", isrRetCli:"ISR que te retienen tus clientes"};
+    retIsrResico:"ISR retenido a RESICO", retIvaResico:"IVA retenido a RESICO", retCedResico:"Cedular retenida a RESICO", retIsrHon:"ISR retenido por honorarios", retIvaHon:"IVA retenido por honorarios", retCedHon:"Cedular retenida por honorarios", ivaRetCli:"IVA que te retienen tus clientes", isrRetCli:"ISR que te retienen tus clientes", platPuenteML:"Mercado Libre por cobrar (cuenta puente)", platPuenteTK:"TikTok Shop por cobrar (cuenta puente)", platComision:"Comisiones de plataformas (gasto)", platEnvio:"Envíos de plataformas (gasto)", platRet:"Impuestos retenidos por plataformas (ISR, IVA)", platDevol:"Devoluciones sobre ventas"};
   function subscribeConta(){
     [unsubCat, unsubTer, unsubCC].forEach(u=>u && u()); catalogo = []; terceros = {}; contaCfg = {};
     if(!db || !empresa) return;
@@ -5212,7 +5212,42 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function retCtas(f){ const resico = String(f.regimen||"").startsWith("626"); return {isr: ctaCfg(resico?"retIsrResico":"retIsrHon"), iva: ctaCfg(resico?"retIvaResico":"retIvaHon"), ced: ctaCfg(resico?"retCedResico":"retCedHon")}; }
 
   // --- Arma las pólizas del mes ---
+  // ---------- Pólizas de ventas en plataformas (Mercado Libre, TikTok Shop) ----------
+  function polizasPlataformas(y, m){
+    const mk = mesKey(y, m), out = [], fin = new Date(Date.UTC(y, m, 0)).toISOString().slice(0,10), MES = MESES[m-1].toUpperCase();
+    const cfg = k => ctaCfg(k) || "", L = (c, ca, ab) => ({c, ca: r2(ca||0), ab: r2(ab||0), falta: !c && "cfg"});
+    const mpCta = cuentasB.find(c=>/mercado ?pago/i.test(c.nombre)), bancoMP = mpCta ? mpCta.cuentaContable || "" : "";
+    const plats = [["Mercado Libre", "platPuenteML", /mercado/i], ["TikTok Shop", "platPuenteTK", /tiktok/i]];
+    for(const [plat, kPuente, re] of plats){
+      const puente = cfg(kPuente), vs = ventasP.filter(v=>re.test(v.plataforma) && String(v.fecha).slice(0,7)===mk);
+      if(!vs.length && !liberaciones.length && !pagosPlat.length) continue;
+      const nom = plat.toUpperCase(), key = s => `plat-${plat}-${s}-${mk}`;
+      const venta = r2(vs.reduce((s,v)=>s+(+v.bruto||0),0));
+      if(venta>0){ const ing = r2(venta/1.16);
+        out.push({key:key("ventas"), tipo:"Diario", fecha:fin, concepto:`VENTAS ${nom} ${MES}`, ref:`${vs.length} VENTAS`, lin:[L(puente, venta, 0), L(cfg("ingresos"), 0, ing), L(cfg("iva208"), 0, r2(venta-ing))], ct:{}, plat:true}); }
+      const dev = r2(vs.reduce((s,v)=>s+(+v.reembolso||0),0));
+      if(dev>0){ const b = r2(dev/1.16); out.push({key:key("devol"), tipo:"Diario", fecha:fin, concepto:`DEVOLUCIONES ${nom} ${MES}`, ref:"DEVOLUCIONES", lin:[L(cfg("platDevol"), b, 0), L(cfg("iva208"), r2(dev-b), 0), L(puente, 0, dev)], ct:{}, plat:true}); }
+      const com = r2(vs.reduce((s,v)=>s+(+v.cargos||0),0)), env = r2(vs.reduce((s,v)=>s+(+v.envio||0),0));
+      if(com+env>0){ const cb = r2(com/1.16), eb = r2(env/1.16), lin = [];
+        if(com) lin.push(L(cfg("platComision"), cb, 0)); if(env) lin.push(L(cfg("platEnvio"), eb, 0)); lin.push(L(cfg("iva118"), r2(com+env-cb-eb), 0)); lin.push(L(puente, 0, r2(com+env)));
+        out.push({key:key("comis"), tipo:"Diario", fecha:fin, concepto:`COMISIONES Y ENVIOS ${nom} ${MES}`, ref:"COMISIONES", lin, ct:{}, plat:true}); }
+      const ret = r2(vs.reduce((s,v)=>s+(+v.impuestos||0),0));
+      if(ret>0) out.push({key:key("ret"), tipo:"Diario", fecha:fin, concepto:`IMPUESTOS RETENIDOS ${nom} ${MES}`, ref:"RETENCIONES", lin:[L(cfg("platRet"), ret, 0), L(puente, 0, ret)], ct:{}, plat:true});
+      // Liberaciones / pagos que llegaron a Mercado Pago en el mes
+      const lib = plat==="Mercado Libre" ? r2(liberaciones.filter(l=>String(l.fecha).slice(0,7)===mk && /^\d{15,17}$/.test(l.ident)).reduce((s,l)=>s+l.credito-l.debito,0))
+        : r2(pagosPlat.filter(p=>/tiktok/i.test(p.plataforma) && String(p.fecha).slice(0,7)===mk).reduce((s,p)=>s+p.monto,0));
+      if(lib>0) out.push({key:key("lib"), tipo:"Ingresos", fecha:fin, concepto:`${plat==="Mercado Libre"?"LIBERACIONES":"PAGOS"} ${nom} ${MES}`, ref:"MERCADO PAGO", lin:[L(bancoMP, lib, 0), L(puente, 0, lib)], ct:{}, plat:true});
+    }
+    // Traspasos de Mercado Pago a tus otros bancos
+    if(mpCta){ const tr = concs.filter(c=>c.cuenta===mpCta.id && c.anio===y && c.mes===m).flatMap(c=>c.banco||[]).filter(b=>b.tipo==="ret" && /transferencia enviada/i.test(b.nombre));
+      tr.forEach((b,i)=>{ const dest = cuentasB.find(c=>c.id!==mpCta.id && normTxt(b.nombre).includes(normTxt(c.nombre).split(" ")[0])); 
+        out.push({key:`plat-trasp-${b.id}`, tipo:"Diario", fecha:b.fecha, concepto:`TRASPASO MERCADO PAGO A ${dest?dest.nombre.toUpperCase():"BANCO"}`, ref:String(b.concepto||"").slice(0,30), lin:[L(dest?dest.cuentaContable:"", b.monto, 0), L(bancoMP, 0, b.monto)], ct:{}, plat:true}); }); }
+    out.forEach(p=>{ const ca = r2(p.lin.reduce((s,l)=>s+l.ca,0)), ab = r2(p.lin.reduce((s,l)=>s+l.ab,0)); p.dif = r2(ca-ab); p.ya = null; });
+    return out;
+  }
+
   function polizasBase(y, m, tab){
+    if(tab==="plat") return polizasPlataformas(y, m);
     if(tab==="manual"){ const mk = mesKey(y, m);
       return polApp.filter(p=>String(p.fecha).slice(0,7)===mk).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))).map(p=>{ const lin = (p.lin||[]).map(l=>({c:l.c, ca:+l.ca||0, ab:+l.ab||0}));
         const ca = r2(lin.reduce((s,l)=>s+l.ca,0)), ab = r2(lin.reduce((s,l)=>s+l.ab,0)); return {key:`manual-${p.id}`, id:p.id, manual:true, tipo:p.tipo, fecha:p.fecha, concepto:p.concepto, ref:p.ref||"", lin, ct:{}, dif:r2(ca-ab), ya:null}; }); }
@@ -5326,7 +5361,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function renderConta(){
     $("yearLabel").textContent = year;
     if(!coMes) coMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
-    const pendTab = k => { if(k==="manual" || k==="cq" || !catalogo.length) return 0; const ex = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[])); return polizasMesSinNum(year, coMes, k).filter(p=>!p.ya && !ex.has(p.key)).length; };
+    const pendTab = k => { if(k==="manual" || k==="cq" || k==="plat" || !catalogo.length) return 0; const ex = new Set(((contaCfg.excluir||{})[mesKey(year, coMes)]||[])); return polizasMesSinNum(year, coMes, k).filter(p=>!p.ya && !ex.has(p.key)).length; };
     $("ctabs").innerHTML = CO_TABS.map(([k,n])=>{ const pn = pendTab(k); return `<button data-cotab="${k}" aria-pressed="${coTab===k}">${n}${pn?` <span class="st vencido" style="font-size:11px;padding:1px 6px">${pn}</span>`:""}</button>`; }).join("");
     const ultC = year<now.getFullYear() ? 12 : year===now.getFullYear() ? now.getMonth()+1 : 0;
     $("cmonths2").innerHTML = Array.from({length:12},(_,i)=>{ if(!catalogo.length || i+1>ultC) return `<button class="mchip" data-comes="${i+1}" aria-current="${coMes===i+1}"><b>${ABR[i]}</b><small>—</small></button>`;
@@ -5347,7 +5382,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     let html = `<div class="pairbar" style="margin:0 0 8px;flex-wrap:wrap;gap:10px;align-items:center">${coTab!=="manual"?`<label style="margin:0;font-weight:600">Empezar ${tipoP==="Diario"?"los Diarios":tipoP==="Egresos"?"los Egresos":"los Ingresos"} de ${MESES[coMes-1].toLowerCase()} en el número</label><input type="number" id="coIni" min="1" value="${ini}" style="width:90px">`:`${canWrite?`<button class="btn primary sm" id="coNueva">Nueva póliza</button>`:""}`}
       ${downloads?`<button class="btn sm" id="coTxt">Descargar solo esta pestaña (.txt)</button><button class="btn sm" id="coXls">En Excel</button>`:""}<button class="linkbtn" id="coCfg">Cuentas generales</button></div>
       ${downloads?`<div class="pairbar" style="margin:0 0 14px"><button class="btn primary" id="coTodo">Descargar TODAS las pólizas de ${MESES[coMes-1].toLowerCase()} para CONTPAQi (.txt)</button><span class="fsub" style="max-width:none">${todasN} pólizas con numeración seguida por tipo: un solo archivo para importar.</span></div>`:""}`;
-    if(!ps.length) html += coTab==="manual" ? `<div class="empty">Aquí capturas cualquier otra póliza (nómina, IMSS, impuestos, reembolsos, traspasos, depreciación…) con tu catálogo, desde el iPad. Toca <strong>Nueva póliza</strong>.</div>` : `<div class="empty">No hay movimientos para esta póliza en ${MESES[coMes-1].toLowerCase()}.</div>`;
+    if(coTab==="plat" && ps.some(p=>p.lin.some(l=>l.falta))) html += `<div class="bpanel" style="padding:10px 14px;margin-bottom:12px"><strong>Asigna tus cuentas una sola vez:</strong> toca <button class="linkbtn" id="coCfg2">Cuentas generales</button> y elige las cuentas de Mercado Libre por cobrar, TikTok Shop por cobrar, comisiones, envíos, impuestos retenidos y devoluciones. La cuenta de Mercado Pago se toma de Bancos.</div>`;
+    if(!ps.length && coTab==="plat") html += `<div class="empty">Sin ventas en plataformas en ${MESES[coMes-1].toLowerCase()}. Sube tus reportes en <strong>Ventas en plataformas</strong>.</div>`;
+    else if(!ps.length) html += coTab==="manual" ? `<div class="empty">Aquí capturas cualquier otra póliza (nómina, IMSS, impuestos, reembolsos, traspasos, depreciación…) con tu catálogo, desde el iPad. Toca <strong>Nueva póliza</strong>.</div>` : `<div class="empty">No hay movimientos para esta póliza en ${MESES[coMes-1].toLowerCase()}.</div>`;
     for(const p of ps){
       const inc = !excl.has(p.key) && !p.ya;
       html += `<div class="bpanel" style="margin-bottom:12px;${inc?"":"opacity:.6"}"><h3 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label class="check" style="margin:0"><input type="checkbox" data-coinc="${esc(p.key)}" ${inc?"checked":""}><span>${p.tipo} ${inc&&p.num!=null?p.num:""}</span></label><span style="font-weight:600">${fechaCorta(p.fecha)} · ${esc(p.concepto)}</span>
@@ -5394,11 +5431,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const em = e.target.closest("[data-coman]"); if(em){ abrirPolMan(polApp.find(x=>x.id===em.dataset.coman)); return; }
     const du = e.target.closest("[data-codup]"); if(du){ const x = polApp.find(y=>y.id===du.dataset.codup); if(x) abrirPolMan({...x, id:null}); return; }
     if(e.target.closest("#coXls")) return exportConta("xlsx");
-    if(e.target.closest("#coCfg")){ abrirCfgConta(); return; }
+    if(e.target.closest("#coCfg") || e.target.closest("#coCfg2")){ abrirCfgConta(); return; }
   });
   function abrirCfgConta(){
     const d = $("contaCfgDlg"), cur = contaCfg.cuentas || {};
-    $("contaCfgLista").innerHTML = Object.keys(CTA_DEF).map(k=>`<label style="margin:6px 0 2px">${CTA_NOM[k]}</label><select data-cfgk="${k}">${catalogo.filter(c=>esDetalle(c.c)).map(c=>`<option value="${c.c}" ${(cur[k]||CTA_DEF[k])===c.c?"selected":""}>${c.c} ${esc(c.n)}</option>`).join("")}</select>`).join("");
+    $("contaCfgLista").innerHTML = Object.keys(CTA_DEF).map(k=>`<label style="margin:6px 0 2px">${CTA_NOM[k]}</label><select data-cfgk="${k}"><option value="">— Sin asignar —</option>${catalogo.filter(c=>esDetalle(c.c)).map(c=>`<option value="${c.c}" ${(cur[k]||CTA_DEF[k])===c.c?"selected":""}>${c.c} ${esc(c.n)}</option>`).join("")}</select>`).join("");
     d.showModal();
   }
   $("contaCfgCancel").onclick = () => $("contaCfgDlg").close();
@@ -7172,7 +7209,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const nuevas = [];
     for(const l of L.filter(x=>plataformaLib(x)==="Mercado Libre" && x.bruto > 0)){
       const ya = ventasP.some(v=>/mercado/i.test(v.plataforma) && String(v.orden)===l.ident) || nuevas.some(v=>v.orden===l.ident);
-      if(!ya) nuevas.push({plataforma:"Mercado Libre", orden:l.ident, fecha:l.origen, estado:"Liberada (del reporte de liberaciones)", producto:l.sku, sku:l.sku, cantidad:1, bruto:l.bruto, cargos:r2(l.comision + l.impuestos), envio:l.envio, neto:r2(l.credito - l.debito), reembolso:0, desdeLiberacion:true});
+      if(!ya) nuevas.push({plataforma:"Mercado Libre", orden:l.ident, fecha:l.origen, estado:"Liberada (del reporte de liberaciones)", producto:l.sku, sku:l.sku, cantidad:1, bruto:l.bruto, cargos:r2(l.comision), impuestos:r2(l.impuestos), envio:l.envio, neto:r2(l.credito - l.debito), reembolso:0, desdeLiberacion:true});
     }
     if(nuevas.length){ await guardarVentas(nuevas); nuevasV = nuevas.length; }
     return {n, nuevasV};
