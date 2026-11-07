@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 38 · Motivo de ventas sin liberación</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 39 · Junta ventas repetidas de Mercado Libre</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7197,6 +7197,20 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // 2) mismo total exacto y fecha cercana
     return base.filter(f=>Math.abs((+f.total||0) - (+v.bruto||0)) <= 1).sort(cerca)[0] || null;
   }
+  const libsDeVenta = v => liberaciones.filter(l=>String(l.ident)===String(v.orden) || (v.aliasLib||[]).includes(String(l.ident)));
+  // Ventas duplicadas: una del reporte de ventas y otra creada desde el reporte de liberaciones (Mercado Libre usa a veces otro número, por ejemplo en paquetes)
+  async function fusionarDuplicadosML(){
+    const rep = ventasP.filter(v=>/mercado/i.test(v.plataforma) && !v.desdeLiberacion), deLib = ventasP.filter(v=>/mercado/i.test(v.plataforma) && v.desdeLiberacion);
+    let n = 0; const usados = new Set();
+    for(const d of deLib){
+      const c = rep.filter(v=>!usados.has(v.id) && String(v.fecha).slice(0,10)===String(d.fecha).slice(0,10) && Math.abs((+v.bruto||0)-(+d.bruto||0)) <= 0.5 && !libsDeVenta(v).length)
+        .sort((a,b)=>(String(b.sku||"")===String(d.sku||"")) - (String(a.sku||"")===String(d.sku||"")))[0];
+      if(!c) continue; usados.add(c.id);
+      const {id, ...resto} = c; await conReintento(()=>db.doc(`empresas/${empresa}/ventasPlat/${id}`).set({...resto, aliasLib: [...new Set([...(c.aliasLib||[]), String(d.orden)])]}));
+      await conReintento(()=>db.doc(`empresas/${empresa}/ventasPlat/${d.id}`).delete()); n++;
+    }
+    return n;
+  }
   // Por qué una venta todavía no tiene liberación o pago
   function motivoSinLiberacion(v){
     const fv = String(v.fecha).slice(0,10), dias = Math.abs(diasEntre(fv, hoyISO)), mesV = fv.slice(0,7);
@@ -7250,7 +7264,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // Ventas de Mercado Libre que no estaban en tus reportes: se crean con los datos de la liberación
     const nuevas = [];
     for(const l of L.filter(x=>plataformaLib(x)==="Mercado Libre" && x.bruto > 0)){
-      const ya = ventasP.some(v=>/mercado/i.test(v.plataforma) && String(v.orden)===l.ident) || nuevas.some(v=>v.orden===l.ident);
+      const ya = ventasP.some(v=>/mercado/i.test(v.plataforma) && (String(v.orden)===l.ident || (v.aliasLib||[]).includes(l.ident))) || nuevas.some(v=>v.orden===l.ident);
       if(!ya) nuevas.push({plataforma:"Mercado Libre", orden:l.ident, fecha:l.origen, estado:"Liberada (del reporte de liberaciones)", producto:l.sku, sku:l.sku, cantidad:1, bruto:l.bruto, cargos:r2(l.comision), impuestos:r2(l.impuestos), envio:l.envio, neto:r2(l.credito - l.debito), reembolso:0, desdeLiberacion:true});
     }
     if(nuevas.length){ await guardarVentas(nuevas); nuevasV = nuevas.length; }
@@ -7377,7 +7391,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const libPorOrden = {}; liberaciones.forEach(l=>{ (libPorOrden[l.ident] ||= []).push(l); });
     for(const v of ventasML){
       // 1) Con el reporte de liberaciones: por número de venta, y la operación se busca en el estado de cuenta
-      const ls = libPorOrden[String(v.orden)];
+      const ls = [...(libPorOrden[String(v.orden)]||[]), ...((v.aliasLib||[]).flatMap(a=>libPorOrden[a]||[]))];
       if(ls && ls.length){ const neto = r2(ls.reduce((s,l)=>s+l.credito-l.debito,0)), l0 = ls.slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)))[0];
         const mov = movs.find(b=>!usados.has(b.id) && (String(b.concepto).includes(l0.op) || String(b.id).includes(l0.op)));
         if(mov) usados.add(mov.id);
@@ -7427,7 +7441,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     else if(C.tiktokVentas || C.tiktokPagos) h += `<div class="fsub" style="padding:0 14px 10px;max-width:none;white-space:normal">TikTok Shop: vendiste ${f(C.tiktokVentas)} y EBANX te pagó ${f(C.tiktokPagos)} en el mes. La diferencia (${f(r2(C.tiktokVentas - C.tiktokPagos))}) suele ser la comisión de TikTok y los pagos que llegan el mes siguiente; con el reporte de liquidaciones de TikTok se cruza pedido por pedido.</div>`;
     if(viejas.length) h += `<div style="padding:4px 14px 10px"><strong>Ventas sin depósito para revisar</strong>${viejas.map(v=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${fechaCorta(v.fecha)} · ${esc(v.orden)} · ${esc((v.producto||"").slice(0,50))}<div class="fsub">${esc(v.estado||"")}</div></span><strong>${f(v.neto)}</strong></div>`).join("")}<div class="fsub" style="max-width:none;margin-top:4px">Pueden estar en un estado de cuenta que no has subido, haberse liberado junto con otras ventas, o seguir retenidas por un reclamo.</div></div>`;
     for(const [g, xs] of Object.entries(C.grupos)) h += `<details style="padding:0 14px 8px"><summary style="cursor:pointer;font-weight:600">${esc(g)} (${xs.length})</summary>${xs.map(b=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(b.fecha)} · ${esc(b.nombre)}<span class="fsub"> ${esc(b.concepto||"")}</span></span><span>${b.tipo==="dep"?"":"−"}${f(b.monto)}</span></div>`).join("")}</details>`;
-    if(C.pares.length) h += `<details style="padding:0 14px 12px"><summary style="cursor:pointer;font-weight:600">Ventas con su depósito (${C.pares.length})</summary>${C.pares.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(p.v.fecha)} venta ${esc(p.v.orden)} → ${(()=>{ const l = liberaciones.find(x=>String(x.ident)===String(p.v.orden)); return l ? `Op. ${esc(l.op)} · ` : ""; })()}liberado el ${fechaCorta(p.b.fecha)} (${p.dias} días)${p.porReporte?` · <span class="fsub">${p.enBanco?"✓ en el estado de cuenta":"no encontré la operación en el estado de cuenta"}</span>`:""}${p.difNeto?` · <strong style="color:var(--late-ink)">liberado ${f(p.v.neto + p.difNeto)} vs. neto ${f(p.v.neto)}</strong>`:""}</span><span>${f(p.v.neto)}</span></div>`).join("")}</details>`;
+    if(C.pares.length) h += `<details style="padding:0 14px 12px"><summary style="cursor:pointer;font-weight:600">Ventas con su depósito (${C.pares.length})</summary>${C.pares.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${fechaCorta(p.v.fecha)} venta ${esc(p.v.orden)} → ${(()=>{ const l = libsDeVenta(p.v)[0]; return l ? `Op. ${esc(l.op)} · ` : ""; })()}liberado el ${fechaCorta(p.b.fecha)} (${p.dias} días)${p.porReporte?` · <span class="fsub">${p.enBanco?"✓ en el estado de cuenta":"no encontré la operación en el estado de cuenta"}</span>`:""}${p.difNeto?` · <strong style="color:var(--late-ink)">liberado ${f(p.v.neto + p.difNeto)} vs. neto ${f(p.v.neto)}</strong>`:""}</span><span>${f(p.v.neto)}</span></div>`).join("")}</details>`;
     return h + `</div>`;
   }
   function renderVentasPlat(){
@@ -7436,7 +7450,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const f = money.format, enAnio = ventasP.filter(v=>String(v.fecha).startsWith(String(year)));
     $("vpmonths").innerHTML = Array.from({length:12},(_,i)=>{ const xs = enAnio.filter(v=>+v.fecha.slice(5,7)===i+1 && !esCancelada(v)); return `<button class="mchip ${xs.length?"ok":""}" data-vpmes="${i+1}" aria-current="${vpMes===i+1}"><b>${ABR[i]}</b><small>${xs.length?f(r2(xs.reduce((s,v)=>s+ventaNeta(v),0))).replace(/\.\d\d$/,""):"—"}</small></button>`; }).join("");
     const mk = mesKey(year, vpMes), delMes = ventasP.filter(v=>String(v.fecha).slice(0,7)===mk), plats = [...new Set(ventasP.map(v=>v.plataforma))];
-    const qv = normTxt(vpBuscar), opDe = v => liberaciones.filter(l=>String(l.ident)===String(v.orden)).map(l=>l.op).join(" ");
+    const qv = normTxt(vpBuscar), opDe = v => libsDeVenta(v).map(l=>l.op).join(" ");
     const lista = (qv ? ventasP.filter(v=>String(v.fecha).startsWith(String(year))) : delMes).filter(v=>(!vpPlat || v.plataforma===vpPlat) && (!qv || normTxt(`${v.orden} ${v.producto} ${v.sku||""} ${v.idPago||""} ${opDe(v)}`).includes(qv))).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
     const vig = delMes.filter(v=>!esCancelada(v)), S = (xs, k) => r2(xs.reduce((s,v)=>s+(k==="venta" ? ventaNeta(v) : (+v[k]||0)),0));
     // Lo que te depositó Mercado Pago en el mes (liberaciones de dinero)
@@ -7458,7 +7472,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       <div><button class="btn sm primary" id="vpAgregar">Registrar venta</button></div></div></details>`;
     h += `<div class="pairbar" style="margin:14px 0 8px;flex-wrap:wrap;gap:8px"><input id="vpBuscar" type="search" placeholder="Buscar orden, ID de operación, producto o SKU (todo el año)" value="${esc(vpBuscar)}" style="max-width:340px"><div class="seg"><button data-vpplat="" aria-pressed="${!vpPlat}">Todas</button>${plats.map(p=>`<button data-vpplat="${esc(p)}" aria-pressed="${vpPlat===p}">${esc(p)}</button>`).join("")}</div></div>`;
     h += lista.length ? `<div class="sheet"><table class="ft" style="min-width:980px"><thead><tr><th>Fecha</th><th>Plataforma</th><th>Orden</th><th>Producto</th><th class="num">Cant.</th><th class="num">Venta</th><th class="num">Devolución</th><th class="num">Comisión</th><th class="num">Envío</th><th class="num">Neto</th><th>Liberación / pago</th><th>Estado</th><th>Factura</th><th></th></tr></thead><tbody>
-      ${lista.map(v=>`<tr class="${esCancelada(v)?"canc":""}"><td>${fechaCorta(v.fecha)}</td><td>${esc(v.plataforma)}</td><td class="uuid">${esc(v.orden)}</td><td><div class="fname" title="${esc(v.producto)}">${esc(v.producto||"—")}</div></td><td class="num">${v.cantidad}</td><td class="num">${f(v.bruto)}</td><td class="num">${v.reembolso?f(-v.reembolso):""}</td><td class="num">${v.cargos?f(v.cargos):""}</td><td class="num">${v.envio?f(v.envio):""}</td><td class="num"><strong>${f(v.neto)}</strong></td><td>${(()=>{ const ls = liberaciones.filter(l=>String(l.ident)===String(v.orden));
+      ${lista.map(v=>`<tr class="${esCancelada(v)?"canc":""}"><td>${fechaCorta(v.fecha)}</td><td>${esc(v.plataforma)}</td><td class="uuid">${esc(v.orden)}</td><td><div class="fname" title="${esc(v.producto)}">${esc(v.producto||"—")}</div></td><td class="num">${v.cantidad}</td><td class="num">${f(v.bruto)}</td><td class="num">${v.reembolso?f(-v.reembolso):""}</td><td class="num">${v.cargos?f(v.cargos):""}</td><td class="num">${v.envio?f(v.envio):""}</td><td class="num"><strong>${f(v.neto)}</strong></td><td>${(()=>{ const ls = libsDeVenta(v);
         if(ls.length) return ls.map(l=>`<div style="white-space:nowrap">Op. <span class="uuid">${esc(l.op)}</span></div><div class="fsub">liberado ${fechaCorta(l.fecha)} · ${f(r2(l.credito-l.debito))}</div>`).join("");
         if(v.idPago) return `<div style="white-space:nowrap">Pago <span class="uuid">${esc(v.idPago)}</span></div><div class="fsub">${v.liquidado?`liquidado ${fechaCorta(v.liquidado)}`:""}</div>`;
         return `<span class="fsub" style="max-width:none;white-space:normal">${esc(motivoSinLiberacion(v))}</span>`; })()}</td><td>${esc(v.estado||"")}</td>
@@ -7512,6 +7526,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         total += await guardarVentas(R.ventas); guardarArchivoGeneral(file, "Reportes de ventas", year, null);
         if(R.sinComision) setTimeout(()=>toast(`${R.plataforma}: este reporte no trae comisiones. Captúralas en cada venta o sube el reporte de liquidaciones para tener el neto real.`), 3500);
         const ms = R.ventas.map(v=>v.fecha.slice(0,7)).sort(); vpMes = +ms[ms.length-1].slice(5,7); }catch(err){ toast(`${file.name}: no se pudo leer.`); } }
+    setTimeout(async ()=>{ try{ const nf = await fusionarDuplicadosML(); if(nf) toast(`Junté ${nf} ${nf===1?"venta repetida":"ventas repetidas"} de Mercado Libre (venían con otro número en las liberaciones).`); }catch(_){} }, 1500);
     if(nRet) setTimeout(()=>toast(`Listo: ${nRet} ${nRet===1?"constancia de retenciones guardada":"constancias de retenciones guardadas"}.`), 300);
     if(total) toast(`Listo: ${total} ventas registradas.`); else if(vacios.length) toast(`Reconocí el formato, pero el reporte no trae ventas: ${vacios.join(", ")}. Descárgalo con un periodo que tenga ventas.`);
   };
