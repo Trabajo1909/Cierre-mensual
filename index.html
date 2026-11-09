@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 39 · Junta ventas repetidas de Mercado Libre</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 40 · UUID y complementos con XML y PDF</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1577,7 +1577,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const v = vigente(f);
       t += `<tr class="${v?"":"canc"}"><td>${fechaCorta(f.fecha)}</td>
         <td><div class="fname" title="${esc(f.nombre)}">${esc(f.nombre||"—")}</div><div class="fsub" title="${esc(f.conceptos||"")}">${v?esc(f.conceptos||""):f.canceladaManual?"Marcada como cancelada por ti":"Cancelada en el SAT"}</div>${botonesCfdi(f.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(f.uuid)}</div>` : ""}${!v && f.canceladaManual && canWrite && !f.acuseCancel ? `<button class="btn sm" data-descancelar="${esc(f.id)}" style="margin-top:4px;opacity:1">Fue un error: volver a vigente</button>` : ""}${!v ? (f.acuseCancel ? `<div class="fsub" style="max-width:none;opacity:1"><span class="st pagado">Acuse de cancelación</span> <button class="linkbtn" data-acusedl="${esc(f.id)}">${esc(f.acuseCancel.nombre)}</button>${f.acuseCancel.fecha?` · cancelada el ${fechaCorta(f.acuseCancel.fecha)} ${f.acuseCancel.fecha.slice(0,4)}`:""}</div>` : `<div class="fsub" style="max-width:none;opacity:1"><span class="st parcial">Falta acuse de cancelación</span>${canWrite?` <button class="linkbtn" data-acuseup="${esc(f.id)}">Subir acuse</button>`:""}</div>`) : ""}${v && canWrite ? `<button class="linkbtn" data-cancelar="${esc(f.id)}" style="font-size:11px">Marcar como cancelada</button>` : ""}</td>
-        <td>${f.folio?`<div>${esc(f.folio)}</div>`:""}<div class="uuid" title="${esc(f.uuid)}">${esc(String(f.uuid).slice(0,8))}…</div></td>
+        <td style="min-width:150px">${f.folio?`<div>${esc(f.folio)}</div>`:""}${uuidHTML(f.uuid)}${f.metodo==="PPD"?complementosHTML(f):""}</td>
         <td><span class="mp ${f.metodo==="PPD"?"ppd":""}">${esc(f.metodo||"—")}</span></td>
         <td class="num">${money.format(+f.total||0)}</td>`;
       if(!v){ t += `<td></td><td></td><td></td>`; }
@@ -1982,9 +1982,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           d += c.abs.length ? c.abs.map(a=>`<div><span>${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}</span><strong>${money.format(+a.monto||0)}</strong>${a.nota?`<span class="fsub">${esc(a.nota)}</span>`:""}${canWrite?`<button class="linkbtn" data-delab="${esc(a.id)}">Quitar</button>`:""}</div>`).join("") : `<div class="fsub">Ninguno todavía.</div>`;
           if(f.metodo==="PPD"){
             d += `<div class="h">Complementos de pago</div>`;
-            d += c.cs.length ? c.cs.map(x=>`<div><span>${fechaCorta(x.fechaPago)} ${String(x.fechaPago).slice(0,4)}</span><strong>${money.format(+x.impPagado||0)}</strong><span class="fsub">Parcialidad ${x.parcialidad||1} · saldo ${money.format(+x.saldoInsoluto||0)}</span></div>`).join("") : `<div class="fsub">No hay complementos cargados para esta factura.</div>`;
+            d += c.cs.length ? c.cs.map(x=>`<div style="flex-wrap:wrap"><span>${fechaCorta(x.fechaPago)} ${String(x.fechaPago).slice(0,4)}</span><strong>${money.format(+x.impPagado||0)}</strong><span class="fsub">Parcialidad ${x.parcialidad||1} · saldo ${money.format(+x.saldoInsoluto||0)}</span><div style="width:100%">${uuidHTML(x.uuid)}${botonesCfdi(x.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(x.uuid)}</div>`:""}</div></div>`).join("") : `<div class="fsub">No hay complementos cargados para esta factura.</div>`;
           }
-          d += `<div class="h">UUID</div><div class="uuid">${esc(f.uuid)}</div></div>`;
+          d += `<div class="h">UUID de la factura</div>${uuidHTML(f.uuid)}${botonesCfdi(f.uuid)?`<div style="display:flex;gap:4px;margin-top:4px">${botonesCfdi(f.uuid)}</div>`:""}</div>`;
           t += `<tr class="det"><td colspan="9">${d}</td></tr>`;
         }
       }
@@ -5804,7 +5804,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!lista.length) h += `<div class="empty">${cppdSolo ? "Todas tus facturas PPD cuadran con sus complementos. 🎉" : "No hay facturas PPD."}</div>`;
     else h += `<table class="ft ct"><thead><tr><th>Fecha</th><th>${quien}</th><th>Folio</th><th class="num">Total</th><th class="num">${ctSel==="emitida"?"Cobrado":"Pagado"} en Cuentas</th><th class="num">Complementos</th><th class="num">Saldo</th><th>Revisión</th></tr></thead><tbody>
       ${lista.map(x=>`<tr><td>${fechaCorta(x.f.fecha)} ${String(x.f.fecha).slice(0,4)}</td><td><div class="fname" title="${esc(x.f.nombre)}">${esc(x.f.nombre||"—")}</div>${x.cs.length?`<div class="fsub" style="max-width:none;white-space:normal">${x.cs.map(c=>`${/cancel/i.test(c.estadoSAT||"")?"<s>":""}P${c.parcialidad||"?"} ${fechaCorta(String(c.fechaPago).slice(0,10))} · ${f(+c.impPagado||0)} · saldo ${f(+c.saldoInsoluto||0)}${/cancel/i.test(c.estadoSAT||"")?"</s> (cancelado)":""}`).join("<br>")}</div>`:""}</td>
-        <td>${esc(x.f.folio||"—")}<div class="uuid">${esc(String(x.f.uuid).slice(0,8))}…</div></td><td class="num">${f(+x.f.total||0)}</td><td class="num">${f(x.cta.abonado)}</td><td class="num">${f(x.compPag)}<div class="fsub">${x.cs.length} ${x.cs.length===1?"complemento":"complementos"}</div></td>
+        <td>${esc(x.f.folio||"—")}${uuidHTML(x.f.uuid)}${botonesCfdi(x.f.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(x.f.uuid)}</div>`:""}</td><td class="num">${f(+x.f.total||0)}</td><td class="num">${f(x.cta.abonado)}</td><td class="num">${f(x.compPag)}<div class="fsub">${x.cs.length} ${x.cs.length===1?"complemento":"complementos"}</div></td>
         <td class="num">${f(x.cta.saldo)}${x.saldoComp!=null?`<div class="fsub">insoluto ${f(x.saldoComp)}</div>`:""}</td>
         <td>${x.probs.length ? x.probs.map(p=>`<div><span class="st ${p.leve?"na":p.t==="falta"?"vencido":"parcial"}">${esc(p.txt)}</span>${p.sub?`<div class="fsub" style="max-width:none">${esc(p.sub)}</div>`:""}</div>`).join("") : '<span class="st pagado">Cuadra</span>'}</td></tr>`).join("")}</tbody></table>`;
     if(R.sinFactura.length) h += `<div class="bpanel" style="margin-top:16px"><h3>Complementos sin factura cargada<small>Complementos de facturas que no están en la app (de otro año o que faltan en tu reporte de AdminXML). Sube la factura para conciliarlos.</small></h3><table class="decl" style="width:100%"><tbody>${R.sinFactura.map(c=>`<tr><td>${fechaCorta(String(c.fechaPago).slice(0,10))}</td><td>${esc(c.nombre||"")}</td><td class="uuid">Paga la factura ${esc(String(c.doc).slice(0,8))}…</td><td class="num">${f(+c.impPagado||0)}</td></tr>`).join("")}</tbody></table></div>`;
@@ -5844,7 +5844,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         <td class="num">${g.n}</td><td class="num">${f(g.facturado)}</td><td class="num">${f(g.pagado)}</td><td class="num"><strong>${f(g.saldo)}</strong></td><td class="num ${g.vencido?"late":""}">${g.vencido?f(g.vencido):""}</td><td>${g.ultimo?`${fechaCorta(g.ultimo)} ${g.ultimo.slice(0,4)}`:"—"}</td></tr>`;
       if(ab){
         t += `<tr class="detail"><td colspan="7"><table class="decl" style="width:100%"><thead><tr><th>Fecha</th><th>Folio</th><th>Método</th><th class="num">Total</th><th class="num">${verbo==="cobro"?"Cobrado":"Pagado"}</th><th class="num">Saldo</th><th>Vence</th><th>Estatus</th></tr></thead><tbody>
-          ${g.items.sort((a,b)=>String(b.f.fecha).localeCompare(String(a.f.fecha))).map(({f:x, c})=>`<tr><td>${fechaCorta(x.fecha)} ${String(x.fecha).slice(0,4)}</td><td>${esc(x.folio||"—")}<div class="uuid">${esc(String(x.uuid).slice(0,8))}…</div>${botonesCfdi(x.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(x.uuid)}</div>` : ""}</td><td>${esc(x.metodo||"")}</td><td class="num">${f(+x.total||0)}</td><td class="num">${f(c.abonado)}${(c.abs||[]).length?`<div class="fsub">${c.abs.map(a=>fechaCorta(a.fecha)).join(", ")}</div>`:""}</td><td class="num"><strong>${f(c.saldo)}</strong></td><td class="${c.saldo>0&&c.dias<0?"late":""}">${fechaCorta(c.vence)}</td><td><span class="st ${c.estatus}">${EST_TXT[c.estatus]}</span></td></tr>`).join("")}
+          ${g.items.sort((a,b)=>String(b.f.fecha).localeCompare(String(a.f.fecha))).map(({f:x, c})=>`<tr><td>${fechaCorta(x.fecha)} ${String(x.fecha).slice(0,4)}</td><td>${esc(x.folio||"—")}${uuidHTML(x.uuid)}${x.metodo==="PPD"?complementosHTML(x):""}${botonesCfdi(x.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(x.uuid)}</div>` : ""}</td><td>${esc(x.metodo||"")}</td><td class="num">${f(+x.total||0)}</td><td class="num">${f(c.abonado)}${(c.abs||[]).length?`<div class="fsub">${c.abs.map(a=>fechaCorta(a.fecha)).join(", ")}</div>`:""}</td><td class="num"><strong>${f(c.saldo)}</strong></td><td class="${c.saldo>0&&c.dias<0?"late":""}">${fechaCorta(c.vence)}</td><td><span class="st ${c.estatus}">${EST_TXT[c.estatus]}</span></td></tr>`).join("")}
           <tr><td colspan="3"><strong>Total</strong></td><td class="num"><strong>${f(g.items.reduce((s,x)=>s+(+x.f.total||0),0))}</strong></td><td class="num"><strong>${f(g.pagado)}</strong></td><td class="num"><strong>${f(g.saldo)}</strong></td><td colspan="2"></td></tr></tbody></table></td></tr>`;
       }
     }
@@ -6451,6 +6451,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }
     if(hechos.length) toast(`Guardado: ${hechos.join(", ")}.`);
   });
+
+  // UUID completo con botón para copiarlo
+  const uuidHTML = u => `<div class="uuid" style="word-break:break-all;white-space:normal">${esc(String(u||"").toUpperCase())} <button type="button" class="linkbtn" data-copiar="${esc(String(u||"").toUpperCase())}" style="font-size:11px">copiar</button></div>`;
+  document.addEventListener("click", async e => { const b = e.target.closest("[data-copiar]"); if(!b) return; e.stopPropagation(); try{ await navigator.clipboard.writeText(b.dataset.copiar); toast("UUID copiado."); }catch(_){ toast(b.dataset.copiar); } }, true);
+  // Complementos de pago de una factura, con su UUID y sus archivos
+  const complementosHTML = f => { const cs = complementos.filter(c=>c.doc===f.uuid).sort((a,b)=>String(a.fechaPago).localeCompare(String(b.fechaPago))); if(!cs.length) return "";
+    return `<div style="margin-top:4px">${cs.map(c=>`<div class="fsub" style="max-width:none;white-space:normal;margin-top:3px">${/cancel/i.test(c.estadoSAT||"")?"<s>":""}Complemento P${c.parcialidad||1} · ${fechaCorta(String(c.fechaPago).slice(0,10))} · ${money.format(+c.impPagado||0)}${/cancel/i.test(c.estadoSAT||"")?"</s> (cancelado)":""}</div>${uuidHTML(c.uuid)}${botonesCfdi(c.uuid)?`<div style="display:flex;gap:4px;margin-top:2px">${botonesCfdi(c.uuid)}</div>`:""}`).join("")}</div>`; };
 
   // ---------- XML y PDF de cada CFDI ----------
   let cfdiMap = {}, unsubCfdi = null;
