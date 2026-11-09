@@ -379,7 +379,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 40 · UUID y complementos con XML y PDF</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 41 · Quitar marcas en Facturas</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1585,10 +1585,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const ec = estC[f.uuid], chip = (cls, txt, tit) => `<span class="st ${cls}" title="${esc(tit||"")}" style="white-space:nowrap">${esc(txt)}</span>`;
         // Provisión: solo PPD; la busca en tus pólizas de CONTPAQi (o la marcas tú)
         const prov = f.metodo!=="PPD" ? chip("na","No aplica (PUE)") : ec.prov ? chip("pagado", ec.prov, "Póliza de provisión encontrada en tus pólizas") :
-          listo(f.prov) ? chip("pagado","Marcada por ti") : !ec.hayPolMes ? chip("na","Sin pólizas del mes","Sube tus pólizas de ese mes para revisarlo") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="prov" data-marca="1" style="font-size:12px">ya está</button>`:""}`;
+          listo(f.prov) ? `${chip("pagado","Marcada por ti","La marcaste tú (en una versión anterior o con «ya está»)")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="prov" data-desmarca="1" style="font-size:12px">quitar</button>`:""}` : !ec.hayPolMes ? chip("na","Sin pólizas del mes","Sube tus pólizas de ese mes para revisarlo") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="prov" data-marca="1" style="font-size:12px">ya está</button>`:""}`;
         // Contabilidad: póliza de ingresos o egresos del pago
         const cont = ec.pago ? chip("pagado", ec.pago, "Póliza del pago encontrada en tus pólizas") : !ec.tienePago ? chip("na", tipoSel==="emitida"?"Sin cobro aún":"Sin pago aún") :
-          listo(f.ctrl) ? chip("pagado","Marcada por ti") : !ec.hayPolPago ? chip("na","Sin pólizas del mes","Sube tus pólizas del mes del pago") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="ctrl" data-marca="1" style="font-size:12px">ya está</button>`:""}`;
+          listo(f.ctrl) ? `${chip("pagado","Marcada por ti","La marcaste tú (en una versión anterior o con «ya está»)")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="ctrl" data-desmarca="1" style="font-size:12px">quitar</button>`:""}` : !ec.hayPolPago ? chip("na","Sin pólizas del mes","Sube tus pólizas del mes del pago") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="ctrl" data-marca="1" style="font-size:12px">ya está</button>`:""}`;
         // CxC / CxP: estatus del pago y complemento
         const c = ec.cta, est = {pagado:["pagado","Pagada"], parcial:["parcial","Pago parcial"], vencido:["vencido","Vencida"], pendiente:["pendiente","Pendiente"]}[c.estatus] || ["na",""];
         const comp = f.metodo!=="PPD" ? "" : c.comp==="ok" ? chip("pagado","Con complemento") : c.comp==="falta" ? chip("vencido","Falta complemento") : "";
@@ -1623,10 +1623,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         setSaving("Guardado"); }catch(err){ handleWriteError(err); }
       return;
     }
-    const b = e.target.closest(".cell, [data-marca]"); if(!b || !canWrite || !db || !b.dataset.f) return;
+    const b = e.target.closest(".cell, [data-marca], [data-desmarca]"); if(!b || !canWrite || !db || !b.dataset.f) return;
     const f = facturas.find(x=>x.id===b.dataset.f); if(!f) return;
     const campo = b.dataset.campo, cur = f[campo]||"";
-    const next = b.dataset.marca ? "done" : CICLO_F[(CICLO_F.indexOf(cur)+1)%CICLO_F.length];
+    const next = b.dataset.desmarca ? "" : b.dataset.marca ? "done" : CICLO_F[(CICLO_F.indexOf(cur)+1)%CICLO_F.length];
     f[campo] = next;
     const keep = document.activeElement === b;
     renderFacturas();
