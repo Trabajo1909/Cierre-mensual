@@ -370,16 +370,45 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 .st.vencido{background:var(--late-fill);color:var(--late-ink)}
 @media (prefers-reduced-motion: reduce){ .btn,.mchip,#sideNav{transition:none} .btn:hover,.mchip:hover{transform:none} }
 @media print{ #sideNav,#navToggle{display:none !important} .wrap{margin-left:0} }
+/* Calendario */
+.cal-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.cal-bar h2{margin:0 8px 0 4px;font-size:20px;letter-spacing:-.01em;min-width:180px}
+.cal-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--surface);box-shadow:var(--sombra)}
+.cal-mes .dow{padding:8px;font-size:12px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line);background:var(--group);text-align:center}
+.cal-mes .dia{min-height:104px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}
+.cal-mes .dia:nth-child(7n){border-right:none}
+.cal-mes .dia.otro{background:var(--group);opacity:.6}
+.cal-mes .dia .n{font-size:12px;font-weight:600;align-self:flex-start;padding:2px 6px;border-radius:999px}
+.cal-mes .dia.hoy .n{background:var(--vino);color:#fff}
+.ev{font-size:12px;line-height:1.25;padding:2px 6px;border-radius:5px;border-left:3px solid var(--c, var(--vino));background:color-mix(in srgb, var(--c, var(--vino)) 14%, var(--surface));color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.ev.hecho{text-decoration:line-through;opacity:.55}
+.ev.auto{border-left-style:dashed}
+.cal-mas{font-size:11px;color:var(--muted);padding-left:4px}
+.cal-sem{display:grid;border:1px solid var(--line);border-radius:var(--radius);overflow:auto;background:var(--surface);box-shadow:var(--sombra);max-height:72vh}
+.cal-sem .cab{position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:1px solid var(--line);padding:6px;text-align:center;font-size:12px;font-weight:600;color:var(--muted)}
+.cal-sem .cab.hoy b{background:var(--vino);color:#fff;border-radius:999px;padding:1px 7px}
+.cal-sem .hr{font-size:11px;color:var(--muted);text-align:right;padding:0 6px;border-top:1px solid var(--line);height:48px;box-sizing:border-box}
+.cal-sem .col{position:relative;border-left:1px solid var(--line)}
+.cal-sem .col .slot{height:48px;border-top:1px solid var(--line);box-sizing:border-box;cursor:pointer}
+.cal-sem .col .slot:hover{background:var(--group)}
+.cal-sem .bloque{position:absolute;left:3px;right:3px;border-radius:6px;padding:3px 6px;font-size:12px;overflow:hidden;border-left:3px solid var(--c, var(--vino));background:color-mix(in srgb, var(--c, var(--vino)) 18%, var(--surface));cursor:pointer;z-index:1}
+.cal-sem .todo{border-left:1px solid var(--line);padding:3px;display:flex;flex-direction:column;gap:2px;min-height:26px;border-bottom:1px solid var(--line)}
+.cal-agenda .grupo-d{font-weight:700;margin:14px 0 6px;font-size:14px}
+.cal-agenda .item{display:flex;gap:12px;align-items:flex-start;padding:8px 10px;border-radius:8px;border-left:3px solid var(--c, var(--vino));background:var(--surface);margin-bottom:6px;cursor:pointer;box-shadow:var(--sombra)}
+.cal-leyenda{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.cal-leyenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+@media (max-width:700px){ .cal-mes .dia{min-height:64px} .ev{font-size:10px;padding:1px 3px} }
+
 </style>
 </head>
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 42 · Nóminas con resumen por concepto</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 43 · Calendario</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -441,6 +470,17 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vCalendario" hidden>
+    <div class="cal-bar" id="calTools">
+      <button class="btn sm" data-calnav="hoy">Hoy</button><button class="btn sm" data-calnav="prev" aria-label="Anterior">‹</button><button class="btn sm" data-calnav="next" aria-label="Siguiente">›</button>
+      <h2 id="calTitulo"></h2>
+      <div class="seg"><button data-calv="mes">Mes</button><button data-calv="semana">Semana</button><button data-calv="dia">Día</button><button data-calv="agenda">Agenda</button></div>
+      <label class="check inline" style="margin:0"><input type="checkbox" id="calAutos"> Vencimientos de la app</label>
+      <button class="btn sm primary" id="calNuevo" style="margin-left:auto">Nuevo evento</button>
+    </div>
+    <div id="calbody"></div>
   </section>
 
   <section id="vNominas" hidden>
@@ -614,6 +654,22 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="evDlg" style="width:min(520px,94vw)">
+  <h2 id="evTitulo">Nuevo evento</h2>
+  <label for="evNombre">Título</label><input id="evNombre" autocomplete="off" placeholder="Ej.: Junta con el auditor">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px">
+    <div><label for="evTipo">Tipo</label><select id="evTipo"><option value="junta">Junta</option><option value="tarea">Tarea</option><option value="pendiente">Pendiente</option><option value="pago">Pago</option><option value="recordatorio">Recordatorio</option><option value="vencimiento">Vencimiento</option></select></div>
+    <div><label for="evFecha">Fecha</label><input id="evFecha" type="date"></div>
+  </div>
+  <label class="check" style="margin-top:8px"><input type="checkbox" id="evTodo"><span>Todo el día</span></label>
+  <div id="evHoras" style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px"><div><label for="evHora">Inicio</label><input id="evHora" type="time"></div><div><label for="evHoraFin">Fin</label><input id="evHoraFin" type="time"></div></div>
+  <label for="evRep">Repetir</label><select id="evRep"><option value="">No se repite</option><option value="diario">Cada día</option><option value="semanal">Cada semana</option><option value="mensual">Cada mes</option><option value="anual">Cada año</option></select>
+  <label for="evLugar">Lugar o link (opcional)</label><input id="evLugar" autocomplete="off" placeholder="Ej.: Oficina, Zoom, Meet…">
+  <label for="evNota">Notas (opcional)</label><textarea id="evNota" rows="3"></textarea>
+  <label class="check" id="evHechoFila"><input type="checkbox" id="evHecho"><span>Hecho / terminado</span></label>
+  <div class="dlg-actions"><button class="linkbtn" id="evBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="evCancel">Cancelar</button><button class="btn primary" id="evOk">Guardar</button></div>
 </dialog>
 
 <dialog id="accDlg" style="width:min(520px,94vw)">
@@ -1025,7 +1081,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas","#nominas"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas","#nominas","#calendario"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -1081,6 +1137,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="estados"){ renderEstados(); return; }
     if(vista==="ventas"){ renderVentasPlat(); return; }
     if(vista==="nominas"){ renderNominas(); return; }
+    if(vista==="calendario"){ renderCalendario(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1234,6 +1291,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribePresupuesto();
     subscribePreReglas();
     subscribeVentasPlat();
+    subscribeAgenda();
     subscribeLiberaciones();
     subscribePagosPlat();
     subscribeRetencionesP();
@@ -1491,15 +1549,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="nominas") renderNominas(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="nominas") renderNominas(); else if(vista==="calendario") renderCalendario(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas"; $("vCalendario").hidden = v!=="calendario";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || !canWrite;
-    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas"].includes(v), sinXls = ["expediente","notas","documentos","accesos"].includes(v);
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || !canWrite;
+    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
@@ -5983,6 +6041,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     ventas: "Tus ventas en Mercado Libre, Mercado Pago, TikTok Shop u otras plataformas: sube el reporte de ventas (Excel o CSV) o regístralas a mano. Por mes ves lo vendido por plataforma, comisiones, envíos y neto, lo que Mercado Pago te liberó en el banco y cuánto va a tu factura global.",
     estados: "Los estados financieros que piden los dueños, armados con tus balanzas de CONTPAQi: balanza de comprobación, estado de resultados (del mes y acumulado, con % sobre ingresos), balance general al cierre del mes y flujo de efectivo por el método indirecto. Descárgalos en PDF o Excel con los botones de arriba.",
     presupuesto: "Sube el presupuesto que hace administración (Excel con la hoja PRESUPUESTO; si trae HOJA CONTROL y ENVIO, también se leen). Al inicio del mes el inicial; al cierre, el actualizado. La app compara inicial, actualizado y lo pagado por subcategoría, te muestra lo que salió fuera de presupuesto, el saldo inicial y final de bancos, y cuánto fondear para el siguiente mes.",
+    calendario: "Tu agenda: vela por mes, semana, día o como lista. Agenda juntas, tareas, pendientes, pagos y recordatorios, con hora, lugar o link, notas y repeticiones. Además, la app agrega sola los vencimientos de impuestos, opiniones de cumplimiento y el día 5 de complementos de pago (puedes ocultarlos).",
     accesos: "Tus links a las plataformas que usas (SAT, IMSS, bancos, portales estatales…), agrupados por categoría. Toca Abrir para entrar. No guardes contraseñas aquí.",
     resumen: "Cuánto entró y cuánto salió cada mes: ingresos facturados y cobrados, fondeo (depósitos que no son cobros ni traspasos), gastos con proveedores, nómina (sueldos y asimilados), impuestos separados en SAT, SATEG e IMSS, y el flujo neto. Toca un mes para ver el detalle de impuestos, el fondeo y en qué se gastó.",
     directorio: "Los datos fiscales de tus clientes y proveedores para facturar: razón social, RFC, régimen, código postal, uso de CFDI, forma y método de pago, correo, banco, CLABE y notas. La app arma la lista con tus facturas y te propone el régimen y uso que vienen en ellas; tú completas el resto o subes su constancia de situación fiscal en PDF para llenarlo solo.",
@@ -7618,6 +7677,115 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     await guardarArchivo(`Nominas ${empresaNombre} ${ABR[nomMes-1]} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
   }
 
+  // ---------- Calendario / agenda ----------
+  const CAL_TIPOS = {junta:["Junta","#2F6FB3"], tarea:["Tarea","#7A1F3D"], pendiente:["Pendiente","#B98A1E"], pago:["Pago","#2E6B4E"], recordatorio:["Recordatorio","#6B5BA8"], vencimiento:["Vencimiento","#A3283F"]};
+  let agenda = [], unsubAg = null, calVista = "mes", calFecha = hoyISO, calAutos = true, evEdit = null;
+  function subscribeAgenda(){ if(unsubAg) unsubAg(); agenda = []; if(!db || !empresa) return;
+    unsubAg = db.collection(`empresas/${empresa}/agenda`).onSnapshot(qs => { agenda = qs.docs.map(d=>({id:d.id, ...d.data()})); if(vista==="calendario") renderCalendario(); }, () => {}); }
+  try{ calAutos = localStorage.getItem("calAutos") !== "0"; calVista = localStorage.getItem("calVista") || "mes"; }catch(_){}
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const deIso = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+  const sumaDias = (s, n) => { const d = deIso(s); d.setDate(d.getDate()+n); return iso(d); };
+  const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  // Eventos (con repeticiones) entre dos fechas
+  function eventosEntre(desde, hasta){
+    const out = [];
+    for(const e of agenda){
+      if(!e.fecha) continue;
+      const rep = e.repetir || "", fin = e.repHasta || "9999-12-31";
+      if(!rep){ if(e.fecha >= desde && e.fecha <= hasta) out.push({...e, dia: e.fecha}); continue; }
+      let d = e.fecha, guard = 0;
+      while(d <= hasta && d <= fin && guard++ < 800){
+        if(d >= desde) out.push({...e, dia: d, ocurrencia: true});
+        if(rep==="diario") d = sumaDias(d, 1); else if(rep==="semanal") d = sumaDias(d, 7);
+        else if(rep==="mensual"){ const x = deIso(e.fecha), n = deIso(d); const nm = new Date(n.getFullYear(), n.getMonth()+1, Math.min(x.getDate(), new Date(n.getFullYear(), n.getMonth()+2, 0).getDate())); d = iso(nm); }
+        else if(rep==="anual"){ const n = deIso(d); d = iso(new Date(n.getFullYear()+1, n.getMonth(), n.getDate())); } else break;
+      }
+    }
+    // Vencimientos automáticos de la app
+    if(calAutos){
+      try{ const vistos = new Set();
+        for(const y of new Set([+desde.slice(0,4), +hasta.slice(0,4)])) if(y===year) pendientesImpuestos(y).forEach(p=>{ if(p.vence>=desde && p.vence<=hasta){ const k = `${p.vence}-${p.o.aut}`; if(vistos.has(k)) return; vistos.add(k);
+          const n = pendientesImpuestos(y).filter(x=>x.vence===p.vence && x.o.aut===p.o.aut).length; out.push({id:`auto-imp-${k}`, auto:true, tipo:"vencimiento", titulo:`Vencen impuestos ${p.o.aut} (${n})`, dia:p.vence, todoDia:true, nota:"Impuestos pendientes de presentar o pagar. Detalle en Impuestos → Pendientes."}); } });
+      }catch(_){}
+      // Opiniones de cumplimiento que vencen
+      try{ (docsEmp||[]).filter(d=>d.tipo && d.tipo.startsWith("op-") && d.fecha).forEach(d=>{ const v = venceDF(d); if(v>=desde && v<=hasta) out.push({id:`auto-op-${d.id}`, auto:true, tipo:"vencimiento", titulo:`Vence ${TIPOS_DF[d.tipo]}`, dia:v, todoDia:true}); }); }catch(_){}
+      // Día 5: complementos de pago del mes anterior
+      for(let d = desde.slice(0,7)+"-05"; d <= hasta; d = sumaDias(d.slice(0,7)+"-28", 5).slice(0,7)+"-05"){ if(d>=desde) out.push({id:`auto-comp-${d}`, auto:true, tipo:"recordatorio", titulo:"Complementos de pago del mes anterior", dia:d, todoDia:true}); if(d.slice(0,7)>=hasta.slice(0,7)) break; }
+    }
+    return out.sort((a,b)=>String(a.dia).localeCompare(String(b.dia)) || (a.todoDia?-1:0) - (b.todoDia?-1:0) || String(a.hora||"").localeCompare(String(b.hora||"")));
+  }
+  const evHTML = e => { const [n, c] = CAL_TIPOS[e.tipo] || CAL_TIPOS.junta; return `<div class="ev ${e.hecho?"hecho":""} ${e.auto?"auto":""}" style="--c:${c}" data-ev="${esc(e.id)}" data-dia="${e.dia}" title="${esc(`${e.hora&&!e.todoDia?e.hora+" ":""}${e.titulo}`)}">${e.hora&&!e.todoDia?`<b>${esc(e.hora)}</b> `:""}${esc(e.titulo)}</div>`; };
+  function tituloCal(){
+    const d = deIso(calFecha);
+    if(calVista==="mes") return `${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    if(calVista==="dia") return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()].toLowerCase()} ${d.getFullYear()}`;
+    if(calVista==="semana"){ const ini = sumaDias(calFecha, -d.getDay()), fin = sumaDias(ini, 6); return `${fechaCorta(ini)} – ${fechaCorta(fin)} ${fin.slice(0,4)}`; }
+    return "Próximos 60 días";
+  }
+  function renderCalendario(){
+    $("yearLabel").textContent = calFecha.slice(0,4);
+    const d = deIso(calFecha), hoy = hoyISO;
+    $("calTitulo").textContent = tituloCal();
+    document.querySelectorAll("[data-calv]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.calv===calVista));
+    $("calAutos").checked = calAutos;
+    let h = "";
+    if(calVista==="mes"){
+      const ini = sumaDias(iso(new Date(d.getFullYear(), d.getMonth(), 1)), -new Date(d.getFullYear(), d.getMonth(), 1).getDay()), fin = sumaDias(ini, 41), evs = eventosEntre(ini, fin);
+      h = `<div class="cal-mes">${DIAS.map(x=>`<div class="dow">${x}</div>`).join("")}${Array.from({length:42},(_,i)=>{ const dia = sumaDias(ini, i), xs = evs.filter(e=>e.dia===dia), otro = +dia.slice(5,7)!==d.getMonth()+1;
+        return `<div class="dia ${otro?"otro":""} ${dia===hoy?"hoy":""}" data-caldia="${dia}"><span class="n">${+dia.slice(8)}</span>${xs.slice(0,3).map(evHTML).join("")}${xs.length>3?`<span class="cal-mas">+${xs.length-3} más</span>`:""}</div>`; }).join("")}</div>`;
+    } else if(calVista==="semana" || calVista==="dia"){
+      const ini = calVista==="semana" ? sumaDias(calFecha, -d.getDay()) : calFecha, n = calVista==="semana" ? 7 : 1, dias = Array.from({length:n},(_,i)=>sumaDias(ini, i)), evs = eventosEntre(ini, sumaDias(ini, n-1)), H0 = 7, H1 = 22;
+      const mins = t => { const [a,b] = String(t||"0:0").split(":").map(Number); return a*60 + (b||0); };
+      h = `<div class="cal-sem" style="grid-template-columns:56px repeat(${n}, minmax(${n>1?110:200}px,1fr))"><div class="cab"></div>${dias.map(x=>{ const dd = deIso(x); return `<div class="cab ${x===hoy?"hoy":""}">${DIAS[dd.getDay()]} <b>${dd.getDate()}</b></div>`; }).join("")}
+        <div class="hr" style="height:auto;border-top:none;padding-top:4px">Todo el día</div>${dias.map(x=>`<div class="todo" data-caldia="${x}">${evs.filter(e=>e.dia===x && (e.todoDia || !e.hora)).map(evHTML).join("")}</div>`).join("")}
+        <div>${Array.from({length:H1-H0},(_,i)=>`<div class="hr">${String(H0+i).padStart(2,"0")}:00</div>`).join("")}</div>
+        ${dias.map(x=>`<div class="col">${Array.from({length:H1-H0},(_,i)=>`<div class="slot" data-calslot="${x}T${String(H0+i).padStart(2,"0")}:00"></div>`).join("")}${evs.filter(e=>e.dia===x && !e.todoDia && e.hora).map(e=>{ const [nm, c] = CAL_TIPOS[e.tipo]||CAL_TIPOS.junta, top = Math.max(0, (mins(e.hora) - H0*60) * 48/60), alto = Math.max(22, ((e.horaFin ? mins(e.horaFin) : mins(e.hora)+60) - mins(e.hora)) * 48/60);
+          return `<div class="bloque ${e.hecho?"hecho":""}" style="--c:${c};top:${top}px;height:${alto}px" data-ev="${esc(e.id)}" data-dia="${e.dia}"><b>${esc(e.hora)}${e.horaFin?`–${esc(e.horaFin)}`:""}</b> ${esc(e.titulo)}${e.lugar?`<div class="fsub">${esc(e.lugar)}</div>`:""}</div>`; }).join("")}</div>`).join("")}</div>`;
+    } else {
+      const evs = eventosEntre(hoy, sumaDias(hoy, 60)), dias = [...new Set(evs.map(e=>e.dia))];
+      h = `<div class="cal-agenda">${dias.length ? dias.map(x=>{ const dd = deIso(x); return `<div class="grupo-d">${x===hoy?"Hoy · ":""}${DIAS[dd.getDay()]} ${dd.getDate()} de ${MESES[dd.getMonth()].toLowerCase()}</div>${evs.filter(e=>e.dia===x).map(e=>{ const [nm, c] = CAL_TIPOS[e.tipo]||CAL_TIPOS.junta;
+          return `<div class="item" style="--c:${c}" data-ev="${esc(e.id)}" data-dia="${e.dia}"><div style="min-width:70px;font-weight:600">${e.todoDia||!e.hora?"Todo el día":`${esc(e.hora)}${e.horaFin?`–${esc(e.horaFin)}`:""}`}</div><div style="flex:1;min-width:0"><div style="${e.hecho?"text-decoration:line-through;opacity:.6":""}"><strong>${esc(e.titulo)}</strong> <span class="fsub">${nm}${e.auto?" · automático":""}</span></div>${e.lugar?`<div class="fsub">${esc(e.lugar)}</div>`:""}${e.nota?`<div class="fsub" style="max-width:none;white-space:normal">${esc(e.nota)}</div>`:""}</div></div>`; }).join("")}`; }).join("") : '<div class="empty">No hay eventos en los próximos 60 días.</div>'}</div>`;
+    }
+    h += `<div class="cal-leyenda">${Object.values(CAL_TIPOS).map(([n,c])=>`<span><i style="background:${c}"></i>${n}</span>`).join("")}<span>Borde punteado: automático de la app</span></div>`;
+    $("calbody").innerHTML = h;
+    const hoyN = eventosEntre(hoy, hoy).filter(e=>!e.hecho).length;
+    $("statusLine").innerHTML = `Hoy tienes <strong>${hoyN}</strong> ${hoyN===1?"evento":"eventos"} · ${agenda.filter(e=>e.tipo==="tarea" && !e.hecho && e.fecha<=hoy).length} tareas pendientes.`;
+  }
+  function abrirEvento(e, dia, hora){
+    evEdit = e && !e.auto ? e.id : null;
+    $("evTitulo").textContent = evEdit ? "Editar evento" : "Nuevo evento";
+    $("evNombre").value = (e && e.titulo) || ""; $("evTipo").value = (e && e.tipo) || "junta"; $("evFecha").value = (e && e.fecha) || dia || calFecha;
+    $("evTodo").checked = e ? !!e.todoDia : !hora; $("evHora").value = (e && e.hora) || hora || "09:00"; $("evHoraFin").value = (e && e.horaFin) || (hora ? `${String(+hora.slice(0,2)+1).padStart(2,"0")}:00` : "10:00");
+    $("evLugar").value = (e && e.lugar) || ""; $("evNota").value = (e && e.nota) || ""; $("evRep").value = (e && e.repetir) || ""; $("evHecho").checked = !!(e && e.hecho);
+    $("evHoras").style.display = $("evTodo").checked ? "none" : ""; $("evBorrar").style.display = evEdit ? "" : "none"; $("evHechoFila").style.display = evEdit ? "" : "none";
+    $("evDlg").showModal(); setTimeout(()=>$("evNombre").focus(), 50);
+  }
+  $("calbody").addEventListener("click", e => {
+    const ev = e.target.closest("[data-ev]"); if(ev){ e.stopPropagation(); const x = agenda.find(a=>a.id===ev.dataset.ev);
+      if(x) return abrirEvento(x); const a = eventosEntre(ev.dataset.dia, ev.dataset.dia).find(y=>y.id===ev.dataset.ev); if(a && a.auto){ toast(a.nota || a.titulo); } return; }
+    const sl = e.target.closest("[data-calslot]"); if(sl && canWrite){ const [d, hr] = sl.dataset.calslot.split("T"); return abrirEvento(null, d, hr); }
+    const dd = e.target.closest("[data-caldia]"); if(dd){ if(calVista==="mes"){ calFecha = dd.dataset.caldia; calVista = "dia"; renderCalendario(); } else if(canWrite) abrirEvento(null, dd.dataset.caldia); }
+  });
+  $("calTools").addEventListener("click", e => {
+    const v = e.target.closest("[data-calv]"); if(v){ calVista = v.dataset.calv; try{ localStorage.setItem("calVista", calVista); }catch(_){} renderCalendario(); return; }
+    const nav = e.target.closest("[data-calnav]"); if(nav){ const k = nav.dataset.calnav, dd = deIso(calFecha);
+      if(k==="hoy") calFecha = hoyISO; else { const s = k==="prev" ? -1 : 1; if(calVista==="mes") calFecha = iso(new Date(dd.getFullYear(), dd.getMonth()+s, 1)); else calFecha = sumaDias(calFecha, s*(calVista==="semana"?7:calVista==="dia"?1:30)); }
+      renderCalendario(); return; }
+    if(e.target.closest("#calNuevo")) abrirEvento(null, calVista==="mes" && calFecha.slice(0,7)!==hoyISO.slice(0,7) ? calFecha : hoyISO);
+  });
+  $("calAutos").onchange = e => { calAutos = e.target.checked; try{ localStorage.setItem("calAutos", calAutos?"1":"0"); }catch(_){} renderCalendario(); };
+  $("evTodo").onchange = e => { $("evHoras").style.display = e.target.checked ? "none" : ""; };
+  $("evCancel").onclick = () => $("evDlg").close();
+  $("evOk").onclick = async () => {
+    const titulo = $("evNombre").value.trim(); if(!titulo){ $("evNombre").focus(); return; } if(!$("evFecha").value){ $("evFecha").focus(); return; }
+    const d = {titulo, tipo: $("evTipo").value, fecha: $("evFecha").value, todoDia: $("evTodo").checked, hora: $("evTodo").checked ? "" : $("evHora").value, horaFin: $("evTodo").checked ? "" : $("evHoraFin").value,
+      lugar: $("evLugar").value.trim(), nota: $("evNota").value.trim(), repetir: $("evRep").value, hecho: $("evHecho").checked, actualizado: hoyISO};
+    const id = evEdit || `ev${Date.now().toString(36)}`;
+    try{ await db.doc(`empresas/${empresa}/agenda/${id}`).set(d); agenda = [...agenda.filter(x=>x.id!==id), {id, ...d}]; $("evDlg").close(); renderCalendario(); }catch(err){ handleWriteError(err); }
+  };
+  $("evBorrar").onclick = async () => { if(!evEdit || !await confirmar("¿Borrar este evento?")) return; try{ await db.doc(`empresas/${empresa}/agenda/${evEdit}`).delete(); agenda = agenda.filter(x=>x.id!==evEdit); $("evDlg").close(); renderCalendario(); }catch(err){ handleWriteError(err); } };
+
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
   $("recCfgOk").onclick = async () => {
     const inpc = {}, tasa = {}, dias = {};
@@ -7637,9 +7805,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       dashboard:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', expediente:'<path d="M3 7h6l2 2h10v10H3z"/>', notas:'<path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h3"/>', activos:'<path d="M3 6h18v11H3zM8 21h8M12 17v4"/>',
       conta:'<path d="M5 3h14v18H5zM9 7h6M9 11h6M9 15h2M14 15h1"/>', directorio:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 19v-1a3 3 0 0 0-2-2.8M17 5.2a3 3 0 0 1 0 5.6"/>',
       documentos:'<path d="M6 3h9l4 4v14H6zM14 3v5h5"/>', resumen:'<path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/>', accesos:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-      nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
+      calendario:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>', nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
     };
-    const GRUPOS = [["Cierre", ["tablero","notas","expediente"]], ["Operación", ["facturas","cuentas","bancos","ventas","nominas","directorio"]], ["Impuestos", ["impuestos"]],
+    const GRUPOS = [["Cierre", ["tablero","calendario","notas","expediente"]], ["Operación", ["facturas","cuentas","bancos","ventas","nominas","directorio"]], ["Impuestos", ["impuestos"]],
       ["Contabilidad", ["conta","balanza","estados","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","accesos"]]];
     const vistas = document.querySelector(".views"); if(!vistas) return;
     const nav = document.createElement("aside"); nav.id = "sideNav"; nav.setAttribute("aria-label", "Secciones");
