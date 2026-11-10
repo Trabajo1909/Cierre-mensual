@@ -404,11 +404,11 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="leyes" aria-selected="false">Leyes</button><button class="view" data-view="prestaciones" aria-selected="false">Nómina: calculadora y prestaciones</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 45 · Total IMSS en el cálculo</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 48 · Leyes</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -470,6 +470,14 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vLeyes" hidden>
+    <div id="leybody"></div>
+  </section>
+
+  <section id="vPrestaciones" hidden>
+    <div id="prestbody"></div>
   </section>
 
   <section id="vCalendario" hidden>
@@ -691,7 +699,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 <dialog id="verDlg" style="width:min(1000px,98vw);max-width:98vw;height:92vh;max-height:92vh;padding:0;display:none;flex-direction:column">
   <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap">
     <strong id="verTitulo" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></strong>
-    <button class="btn sm" id="verCompartir">Enviar</button><button class="btn sm primary" id="verDescargar">Descargar</button><button class="btn sm" id="verCerrar">Cerrar</button>
+    <button class="btn sm" id="verImprimir">Imprimir</button><button class="btn sm" id="verCompartir">Enviar</button><button class="btn sm primary" id="verDescargar">Descargar</button><button class="btn sm" id="verCerrar">Cerrar</button>
   </div>
   <div id="verTabs" style="display:flex;gap:6px;padding:6px 14px 0;flex-wrap:wrap"></div>
   <div id="verCuerpo" style="flex:1;overflow:auto;padding:10px 14px;background:var(--bg)"></div>
@@ -1081,7 +1089,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas","#nominas","#calendario"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas","#nominas","#calendario","#prestaciones","#leyes"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -1138,6 +1146,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="ventas"){ renderVentasPlat(); return; }
     if(vista==="nominas"){ renderNominas(); return; }
     if(vista==="calendario"){ renderCalendario(); return; }
+    if(vista==="prestaciones"){ renderPrestaciones(); return; }
+    if(vista==="leyes"){ renderLeyes(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1292,6 +1302,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribePreReglas();
     subscribeVentasPlat();
     subscribeAgenda();
+    subscribeLeyes();
     subscribeLiberaciones();
     subscribePagosPlat();
     subscribeRetencionesP();
@@ -1549,15 +1560,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="nominas") renderNominas(); else if(vista==="calendario") renderCalendario(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="nominas") renderNominas(); else if(vista==="calendario") renderCalendario(); else if(vista==="prestaciones") renderPrestaciones(); else if(vista==="leyes") renderLeyes(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas"; $("vCalendario").hidden = v!=="calendario";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas"; $("vCalendario").hidden = v!=="calendario"; $("vPrestaciones").hidden = v!=="prestaciones"; $("vLeyes").hidden = v!=="leyes";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario", prestaciones:"Nómina: calculadora y prestaciones", leyes:"Leyes"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || !canWrite;
-    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario"].includes(v);
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || v==="prestaciones" || v==="leyes" || !canWrite;
+    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario","prestaciones","leyes"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario","prestaciones","leyes"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
@@ -6043,6 +6054,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     ventas: "Tus ventas en Mercado Libre, Mercado Pago, TikTok Shop u otras plataformas: sube el reporte de ventas (Excel o CSV) o regístralas a mano. Por mes ves lo vendido por plataforma, comisiones, envíos y neto, lo que Mercado Pago te liberó en el banco y cuánto va a tu factura global.",
     estados: "Los estados financieros que piden los dueños, armados con tus balanzas de CONTPAQi: balanza de comprobación, estado de resultados (del mes y acumulado, con % sobre ingresos), balance general al cierre del mes y flujo de efectivo por el método indirecto. Descárgalos en PDF o Excel con los botones de arriba.",
     presupuesto: "Sube el presupuesto que hace administración (Excel con la hoja PRESUPUESTO; si trae HOJA CONTROL y ENVIO, también se leen). Al inicio del mes el inicial; al cierre, el actualizado. La app compara inicial, actualizado y lo pagado por subcategoría, te muestra lo que salió fuera de presupuesto, el saldo inicial y final de bancos, y cuánto fondear para el siguiente mes.",
+    leyes: "Sube los PDF de las leyes (LISR, LIVA, CFF, LSS, LFT, RMF, estatales…) para leerlas aquí, descargarlas o imprimirlas. Abajo tienes los artículos más usados de cada ley, con tasas y reglas clave, y un buscador por tema.",
+    prestaciones: "Referencia rápida para nómina y finiquitos: valores del año (UMA, salario mínimo, topes), cada prestación con su mínimo de ley, cómo se calcula, su exención de ISR y su tratamiento en IMSS, la tabla de vacaciones y una calculadora de finiquito y liquidación con exentos y gravados.",
     calendario: "Tu agenda: vela por mes, semana, día o como lista. Agenda juntas, tareas, pendientes, pagos y recordatorios, con hora, lugar o link, notas y repeticiones. Además, la app agrega sola los vencimientos de impuestos, opiniones de cumplimiento y el día 5 de complementos de pago (puedes ocultarlos).",
     accesos: "Tus links a las plataformas que usas (SAT, IMSS, bancos, portales estatales…), agrupados por categoría. Toca Abrir para entrar. No guardes contraseñas aquí.",
     resumen: "Cuánto entró y cuánto salió cada mes: ingresos facturados y cobrados, fondeo (depósitos que no son cobros ni traspasos), gastos con proveedores, nómina (sueldos y asimilados), impuestos separados en SAT, SATEG e IMSS, y el flujo neto. Toca un mes para ver el detalle de impuestos, el fondeo y en qué se gastó.",
@@ -6633,6 +6646,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }catch(err){ console.error(err); cuerpo.innerHTML = `<div class="empty">No pude mostrar el archivo. Descárgalo para abrirlo.</div>`; }
   }
   $("verCerrar").onclick = () => { $("verDlg").close(); };
+  $("verImprimir").onclick = () => { if(!verActual) return; const url = URL.createObjectURL(verActual.blob.type ? verActual.blob : new Blob([verActual.blob], {type: /\.pdf$/i.test(verActual.nombre) ? "application/pdf" : "application/octet-stream"}));
+    const w = window.open(url, "_blank"); if(!w){ toast("Tu navegador bloqueó la ventana. En el iPad usa Enviar → Imprimir."); return; } setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} }, 1200); };
   $("verDlg").addEventListener("close", () => { $("verDlg").style.display = "none"; verActual = null; });
   $("verDescargar").onclick = async () => { if(!verActual) return; if(!downloads){ toast("Las descargas no están disponibles en esta vista."); return; } try{ await downloads.save({filename: verActual.nombre, data: verActual.blob}); }catch(_){ toast("No se pudo descargar el archivo."); } };
   $("verCompartir").onclick = async () => { if(!verActual) return; const f = new File([verActual.blob], verActual.nombre, {type: verActual.blob.type || "application/octet-stream"});
@@ -7788,6 +7803,286 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
   $("evBorrar").onclick = async () => { if(!evEdit || !await confirmar("¿Borrar este evento?")) return; try{ await db.doc(`empresas/${empresa}/agenda/${evEdit}`).delete(); agenda = agenda.filter(x=>x.id!==evEdit); $("evDlg").close(); renderCalendario(); }catch(err){ handleWriteError(err); } };
 
+  // ---------- Calculadora de nómina: IMSS, asimilados y externos ----------
+  // Tarifa mensual de ISR (art. 96 LISR) 2026 — Anexo 8 RMF 2026
+  const TARIFA_ISR_2026 = [[0.01,0,1.92],[844.60,16.22,6.40],[7168.52,420.95,10.88],[12598.03,1011.68,16.00],[14644.65,1339.14,17.92],[17533.65,1856.84,21.36],[35362.84,5665.16,23.52],[55736.69,10457.09,30.00],[106410.51,25659.24,32.00],[141880.67,37009.69,34.00],[425642.00,133488.54,35.00]];
+  // Cesantía y vejez patronal 2026 por SBC en UMA
+  const CV_2026 = [[1.00,3.150,"1 salario mínimo"],[1.50,3.676],[2.00,4.851],[2.50,5.556],[3.00,6.026],[3.50,6.361],[4.00,6.613],[Infinity,7.513]];
+  const SUB_PCT = 15.02, SUB_LIM = 11492.66;
+  function isrMensual(base){ if(!(base>0)) return {isr:0, row:null}; const r = [...TARIFA_ISR_2026].reverse().find(x=>base >= x[0]); return {isr: r2(r[1] + (base - r[0]) * r[2]/100), row:r}; }
+  let cnTipo = "imss";
+  function htmlCalcNomina(){
+    const g = window.__cn || {}, v = (k, d) => g[k] ?? d, cfgI = cfgAnio(year);
+    return `<div class="bpanel" style="margin-top:16px"><h3>Calculadora de nómina<small>Tarifa de ISR mensual 2026 (Anexo 8 RMF), subsidio para el empleo 2026 y cuotas IMSS 2026. Estimación para planear: confirma con tu sistema de nómina.</small></h3>
+      <div class="pairbar" style="padding:8px 14px"><div class="seg">${[["imss","Asalariado (IMSS)"],["asim","Asimilado a salarios"],["ext","Externo (honorarios / RESICO)"]].map(([k,t])=>`<button data-cntipo="${k}" aria-pressed="${cnTipo===k}">${t}</button>`).join("")}</div></div>
+      <div style="padding:6px 14px 10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">
+      ${cnTipo==="ext" ? `
+        <div><label style="margin:0 0 2px">Honorarios (sin IVA)</label><input data-cn="monto" type="number" step="0.01" value="${v("monto",20000)}"></div>
+        <div><label style="margin:0 0 2px">Régimen del externo</label><select data-cn="reg">${[["612","Persona física · servicios profesionales (612)"],["626","Persona física · RESICO (626)"],["601","Persona moral"]].map(([k,t])=>`<option value="${k}" ${v("reg","612")===k?"selected":""}>${t}</option>`).join("")}</select></div>
+        <div><label style="margin:0 0 2px">Cedular estatal retenido %</label><input data-cn="ced" type="number" step="0.01" value="${v("ced",0)}"></div>`
+      : `
+        <div><label style="margin:0 0 2px">${cnTipo==="imss"?"Salario":"Pago"} del periodo</label><input data-cn="monto" type="number" step="0.01" value="${v("monto",15000)}"></div>
+        <div><label style="margin:0 0 2px">Periodo</label><select data-cn="per">${[["30.4","Mensual"],["15.2","Quincenal"],["7","Semanal"]].map(([k,t])=>`<option value="${k}" ${String(v("per","15.2"))===k?"selected":""}>${t}</option>`).join("")}</select></div>
+        ${cnTipo==="imss" ? `<div><label style="margin:0 0 2px">Factor de integración</label><input data-cn="fac" type="number" step="0.0001" value="${v("fac",1.0493)}"></div>
+        <div><label style="margin:0 0 2px">Prima de riesgo de trabajo %</label><input data-cn="rt" type="number" step="0.00001" value="${v("rt",0.54355)}"></div>
+        <div><label style="margin:0 0 2px">Otras percepciones exentas</label><input data-cn="exe" type="number" step="0.01" value="${v("exe",0)}"></div>
+        <div><label style="margin:0 0 2px">Otras deducciones (comedor, crédito…)</label><input data-cn="otd" type="number" step="0.01" value="${v("otd",0)}"></div>` : ""}
+        <div><label style="margin:0 0 2px">Impuesto sobre nómina %</label><input data-cn="isn" type="number" step="0.01" value="${v("isn", r2((cfgI.tasaISN||0)*100))}"></div>`}
+      </div><div id="cnRes" style="padding:0 14px 14px"></div></div>`;
+  }
+  function calcNomina(){
+    const g = window.__cn = window.__cn || {}; document.querySelectorAll("[data-cn]").forEach(i=>{ g[i.dataset.cn] = i.tagName==="SELECT" ? i.value : +i.value; });
+    const f = money.format, U = +prestV.uma, S = +prestV.smg, out = $("cnRes"); if(!out) return;
+    const L = [], add = (c, imp, nota="", tipo="") => L.push([c, r2(imp), nota, tipo]);
+    if(cnTipo==="ext"){
+      const m = +g.monto||0, reg = g.reg || "612", iva = r2(m*0.16), pf = reg!=="601";
+      const isrR = pf ? r2(m * (reg==="626" ? 0.0125 : 0.10)) : 0, ivaR = pf ? r2(iva*2/3) : 0, ced = r2(m * (+g.ced||0)/100);
+      add("Honorarios (subtotal)", m, "", "p"); add("IVA trasladado 16%", iva, "", "p");
+      if(pf){ add(`ISR retenido ${reg==="626"?"1.25% (RESICO)":"10%"}`, -isrR, "LISR arts. 106 y 113-J", "d"); add("IVA retenido (2/3 partes)", -ivaR, "10.6667% sobre el subtotal · LIVA art. 1-A", "d"); }
+      if(ced) add(`Cedular estatal ${g.ced}%`, -ced, "según tu estado", "d");
+      const neto = r2(m + iva - isrR - ivaR - ced);
+      out.innerHTML = tablaCN(L, [["Te factura (total)", r2(m+iva)], ["Le pagas (neto)", neto], ["Tú enteras al SAT", r2(isrR+ivaR)], ["Costo para la empresa", m, "el IVA es acreditable si cumple requisitos"]], pf ? "Retienes el ISR y el IVA y los enteras al SAT a más tardar el 17 del mes siguiente; emites o recibes el CFDI con las retenciones. No hay IMSS ni nómina." : "Entre personas morales no hay retención de ISR ni de IVA (salvo casos especiales como autotransporte o subcontratación).");
+      return;
+    }
+    const dias = +g.per || 15.2, m = +g.monto||0, mens = r2(m * 30.4 / dias), k = 30.4 / dias;
+    const exe = cnTipo==="imss" ? (+g.exe||0) : 0, baseIsrMens = mens;
+    const {isr: isrM, row} = isrMensual(baseIsrMens);
+    let sub = 0; if(cnTipo==="imss" && baseIsrMens <= SUB_LIM) sub = Math.min(isrM, r2(U*30.4*SUB_PCT/100));
+    const isrPer = r2((isrM - sub) / k);
+    add(cnTipo==="imss" ? "Sueldo del periodo" : "Pago de asimilados del periodo", m, `${dias} días · mensualizado ${f(mens)}`, "p");
+    if(exe) add("Otras percepciones exentas", exe, "", "p");
+    add("ISR (tarifa art. 96)", -r2(isrM / k), row ? `base mensual ${f(baseIsrMens)} − ${f(row[0])} × ${row[2]}% + ${f(row[1])}` : "", "d");
+    if(sub) add("Subsidio para el empleo", r2(sub / k), `${SUB_PCT}% de la UMA mensual (hasta ${f(SUB_LIM)} de ingreso mensual)`, "d");
+    let obrero = 0, patron = [], sbc = 0;
+    if(cnTipo==="imss"){
+      const sd = mens / 30.4; sbc = Math.min(r2(sd * (+g.fac||1.0493)), r2(U*25)); const uS = sbc / U, exc = Math.max(0, sbc - 3*U);
+      const ob = {"E y M excedente (0.40% sobre lo que pase de 3 UMA)": exc*0.004, "Prestaciones en dinero 0.25%": sbc*0.0025, "Gastos médicos pensionados 0.375%": sbc*0.00375, "Invalidez y vida 0.625%": sbc*0.00625, "Cesantía y vejez 1.125%": sbc*0.01125};
+      obrero = r2(Object.values(ob).reduce((s,x)=>s+x,0) * dias);
+      if(sd <= S + 0.01) obrero = 0; // al salario mínimo, el patrón cubre la cuota obrera
+      add("IMSS obrero", -obrero, sd <= S + 0.01 ? "salario mínimo: la cubre el patrón (LSS art. 36)" : `SBC ${f(sbc)} · ${uS.toFixed(2)} UMA · ${Object.entries(ob).map(([n,x])=>`${n}: ${f(r2(x*dias))}`).join(" · ")}`, "d");
+      if(+g.otd) add("Otras deducciones", -(+g.otd), "", "d");
+      const cvP = sd <= S + 0.01 ? 3.150 : CV_2026.find(x=>uS <= x[0])[1];
+      patron = [["E y M cuota fija 20.40% UMA", U*0.204], ["E y M excedente 1.10%", exc*0.011], ["Prestaciones en dinero 0.70%", sbc*0.007], ["Gastos médicos pensionados 1.05%", sbc*0.0105], ["Invalidez y vida 1.75%", sbc*0.0175], ["Riesgo de trabajo "+(+g.rt||0)+"%", sbc*(+g.rt||0)/100], ["Guarderías y prestaciones sociales 1%", sbc*0.01], ["Retiro 2%", sbc*0.02], [`Cesantía y vejez ${cvP}% (2026)`, sbc*cvP/100], ["INFONAVIT 5%", sbc*0.05]].map(([n,x])=>[n, r2(x*dias)]);
+      if(sd <= S + 0.01){ const ob2 = r2((sbc*(0.0025+0.00375+0.00625+0.01125))*dias); patron.push(["Cuota obrera que cubre el patrón (salario mínimo)", ob2]); }
+    }
+    const percep = r2(L.filter(x=>x[3]==="p").reduce((s,x)=>s+x[1],0)), neto = r2(L.reduce((s,x)=>s+x[1],0));
+    const isn = r2(m * (+g.isn||0)/100), patT = r2(patron.reduce((s,x)=>s+x[1],0));
+    const extras = [["Neto a pagar", neto], ["Costo total para la empresa", r2(m + exe + patT + isn), cnTipo==="imss" ? `sueldo + IMSS e INFONAVIT patronal ${f(patT)} + ISN ${f(isn)}` : `pago + ISN ${f(isn)} · sin IMSS`]];
+    out.innerHTML = tablaCN(L, extras, cnTipo==="imss" ? "" : "Asimilados: se retiene ISR con la misma tarifa que los sueldos, pero no tienen subsidio para el empleo, IMSS, INFONAVIT ni prestaciones de ley. Algunos estados cobran ISN sobre asimilados: revisa el tuyo.")
+      + (patron.length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:600">Cuotas patronales del periodo (${f(patT)})</summary><table class="decl" style="width:100%">${patron.map(([n,x])=>`<tr><td>${esc(n)}</td><td class="num">${f(x)}</td></tr>`).join("")}<tr><td><strong>Total patronal</strong></td><td class="num"><strong>${f(patT)}</strong></td></tr></table><div class="fsub" style="max-width:none;white-space:normal">Retiro, cesantía y vejez e INFONAVIT se pagan por bimestre. La prima de riesgo es la de tu empresa (la mínima de clase I es 0.54355%).</div></details>` : "");
+  }
+  const tablaCN = (L, extras, nota) => { const f = money.format; return `<table class="decl" style="width:100%"><tbody>${L.map(([c, v, n])=>`<tr><td>${esc(c)}${n?`<div class="fsub" style="max-width:none;white-space:normal">${esc(n)}</div>`:""}</td><td class="num ${v<0?"late":""}">${f(v)}</td></tr>`).join("")}
+    ${extras.map(([c,v,n])=>`<tr style="background:var(--group)"><td><strong>${c}</strong>${n?`<div class="fsub" style="max-width:none;white-space:normal">${esc(n)}</div>`:""}</td><td class="num"><strong>${f(v)}</strong></td></tr>`).join("")}</tbody></table>${nota?`<div class="fsub" style="max-width:none;white-space:normal;margin-top:6px">${esc(nota)}</div>`:""}`; };
+
+  // ---------- Prestaciones, exenciones y finiquitos (referencia rápida + calculadora) ----------
+  const PREST_DEF = {uma: 117.31, umaAnt: 113.14, smg: 315.04, zlfn: 440.87, anio: 2026};
+  let prestV = {...PREST_DEF}; try{ prestV = {...PREST_DEF, ...JSON.parse(localStorage.getItem("prestV")||"{}")}; }catch(_){}
+  const diasVacaciones = anios => anios < 1 ? 12 : anios <= 5 ? 10 + 2*Math.min(anios,5) : 20 + 2*Math.ceil((anios-5)/5);
+  function renderPrestaciones(){
+    $("yearLabel").textContent = prestV.anio;
+    const f = money.format, U = +prestV.uma, S = +prestV.smg, UA = r2(U*30.4*12);
+    $("statusLine").innerHTML = `Valores ${prestV.anio}: UMA <strong>${f(U)}</strong> diaria · salario mínimo <strong>${f(S)}</strong> (frontera ${f(+prestV.zlfn)}). Revísalos cada año.`;
+    const fila = (c, pct, como, isr, imss, ley) => `<tr><td><strong>${c}</strong><div class="fsub" style="max-width:none;white-space:normal">${ley}</div></td><td>${pct}</td><td style="white-space:normal">${como}</td><td style="white-space:normal">${isr}</td><td style="white-space:normal">${imss}</td></tr>`;
+    let h = `<div class="kpis">
+      <div class="kpi"><span>UMA diaria</span><b>${f(U)}</b><small>mensual ${f(r2(U*30.4))} · anual ${f(UA)} (vigente desde el 1 de febrero; en enero aplica ${f(+prestV.umaAnt)})</small></div>
+      <div class="kpi"><span>Salario mínimo general</span><b>${f(S)}</b><small>mensual ${f(r2(S*30.4))} · zona frontera ${f(+prestV.zlfn)}</small></div>
+      <div class="kpi"><span>Tope del SBC (IMSS)</span><b>${f(r2(U*25))}</b><small>25 UMA diarias</small></div>
+      <div class="kpi"><span>Tope salarial prima de antigüedad</span><b>${f(r2(S*2))}</b><small>2 salarios mínimos diarios</small></div></div>
+      <div class="pairbar" style="margin:8px 0 16px;flex-wrap:wrap;gap:8px"><span class="fsub" style="max-width:none">Valores usados:</span>
+        <label style="margin:0">UMA <input data-prest="uma" type="number" step="0.01" value="${prestV.uma}" style="width:90px"></label>
+        <label style="margin:0">Salario mínimo <input data-prest="smg" type="number" step="0.01" value="${prestV.smg}" style="width:90px"></label>
+        <label style="margin:0">Frontera <input data-prest="zlfn" type="number" step="0.01" value="${prestV.zlfn}" style="width:90px"></label>
+        <label style="margin:0">Año <input data-prest="anio" type="number" value="${prestV.anio}" style="width:76px"></label>
+        <button class="linkbtn" id="prestReset">Restablecer ${PREST_DEF.anio}</button></div>`;
+    h += htmlCalcNomina();
+    h += `<div class="bpanel" style="margin-top:16px"><h3>Prestaciones: porcentaje, cómo se calculan y exenciones<small>LFT = Ley Federal del Trabajo · LISR = Ley del ISR · LSS = Ley del Seguro Social. Son mínimos de ley: si tu contrato da más, usa lo del contrato.</small></h3>
+      <div class="sheet" style="border:none;border-radius:0"><table class="decl" style="width:100%;min-width:980px"><thead><tr><th style="width:17%">Prestación</th><th style="width:11%">Mínimo de ley</th><th style="width:30%">Cómo se calcula</th><th style="width:21%">ISR (exento / gravado)</th><th style="width:21%">IMSS (integra al SBC)</th></tr></thead><tbody>
+      ${fila("Aguinaldo", "15 días de salario", `Salario diario × 15. Proporcional: 15 × días trabajados en el año ÷ 365. Se paga antes del 20 de diciembre.`, `Exento hasta 30 UMA: <strong>${f(r2(U*30))}</strong>. El excedente es gravado.`, "Sí integra (vía factor de integración).", "LFT art. 87 · LISR art. 93 fr. XIV")}
+      ${fila("Vacaciones", "12 días el 1er año (tabla abajo)", "Días según antigüedad × salario diario. Se pagan como salario normal mientras se disfrutan.", "Gravado como salario.", "Sí integra (los días entran en el factor vía la prima).", "LFT art. 76 (reforma 2023)")}
+      ${fila("Prima vacacional", "25% de las vacaciones", `Salario diario × días de vacaciones × 25%. Ej.: $500 × 12 días × 25% = $1,500.`, `Exento hasta 15 UMA por año: <strong>${f(r2(U*15))}</strong>.`, "Sí integra (vía factor de integración).", "LFT art. 80 · LISR art. 93 fr. XIV")}
+      ${fila("Prima dominical", "25% del salario diario", "Por cada domingo laborado: salario diario × 25%.", `Exento 1 UMA por cada domingo: <strong>${f(U)}</strong>.`, "Sí integra.", "LFT art. 71 · LISR art. 93 fr. XIV")}
+      ${fila("Horas extra", "Dobles las primeras 9 a la semana; triples las que excedan", "Salario por hora = salario diario ÷ 8. Dobles: hora × 2; triples: hora × 3. Máximo 3 horas diarias, 3 veces por semana.", `Salario mínimo: exentas. Demás: exento el 50% sin pasar de 5 UMA por semana (<strong>${f(r2(U*5))}</strong>).`, "No integran si están dentro de los límites de ley (3 h diarias, 3 veces por semana).", "LFT arts. 66–68 · LISR art. 93 fr. I · LSS art. 27 fr. IX")}
+      ${fila("Descanso semanal o festivo trabajado", "Salario doble adicional", "Además del salario del día, se paga 2 días más (triple en total). Festivos: 1 ene, 1er lunes de feb, 3er lunes de mar, 1 may, 16 sep, 3er lunes de nov, 25 dic y 1 oct cada 6 años.", "Gravado (aplica la misma exención que horas extra en algunos casos; revisa con tu contador).", "Sí integra.", "LFT arts. 73–75")}
+      ${fila("PTU", "10% de la utilidad fiscal", "50% por días trabajados y 50% por salarios. Tope: 3 meses de salario o el promedio de los últimos 3 años (lo que más convenga al trabajador). Personas morales: a más tardar el 30 de mayo.", `Exento hasta 15 UMA: <strong>${f(r2(U*15))}</strong>.`, "No integra.", "LFT arts. 117–127 · LISR art. 93 fr. XIV")}
+      ${fila("Vales de despensa", "No es obligatoria", "Monto que fije la empresa, en monedero electrónico (para que sean deducibles).", `Exentos como previsión social. Si salario + previsión social pasan de 7 UMA anuales (<strong>${f(r2(UA*7))}</strong>), la previsión exenta se limita a 1 UMA anual (<strong>${f(UA)}</strong>).`, `No integran hasta 40% de la UMA diaria: <strong>${f(r2(U*0.4))}</strong> por día (${f(r2(U*0.4*30.4))} al mes). El excedente sí integra.`, "LISR art. 93 fr. VIII y penúltimo párrafo · LSS art. 27 fr. VI")}
+      ${fila("Fondo de ahorro", "No es obligatorio", "Aportación igual de empresa y trabajador; retiro no más de 2 veces al año.", `Exento si la aportación no pasa del 13% del salario ni de 1.3 UMA anuales (<strong>${f(r2(UA*1.3))}</strong>).`, "No integra si aportan igual empresa y trabajador y se retira máximo 2 veces al año.", "LISR arts. 27 fr. XI y 93 fr. XI · LSS art. 27 fr. II")}
+      ${fila("Premios de asistencia y puntualidad", "No son obligatorios", "Monto que fije la empresa.", "Gravados.", "No integran hasta el 10% del SBC cada uno; el excedente sí.", "LSS art. 27 fr. VII")}
+      ${fila("Alimentación y habitación", "No son obligatorias", "Si se dan en especie.", "Previsión social (ver vales).", "Si el trabajador paga al menos el 20% del salario mínimo por cada una, no integran; si no, integran 20% del salario mínimo por cada una.", "LSS arts. 27 fr. V y 32")}
+      ${fila("Prima de antigüedad", "12 días por año trabajado", `12 × años (con fracción) × salario diario, con tope de 2 salarios mínimos (<strong>${f(r2(S*2))}</strong> diarios). Se paga al separarse por despido (justificado o no), muerte o incapacidad, y por renuncia solo con 15 años o más.`, `Exento 90 UMA por año de servicio (<strong>${f(r2(U*90))}</strong> por año), junto con las indemnizaciones.`, "No integra (es pago por separación).", "LFT arts. 162, 485–486 · LISR art. 93 fr. XIII")}
+      ${fila("Indemnización por despido injustificado", "3 meses de salario (90 días)", "Salario diario integrado × 90. Si procede, además 20 días por año trabajado (cuando el patrón no reinstala o en los casos del art. 49) y salarios caídos (hasta 12 meses).", `Exento 90 UMA por año de servicio (<strong>${f(r2(U*90))}</strong> por año). La fracción de más de 6 meses cuenta como año.`, "No integra.", "LFT arts. 48–50 · LISR art. 93 fr. XIII")}
+      ${fila("Factor de integración (SDI)", "Con prestaciones mínimas: 1.0493 el 1er año", "1 + (días de aguinaldo + días de vacaciones × prima vacacional) ÷ 365. 1er año: 1 + (15 + 12 × 25%) ÷ 365 = 1.0493. SDI = salario diario × factor.", "—", `El SBC no puede pasar de 25 UMA (<strong>${f(r2(U*25))}</strong>).`, "LSS arts. 27–28")}
+      </tbody></table></div></div>`;
+    // Tabla de vacaciones
+    const tramos = [[1,12],[2,14],[3,16],[4,18],[5,20],["6–10",22],["11–15",24],["16–20",26],["21–25",28],["26–30",30],["31–35",32]];
+    h += `<div class="dgrid" style="margin-top:16px"><div class="bpanel"><h3>Días de vacaciones por antigüedad<small>LFT art. 76, vigente desde 2023. Con prima vacacional mínima de 25%.</small></h3><table class="decl"><thead><tr><th>Años cumplidos</th><th class="num">Días</th><th class="num">Prima (días)</th><th class="num">Factor de integración</th></tr></thead><tbody>
+      ${tramos.map(([a,dd])=>`<tr><td>${a}</td><td class="num">${dd}</td><td class="num">${(dd*0.25).toFixed(2)}</td><td class="num">${(1 + (15 + dd*0.25)/365).toFixed(4)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="bpanel"><h3>Calculadora de finiquito y liquidación<small>Estimación con prestaciones mínimas de ley. Ajusta si tu contrato da más.</small></h3><div style="padding:10px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
+        <div><label style="margin:0 0 2px">Salario diario</label><input id="fqSal" type="number" step="0.01" value="${(window.__fq||{}).sal||500}"></div>
+        <div><label style="margin:0 0 2px">Fecha de ingreso</label><input id="fqIng" type="date" value="${(window.__fq||{}).ing||`${prestV.anio-2}-03-01`}"></div>
+        <div><label style="margin:0 0 2px">Fecha de baja</label><input id="fqBaja" type="date" value="${(window.__fq||{}).baja||hoyISO}"></div>
+        <div><label style="margin:0 0 2px">Días de sueldo pendientes</label><input id="fqPend" type="number" value="${(window.__fq||{}).pend||0}"></div>
+        <div><label style="margin:0 0 2px">Vacaciones ya tomadas del año</label><input id="fqTom" type="number" value="${(window.__fq||{}).tom||0}"></div>
+        <div><label style="margin:0 0 2px">Días de aguinaldo</label><input id="fqAgui" type="number" value="${(window.__fq||{}).agui||15}"></div>
+        <div><label style="margin:0 0 2px">Prima vacacional %</label><input id="fqPrima" type="number" value="${(window.__fq||{}).prima||25}"></div>
+        <div><label style="margin:0 0 2px">Tipo de separación</label><select id="fqTipo">${[["renuncia","Renuncia voluntaria"],["despido","Despido injustificado"],["despidoJ","Despido justificado"]].map(([v,t])=>`<option value="${v}" ${(window.__fq||{}).tipo===v?"selected":""}>${t}</option>`).join("")}</select></div>
+        <div><label class="check inline" style="margin:22px 0 0"><input type="checkbox" id="fq20" ${(window.__fq||{}).v20?"checked":""}> Incluir 20 días por año</label></div>
+      </div><div id="fqRes" style="padding:0 14px 14px"></div></div></div>`;
+    $("prestbody").innerHTML = h; calcFiniquito(); calcNomina();
+  }
+  function calcFiniquito(){
+    const g = id => $(id) ? $(id).value : "", f = money.format, U = +prestV.uma, S = +prestV.smg;
+    const sal = +g("fqSal")||0, ing = g("fqIng"), baja = g("fqBaja"), pend = +g("fqPend")||0, tom = +g("fqTom")||0, agui = +g("fqAgui")||15, prima = (+g("fqPrima")||25)/100, tipo = g("fqTipo"), v20 = $("fq20") && $("fq20").checked;
+    window.__fq = {sal, ing, baja, pend, tom, agui, prima: prima*100, tipo, v20};
+    if(!sal || !ing || !baja || baja < ing){ $("fqRes").innerHTML = '<div class="fsub">Captura salario y fechas.</div>'; return; }
+    const dias = (deIso(baja) - deIso(ing)) / 86400000 + 1, anios = dias/365, aniosCompl = Math.floor(anios);
+    const iniAnio = `${baja.slice(0,4)}-01-01`, diasAnio = (deIso(baja) - deIso(ing > iniAnio ? ing : iniAnio)) / 86400000 + 1;
+    // Vacaciones del año de servicio en curso (proporcionales desde el último aniversario)
+    const ultAniv = (()=>{ const i = deIso(ing), b = deIso(baja); let a = new Date(b.getFullYear(), i.getMonth(), i.getDate()); if(a > b) a = new Date(b.getFullYear()-1, i.getMonth(), i.getDate()); return a < i ? i : a; })();
+    const diasDesdeAniv = (deIso(baja) - ultAniv) / 86400000 + 1, vacAnio = diasVacaciones(aniosCompl + 1), vacProp = Math.max(0, r2(vacAnio * diasDesdeAniv / 365 - tom));
+    const factor = 1 + (agui + diasVacaciones(Math.max(1, aniosCompl)) * prima) / 365, sdi = r2(sal * factor);
+    const L = [];
+    L.push(["Sueldo pendiente", `${pend} días × ${f(sal)}`, r2(pend*sal), r2(pend*sal), 0, "fin"]);
+    const ag = r2(sal * agui * diasAnio / 365), agEx = Math.min(ag, r2(U*30)); L.push(["Aguinaldo proporcional", `${agui} × ${Math.round(diasAnio)} ÷ 365 = ${(agui*diasAnio/365).toFixed(2)} días`, ag, r2(ag-agEx), agEx, "fin"]);
+    const vac = r2(vacProp * sal); L.push(["Vacaciones no disfrutadas", `${vacAnio} días del año × ${Math.round(diasDesdeAniv)} ÷ 365 − ${tom} tomados = ${vacProp.toFixed(2)} días`, vac, vac, 0, "fin"]);
+    const pv = r2(vac * prima), pvEx = Math.min(pv, r2(U*15)); L.push(["Prima vacacional", `${f(vac)} × ${Math.round(prima*100)}%`, pv, r2(pv-pvEx), pvEx, "fin"]);
+    const sepTot = [];
+    const daPrima = tipo!=="renuncia" || anios >= 15;
+    if(daPrima){ const sp = Math.min(sal, r2(S*2)), pa = r2(12 * anios * sp); sepTot.push(["Prima de antigüedad", `12 × ${anios.toFixed(2)} años × ${f(sp)}${sal > S*2 ? " (tope 2 salarios mínimos)" : ""}`, pa]); }
+    if(tipo==="despido"){ sepTot.push(["Indemnización 3 meses", `90 días × SDI ${f(sdi)} (factor ${factor.toFixed(4)})`, r2(90*sdi)]); if(v20) sepTot.push(["20 días por año", `20 × ${anios.toFixed(2)} años × SDI ${f(sdi)}`, r2(20*anios*sdi)]); }
+    const sepSum = r2(sepTot.reduce((s,x)=>s+x[2],0)), aniosEx = Math.max(1, aniosCompl + ((anios - aniosCompl) > 0.5 ? 1 : 0)), sepEx = Math.min(sepSum, r2(U*90*aniosEx));
+    sepTot.forEach((x,i)=>{ const ex = sepSum ? r2(sepEx * x[2] / sepSum) : 0; L.push([x[0], x[1], x[2], r2(x[2]-ex), ex, "liq"]); });
+    const T = k => r2(L.reduce((s,x)=>s+x[k],0));
+    $("fqRes").innerHTML = `<div class="fsub" style="max-width:none;margin-bottom:6px">Antigüedad: ${anios.toFixed(2)} años (${Math.round(dias)} días) · SDI ${f(sdi)} · ${tipo==="renuncia"?(daPrima?"renuncia con 15 años o más: sí lleva prima de antigüedad":"renuncia: solo finiquito"):tipo==="despido"?"despido injustificado: finiquito + liquidación":"despido justificado: finiquito + prima de antigüedad"}</div>
+      <table class="decl" style="width:100%"><thead><tr><th>Concepto</th><th class="num">Importe</th><th class="num">Exento ISR</th><th class="num">Gravado ISR</th></tr></thead><tbody>
+      ${L.map(x=>`<tr><td>${x[0]}${x[5]==="liq"?' <span class="st na" style="font-size:10px">liquidación</span>':""}<div class="fsub" style="max-width:none;white-space:normal">${esc(x[1])}</div></td><td class="num">${f(x[2])}</td><td class="num">${f(x[4])}</td><td class="num">${f(x[3])}</td></tr>`).join("")}
+      <tr style="background:var(--group)"><td><strong>Total bruto</strong></td><td class="num"><strong>${f(T(2))}</strong></td><td class="num"><strong>${f(T(4))}</strong></td><td class="num"><strong>${f(T(3))}</strong></td></tr></tbody></table>
+      <div class="fsub" style="max-width:none;white-space:normal;margin-top:6px">El ISR se calcula sobre la parte gravada: la del finiquito con la tarifa normal (o el procedimiento del art. 96 / 174 del reglamento) y la de la liquidación con la tasa efectiva del último sueldo mensual (art. 96 LISR). Las exenciones de separación (90 UMA por año) son en conjunto para prima de antigüedad e indemnizaciones.</div>`;
+  }
+  $("prestbody").addEventListener("input", e => {
+    const k = e.target.dataset.prest; if(k){ prestV[k] = e.target.value; try{ localStorage.setItem("prestV", JSON.stringify(prestV)); }catch(_){} clearTimeout(window.__prT); window.__prT = setTimeout(renderPrestaciones, 500); return; }
+    if(/^fq/.test(e.target.id)) calcFiniquito();
+    if(e.target.dataset.cn) calcNomina();
+  });
+  $("prestbody").addEventListener("change", e => { if(/^fq/.test(e.target.id)) calcFiniquito(); if(e.target.dataset.cn) calcNomina(); });
+  $("prestbody").addEventListener("click", e => { const t = e.target.closest("[data-cntipo]"); if(t){ cnTipo = t.dataset.cntipo; renderPrestaciones(); return; } if(e.target.closest("#prestReset")){ prestV = {...PREST_DEF}; try{ localStorage.removeItem("prestV"); }catch(_){} renderPrestaciones(); } });
+
+  // ---------- Leyes: tus PDF y los artículos más usados ----------
+  const LEYES = [
+    {k:"LISR", n:"Ley del Impuesto sobre la Renta", arts:[
+      ["Art. 9", "ISR de personas morales: 30% sobre el resultado fiscal (utilidad menos pérdidas de años anteriores)."],
+      ["Art. 14", "Pagos provisionales: ingresos acumulados × coeficiente de utilidad, × 30%, menos pagos anteriores y retenciones. Se pagan a más tardar el día 17 del mes siguiente."],
+      ["Art. 25", "Deducciones autorizadas: devoluciones, costo de lo vendido, gastos, inversiones, intereses, cuotas patronales al IMSS, etc."],
+      ["Art. 27", "Requisitos de las deducciones: estrictamente indispensables, con CFDI, pagos mayores a $2,000 con transferencia, cheque o tarjeta (fr. III), registradas en contabilidad, retenciones enteradas (fr. V)."],
+      ["Art. 28", "No deducibles: ISR propio, multas y recargos, obsequios, 47% (o 53%) de los pagos exentos al trabajador, consumos en restaurantes al 91.5%, etc."],
+      ["Arts. 31–35", "Depreciación por tasas máximas anuales: construcciones 5%, mobiliario y equipo de oficina 10%, automóviles 25%, equipo de cómputo 30%, software y gastos diferidos 10%."],
+      ["Art. 36", "Topes: automóviles hasta $175,000 (eléctricos o híbridos $250,000); arrendamiento de autos hasta $200 diarios ($285 eléctricos)."],
+      ["Art. 76", "Obligaciones de personas morales: contabilidad, CFDI, declaración anual a más tardar el 31 de marzo, información de operaciones, etc."],
+      ["Art. 93", "Ingresos exentos de trabajadores: aguinaldo 30 UMA, prima vacacional, PTU y prima dominical 15 UMA, horas extra, indemnizaciones 90 UMA por año, previsión social con tope."],
+      ["Art. 94", "Ingresos por salarios y asimilados (fr. IV honorarios a consejeros, fr. V honorarios asimilados por elección, etc.)."],
+      ["Art. 96", "Retención mensual de ISR a salarios con la tarifa mensual (Anexo 8 de la RMF). En 2026 va de 1.92% a 35%."],
+      ["Art. 99", "Obligaciones del patrón: retener, calcular el ajuste anual, CFDI de nómina, solicitar constancias."],
+      ["Art. 106", "Honorarios de personas físicas a personas morales: retención de 10% de ISR."],
+      ["Art. 113-A", "Plataformas digitales: retención de ISR a personas físicas que venden por plataformas (2.5% en enajenación de bienes)."],
+      ["Art. 113-E y 113-J", "RESICO personas físicas: ISR de 1% a 2.5% sobre ingresos; las personas morales que les pagan retienen 1.25%."],
+      ["Art. 116", "Arrendamiento de personas físicas a personas morales: retención de 10% de ISR."],
+      ["Art. 152", "Tarifa anual para personas físicas (la misma que la mensual × 12)."]]},
+    {k:"LIVA", n:"Ley del Impuesto al Valor Agregado", arts:[
+      ["Art. 1", "Tasa general de IVA: 16% sobre enajenación, servicios, arrendamiento e importación."],
+      ["Art. 1-A", "Retenciones de IVA por personas morales: 2/3 partes (10.6667%) en honorarios y arrendamiento de personas físicas; 4% en autotransporte de carga; 6% en servicios con personal a su disposición."],
+      ["Art. 1-B", "El IVA se causa cuando se cobra (flujo de efectivo)."],
+      ["Art. 2-A", "Tasa 0%: alimentos no preparados, medicinas de patente, productos agrícolas, exportaciones (art. 29), etc."],
+      ["Art. 4", "IVA acreditable: el trasladado y el pagado en importaciones."],
+      ["Art. 5", "Requisitos para acreditar: gasto deducible para ISR, IVA trasladado en CFDI, efectivamente pagado, retención enterada."],
+      ["Art. 5-D", "El IVA es mensual y se paga a más tardar el día 17 del mes siguiente."],
+      ["Art. 6", "Saldo a favor: se acredita contra meses siguientes o se pide en devolución o compensación."],
+      ["Arts. 9, 15, 20", "Exentos: venta de casa habitación, servicios médicos, educación, transporte público, intereses de ciertos créditos, arrendamiento de casa habitación, etc."],
+      ["Art. 18-J", "Plataformas digitales: retienen a personas físicas el 50% del IVA (8%) por ventas de bienes y servicios."],
+      ["Art. 32", "Obligaciones: contabilidad, CFDI, informar operaciones con proveedores (DIOT, fr. VIII) a más tardar el último día del mes siguiente."]]},
+    {k:"CFF", n:"Código Fiscal de la Federación", arts:[
+      ["Art. 17-A", "Actualización: monto × (INPC del mes anterior al pago ÷ INPC del mes anterior a cuando debió pagarse)."],
+      ["Art. 21", "Recargos por cada mes o fracción de atraso, a la tasa de la Ley de Ingresos (2026: 2.07% mensual por mora)."],
+      ["Art. 28", "Contabilidad electrónica: catálogo de cuentas, balanza y pólizas conforme a las reglas del SAT."],
+      ["Art. 29 y 29-A", "CFDI: obligación de emitirlos y requisitos (RFC, régimen, uso, forma y método de pago, complemento de pago a más tardar el día 5 del mes siguiente al cobro)."],
+      ["Art. 30", "Conservar la contabilidad y comprobantes 5 años."],
+      ["Art. 32-D", "Opinión de cumplimiento: necesaria para contratar con gobierno y recibir subsidios."],
+      ["Art. 67", "Caducidad de las facultades del SAT: 5 años (10 en algunos casos)."],
+      ["Art. 69-B", "Operaciones inexistentes (EFOS/EDOS): si tu proveedor está en la lista definitiva, sus facturas no tienen efectos fiscales."],
+      ["Arts. 81–84", "Infracciones y multas: no presentar declaraciones, no emitir CFDI, no llevar contabilidad, etc."]]},
+    {k:"LSS", n:"Ley del Seguro Social", arts:[
+      ["Art. 15", "Obligaciones del patrón: inscribir a los trabajadores (dentro de 5 días hábiles), comunicar altas, bajas y modificaciones, determinar y pagar cuotas."],
+      ["Arts. 27–28", "Salario base de cotización: integra todos los pagos, salvo las exclusiones del art. 27 (despensa hasta 40% UMA, fondo de ahorro, premios hasta 10%, tiempo extra dentro de límites, etc.). Tope: 25 UMA."],
+      ["Art. 36", "Al trabajador con salario mínimo no se le retiene cuota obrera: la cubre el patrón."],
+      ["Art. 39", "Pago de cuotas: mensual, a más tardar el día 17 del mes siguiente. RCV e INFONAVIT, por bimestre."],
+      ["Art. 106", "Enfermedades y maternidad: cuota fija patronal de 20.40% de la UMA, más 1.10% patrón y 0.40% obrero sobre lo que exceda de 3 UMA."],
+      ["Art. 107", "Prestaciones en dinero (0.70% patrón, 0.25% obrero) y pensionados (1.05% y 0.375%)."],
+      ["Art. 147", "Invalidez y vida: 1.75% patrón y 0.625% obrero."],
+      ["Art. 168", "Retiro 2% patrón; cesantía y vejez 1.125% obrero y patronal escalonado (2026: de 3.150% a 7.513% según el SBC)."],
+      ["Art. 211", "Guarderías y prestaciones sociales: 1% patrón."],
+      ["Arts. 71–74", "Riesgos de trabajo: prima según siniestralidad de la empresa (mínima 0.5%, clase I 0.54355% al inicio)."]]},
+    {k:"LFT", n:"Ley Federal del Trabajo", arts:[
+      ["Art. 47", "Causas de rescisión sin responsabilidad para el patrón (faltas de probidad, más de 3 faltas en 30 días sin permiso, etc.). Aviso por escrito."],
+      ["Arts. 48–50", "Despido injustificado: reinstalación o indemnización de 3 meses; en su caso 20 días por año y salarios caídos (hasta 12 meses)."],
+      ["Art. 61", "Jornada máxima: 8 horas diurna, 7 nocturna, 7.5 mixta."],
+      ["Arts. 66–68", "Horas extra: máximo 3 diarias, 3 veces por semana; las primeras 9 semanales se pagan dobles y las demás triples."],
+      ["Arts. 69–73", "Un día de descanso por cada 6 trabajados; prima dominical de 25%; descanso trabajado se paga doble adicional."],
+      ["Art. 74", "Días de descanso obligatorio: 1 ene, 1er lunes de feb, 3er lunes de mar, 1 may, 16 sep, 3er lunes de nov, 1 oct cada 6 años y 25 dic."],
+      ["Art. 76", "Vacaciones: 12 días el primer año, +2 por año hasta 20 en el quinto, y +2 cada 5 años después."],
+      ["Art. 80", "Prima vacacional: mínimo 25% de los salarios de las vacaciones."],
+      ["Art. 87", "Aguinaldo: mínimo 15 días de salario, antes del 20 de diciembre (proporcional si no completó el año)."],
+      ["Arts. 117–127", "PTU: 10% de la utilidad fiscal; tope de 3 meses de salario o el promedio de los últimos 3 años. Personas morales la pagan a más tardar el 30 de mayo."],
+      ["Art. 162", "Prima de antigüedad: 12 días por año, con tope de 2 salarios mínimos; por separación (renuncia solo con 15 años o más)."]]},
+    {k:"INFONAVIT", n:"Ley del INFONAVIT", arts:[
+      ["Art. 29", "Aportación patronal de 5% del salario base de cotización, por bimestre; retener los descuentos de créditos de vivienda."]]},
+    {k:"LIF", n:"Ley de Ingresos de la Federación 2026", arts:[
+      ["Art. 8", "Tasa de recargos: prórroga 1.38% mensual; mora 2.07% mensual (la de prórroga + 50%)."]]}
+  ];
+  let leyesDocs = [], unsubLey = null, leyBuscar = "", leyAbierta = null;
+  function subscribeLeyes(){ if(unsubLey) unsubLey(); leyesDocs = []; if(!db || !empresa) return;
+    unsubLey = db.collection(`empresas/${empresa}/leyes`).onSnapshot(qs => { leyesDocs = qs.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>String(a.ley).localeCompare(String(b.ley)) || String(b.subido).localeCompare(String(a.subido))); if(vista==="leyes") renderLeyes(); }, () => {}); }
+  function renderLeyes(){
+    $("yearLabel").textContent = year;
+    const q = normTxt(leyBuscar);
+    $("statusLine").innerHTML = `${leyesDocs.length} ${leyesDocs.length===1?"documento":"documentos"} guardados · ${LEYES.reduce((s,l)=>s+l.arts.length,0)} artículos de consulta rápida.`;
+    let h = `<div class="pairbar" style="margin-bottom:12px;flex-wrap:wrap;gap:8px"><input id="leyBuscar" type="search" placeholder="Buscar un tema o artículo (ej.: honorarios, aguinaldo, 2/3, recargos)" value="${esc(leyBuscar)}" style="max-width:420px">${canWrite?`<select id="leySel" style="width:auto">${[...LEYES.map(l=>[l.k, l.n]), ["RMF","Resolución Miscelánea Fiscal"], ["Estatal","Ley estatal (ISN, cedulares)"], ["Otra","Otra"]].map(([k,n])=>`<option value="${k}">${k} · ${esc(n)}</option>`).join("")}</select><button class="btn sm primary" id="leySubir">Subir PDF de la ley</button><input type="file" id="leyFile" accept="application/pdf" multiple hidden>`:""}</div>`;
+    // Documentos guardados
+    if(leyesDocs.length) h += `<div class="bpanel" style="margin-bottom:16px"><h3>Tus documentos<small>Toca Ver para leerla aquí, o descárgala o imprímela.</small></h3>${leyesDocs.filter(d=>!q || normTxt(`${d.ley} ${d.nombre}`).includes(q)).map(d=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap"><div style="min-width:0"><span class="st na" style="font-size:11px">${esc(d.ley)}</span> <strong>${esc(d.nombre)}</strong><div class="fsub">subido el ${fechaCorta(d.subido)} ${String(d.subido).slice(0,4)}</div></div><span style="display:flex;gap:6px"><button class="btn sm" data-leyver="${esc(d.id)}">Ver</button><button class="btn sm" data-leyprint="${esc(d.id)}">Imprimir</button><button class="btn sm" data-leydl="${esc(d.id)}">Descargar</button>${canWrite?`<button class="linkbtn" data-leydel="${esc(d.id)}">quitar</button>`:""}</span></div>`).join("")}</div>`;
+    else h += `<div class="empty" style="margin-bottom:16px">Sube los PDF de las leyes que usas (puedes descargarlos de la Cámara de Diputados o del SAT) y aquí los tienes para leer, descargar o imprimir.</div>`;
+    // Artículos clave
+    h += `<h3 style="margin:6px 0 10px">Artículos más usados</h3>`;
+    for(const l of LEYES){
+      const arts = l.arts.filter(([a,t])=>!q || normTxt(`${l.k} ${l.n} ${a} ${t}`).includes(q)); if(!arts.length) continue;
+      const doc = leyesDocs.find(d=>d.ley===l.k), abierta = q || leyAbierta===l.k;
+      h += `<div class="bpanel" style="margin-bottom:10px"><h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" data-leytog="${l.k}"><span>${abierta?"▾":"▸"} ${l.k} · ${esc(l.n)} <span class="fsub">(${arts.length})</span></span>${doc?`<button class="btn sm" data-leyver="${esc(doc.id)}">Ver la ley</button>`:""}</h3>
+        ${abierta ? `<table class="decl" style="width:100%"><tbody>${arts.map(([a,t])=>`<tr><td style="width:120px;white-space:nowrap"><strong>${esc(a)}</strong></td><td style="white-space:normal">${esc(t)}</td></tr>`).join("")}</tbody></table>` : ""}</div>`;
+    }
+    h += `<div class="fsub" style="max-width:none;white-space:normal;margin-top:8px">Resumen de consulta rápida con los valores de 2026. Las leyes cambian cada año (reformas, Ley de Ingresos, Miscelánea): ante cualquier duda, revisa el texto vigente de la ley que subiste.</div>`;
+    $("leybody").innerHTML = h;
+  }
+  async function imprimirArchivo(a){
+    try{ const r = await fetch("/_blob/"+a.id); if(!r.ok) throw 0; const bl = await r.blob(), url = URL.createObjectURL(new Blob([bl], {type:"application/pdf"}));
+      const w = window.open(url, "_blank"); if(!w){ toast("Tu navegador bloqueó la ventana. Ábrela con Ver y usa Enviar → Imprimir."); return; }
+      setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} }, 1200);
+    }catch(_){ toast("No se pudo abrir el archivo para imprimir."); }
+  }
+  $("leybody").addEventListener("input", e => { if(e.target.id==="leyBuscar"){ leyBuscar = e.target.value; const pos = e.target.selectionStart; renderLeyes(); const i = $("leyBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
+  $("leybody").addEventListener("click", async e => {
+    const doc = id => leyesDocs.find(d=>d.id===id);
+    const v = e.target.closest("[data-leyver]"); if(v){ e.stopPropagation(); const d = doc(v.dataset.leyver); if(d) descargarAsset(d.asset, true); return; }
+    const p = e.target.closest("[data-leyprint]"); if(p){ const d = doc(p.dataset.leyprint); if(d) imprimirArchivo(d.asset); return; }
+    const dl = e.target.closest("[data-leydl]"); if(dl){ const d = doc(dl.dataset.leydl); if(d) descargarAsset(d.asset); return; }
+    const del = e.target.closest("[data-leydel]"); if(del){ if(!await confirmar("¿Quitar este documento?")) return; try{ await db.doc(`empresas/${empresa}/leyes/${del.dataset.leydel}`).delete(); }catch(err){ handleWriteError(err); } return; }
+    const t = e.target.closest("[data-leytog]"); if(t){ leyAbierta = leyAbierta===t.dataset.leytog ? null : t.dataset.leytog; renderLeyes(); return; }
+    if(e.target.closest("#leySubir")) $("leyFile").click();
+  });
+  $("leybody").addEventListener("change", async e => {
+    if(e.target.id!=="leyFile") return; const files = [...e.target.files]; e.target.value = ""; if(!files.length) return;
+    if(!assets){ toast("No se pueden guardar archivos en esta versión."); return; }
+    const ley = $("leySel").value; let n = 0;
+    for(const file of files){ try{ setSaving(`Subiendo ${file.name}…`); const up = await assets.upload(file); const id = `ley-${Date.now().toString(36)}-${n}`;
+      await db.doc(`empresas/${empresa}/leyes/${id}`).set({ley, nombre: file.name.replace(/\.pdf$/i,""), asset:{id: up.id, nombre: file.name}, subido: hoyISO}); n++; }catch(_){ toast(`No se pudo subir ${file.name}.`); } }
+    setSaving(""); if(n) toast(`Listo: ${n} ${n===1?"documento guardado":"documentos guardados"}.`);
+  });
+
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
   $("recCfgOk").onclick = async () => {
     const inpc = {}, tasa = {}, dias = {};
@@ -7807,10 +8102,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       dashboard:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', expediente:'<path d="M3 7h6l2 2h10v10H3z"/>', notas:'<path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h3"/>', activos:'<path d="M3 6h18v11H3zM8 21h8M12 17v4"/>',
       conta:'<path d="M5 3h14v18H5zM9 7h6M9 11h6M9 15h2M14 15h1"/>', directorio:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 19v-1a3 3 0 0 0-2-2.8M17 5.2a3 3 0 0 1 0 5.6"/>',
       documentos:'<path d="M6 3h9l4 4v14H6zM14 3v5h5"/>', resumen:'<path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/>', accesos:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-      calendario:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>', nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
+      leyes:'<path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2zM4 17a2 2 0 0 1 2-2h12M9 7h6"/>', prestaciones:'<path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/><circle cx="16" cy="16" r="2"/>', calendario:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>', nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
     };
-    const GRUPOS = [["Cierre", ["tablero","calendario","notas","expediente"]], ["Operación", ["facturas","cuentas","bancos","ventas","nominas","directorio"]], ["Impuestos", ["impuestos"]],
-      ["Contabilidad", ["conta","balanza","estados","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","accesos"]]];
+    const GRUPOS = [["Cierre", ["tablero","calendario","notas","expediente"]], ["Operación", ["facturas","cuentas","bancos","ventas","nominas","prestaciones","directorio"]], ["Impuestos", ["impuestos"]],
+      ["Contabilidad", ["conta","balanza","estados","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","leyes","accesos"]]];
     const vistas = document.querySelector(".views"); if(!vistas) return;
     const nav = document.createElement("aside"); nav.id = "sideNav"; nav.setAttribute("aria-label", "Secciones");
     nav.innerHTML = `<div class="marca"><i aria-hidden="true">C</i><b>Cierre mensual</b></div>`;
