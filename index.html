@@ -408,7 +408,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 43 · Calendario</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 45 · Total IMSS en el cálculo</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -3317,7 +3317,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     calc += sec("SATEG") + fila("Nómina total (sueldos y asimilados)", f(k.nom.sueldos + k.nom.asim))
       + fila("Tasa de impuesto sobre nómina", canWrite ? `<input type="number" step="0.001" min="0" id="isnInput" value="${(cfg.tasaISN*100).toFixed(2)}" aria-label="Tasa ISN en porcentaje"> %` : `${(cfg.tasaISN*100).toFixed(2)} %`)
       + fila("Impuesto sobre nómina", f(k.isn), "res") + fila("Cedular honorarios", f(k.ret.cedPF), "res") + fila("Cedular RESICO", f(k.ret.cedRES), "res");
-    calc += `</tbody></table><div class="tot-strip"><div><b>${f(k.totSAT)}</b><span>Total SAT</span></div><div><b>${f(k.totSATEG)}</b><span>Total SATEG</span></div><div><b>${f(r2(k.totSAT+k.totSATEG))}</b><span>Total de impuestos</span></div></div></div>`;
+    const dImss = declDe(year, iMes, "imss"), totImss = dImss && dImss.presentada ? r2(+dImss.aPagar||0) : null;
+    calc += `</tbody></table><div class="tot-strip"><div><b>${f(k.totSAT)}</b><span>Total SAT</span></div><div><b>${f(k.totSATEG)}</b><span>Total SATEG</span></div><div><b>${totImss!=null?f(totImss):"—"}</b><span>Total IMSS${totImss==null?" (sube la línea del SIPARE)":dImss.pagada?" · pagado":""}</span></div><div><b>${f(r2(k.totSAT+k.totSATEG+(totImss||0)))}</b><span>Total a pagar del mes</span></div></div></div>`;
     // control
     let ctl = `<div class="bpanel"><h3>Declaraciones y pagos<small>Sube tus acuses y líneas de captura en PDF del SAT o del SATEG: la app los lee y los acomoda aquí.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Impuesto</th><th class="num">Calculado</th><th class="num">Declarado</th><th>Estatus</th></tr></thead><tbody>`;
     for(const o of OBLIG){
@@ -3326,7 +3327,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       // Con complementarias: lo declarado en total es lo pagado en las anteriores más la diferencia (o menos el saldo a favor) de la última
       const vers = d.versiones || [], totalDecl = vers.length ? r2(vers.reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0) - (+d.aFavor||0)) : null;
       const declarado = d.presentada && totalDecl!=null && o.clave!=="iva" && !esDiot ? `${f(totalDecl)}<div class="fsub" style="max-width:none">${vers.length+1} declaraciones</div>` : d.presentada ? (esDiot ? (d.ivaDiot!=null ? `IVA ${f(+d.ivaDiot)}` : "Presentada") : +d.aFavor ? `A favor ${f(+d.aFavor)}` : f(+d.aPagar||0)) : "—";
-      const calcTxt = o.sinCalculo ? "—" : esDiot ? `IVA ${f(k.diot.iva)}` : o.clave==="iva" && k.ivaNeto<0 ? `A favor ${f(-k.ivaNeto)}` : f(e.calc);
+      const calcTxt = o.sinCalculo ? (o.clave==="imss" ? (()=>{ const ret = r2(nominas.filter(n=>vigente(n) && n.anio===year && n.mes===iMes).reduce((s,n)=>s+(+n.imss||0),0)), x = d.imssDet;
+          return x ? `<div>Patronal ${f(+x.patronal||0)}</div><div class="fsub">Obrera ${f(+x.obrera||0)}${ret?` · retenido en nómina ${f(ret)}`:""}</div>` : ret ? `<div class="fsub" style="max-width:none">Obrero retenido en nómina: ${f(ret)}</div><div class="fsub" style="max-width:none">El total sale al subir la línea del SIPARE</div>` : "—"; })() : "—") : esDiot ? `IVA ${f(k.diot.iva)}` : o.clave==="iva" && k.ivaNeto<0 ? `A favor ${f(-k.ivaNeto)}` : f(e.calc);
       const dif = d.revisadaOk ? 0 : d.presentada && !o.sinCalculo && totalDecl!=null && o.clave!=="iva" && !esDiot ? Math.abs(totalDecl - e.calc) : d.presentada && !o.sinCalculo ? (esDiot ? (d.ivaDiot!=null ? Math.abs(+d.ivaDiot - k.diot.iva) : 0) : o.clave==="iva" && k.ivaNeto<0 ? Math.abs((+d.aFavor||0) - (-k.ivaNeto)) : Math.abs((+d.aPagar||0) - e.calc)) : 0;
       const docs = (d.archivos||[]).map((a,ix)=>`<span style="display:inline-flex;align-items:center;gap:2px"><button class="doc" data-dl="${esc(o.clave)}" data-ix="${ix}" title="Descargar ${esc(a.nombre)}">${({linea:"Línea de captura", declaracion:"Declaración", resumen:"Resumen SUA", cedula:"Cédula SUA", comprobante:"Comprobante de pago"})[a.tipo]||"Acuse"}</button>${canWrite?`<button class="linkbtn" data-deldoc="${esc(o.clave)}" data-ix="${ix}" title="Quitar ${esc(a.nombre)}" aria-label="Quitar ${esc(a.nombre)}" style="text-decoration:none;font-size:15px;padding:0 4px">×</button>`:""}</span>`).join("");
       const gp = d.presentada && +d.aPagar>0 ? grupoPago({...d, anio:k.y, mes:k.m, clave:o.clave}) : [], totGp = r2(gp.reduce((s,x)=>s+(+x.aPagar||0),0));
@@ -3701,7 +3703,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ["IVA",""],["Actos gravados al 16% (base)",k.trasBase],["IVA a cargo al 16%",k.tras],["Actos pagados al 16% (base)",k.acrBase],["IVA acreditable",k.acr],["IVA retenido por clientes",k.ivaRetCli],["Otras cantidades a cargo",k.ret.iva],[k.ivaNeto<0?"Saldo a favor":"Cantidad a cargo",Math.abs(k.ivaNeto)],
       ["Retenciones a terceros",""],["IVA retenido",k.ret.iva],["ISR retenido a personas físicas",k.ret.isrPF],["ISR retenido a RESICO",k.ret.isrRES],
       ["SATEG",""],["Nómina total",r2(k.nom.sueldos+k.nom.asim)],["Tasa ISN",k.cfg.tasaISN],["Impuesto sobre nómina",k.isn],["Cedular honorarios",k.ret.cedPF],["Cedular RESICO",k.ret.cedRES],
-      ["Totales",""],["Total SAT",k.totSAT],["Total SATEG",k.totSATEG],["Total de impuestos",r2(k.totSAT+k.totSATEG)]];
+      ["Totales",""],["Total SAT",k.totSAT],["Total SATEG",k.totSATEG],["Total IMSS (línea de captura)", (()=>{ const d = declDe(k.y, k.m, "imss"); return d && d.presentada ? r2(+d.aPagar||0) : 0; })()],["Total a pagar del mes", r2(k.totSAT+k.totSATEG+(()=>{ const d = declDe(k.y, k.m, "imss"); return d && d.presentada ? r2(+d.aPagar||0) : 0; })())]];
     const ctl = OBLIG.map(o=>({o, e: estadoOblig(o,k)})).filter(x=>x.e.visible).map(({o,e})=>{ const d=e.d||{}; return [o.aut, o.nombre, e.calc, d.presentada?(+d.aFavor?-d.aFavor:+d.aPagar||0):"", ST_TXT[e.st], d.fechaPresentacion||"", d.operacion||"", (d.linea&&d.linea.referencia)||"", (d.linea&&d.linea.fechaLimite)||"", d.fechaPago||"", (d.archivos||[]).map(a=>a.nombre).join(", ")]; });
     const titulo = `${empresaNombre} · Cálculo de impuestos · ${MESES[iMes-1]} ${year}`, nombreArchivo = `Impuestos ${empresaNombre} ${ABR[iMes-1]} ${year}`;
     const btn = $(fmt==="pdf"?"pdfBtn":"xlsxBtn"); btn.disabled = true;
