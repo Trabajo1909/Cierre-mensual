@@ -408,7 +408,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 48 · Leyes</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 52 · Corregir pagos y sugerencias</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -662,6 +662,15 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="polPickDlg" style="width:min(560px,94vw)">
+  <h2 id="ppTitulo">Elegir póliza</h2>
+  <div class="fsub" id="ppFactura" style="max-width:none;margin-bottom:8px"></div>
+  <label for="ppBuscar">Buscar en tus pólizas subidas</label><input id="ppBuscar" type="search" placeholder="Número, concepto, cuenta o monto" autocomplete="off">
+  <div id="ppLista" style="max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:6px"></div>
+  <label for="ppManual">O escríbela tú</label><input id="ppManual" autocomplete="off" placeholder="Ej.: Diario 15 · Egresos 32">
+  <div class="dlg-actions"><button class="linkbtn" id="ppQuitar" style="margin-right:auto">Quitar la que elegí</button><button class="btn" id="ppCancel">Cancelar</button><button class="btn primary" id="ppOk">Guardar</button></div>
 </dialog>
 
 <dialog id="evDlg" style="width:min(520px,94vw)">
@@ -1591,28 +1600,79 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function indicePolizas(){
     const key = Object.keys(polCQ).sort().join(",") + Object.values(polCQ).reduce((s,x)=>s+((x.polizas||[]).length),0);
     if(idxPol && idxPolKey===key) return idxPol;
-    idxPol = Object.entries(polCQ).flatMap(([mk, x])=>(x.polizas||[]).map(p=>({mk, id:`${p.tipo} ${p.num}`, tipo:p.tipo, txt: normTxt(p.concepto+" "+p.movs.map(m=>m.n+" "+m.r).join(" ")).replace(/\s+/g," "), tok: tokens(p.concepto+" "+p.movs.map(m=>m.n).join(" "))})));
+    idxPol = Object.entries(polCQ).flatMap(([mk, x])=>(x.polizas||[]).map(p=>({mk, id:`${p.tipo} ${p.num}`, tipo:p.tipo, txt: normTxt(p.concepto+" "+p.movs.map(m=>m.n+" "+m.r).join(" ")).replace(/\s+/g," "), tok: tokens(p.concepto+" "+p.movs.map(m=>m.n).join(" ")), montos: p.movs.map(m=>r2((+m.ca||0) || (+m.ab||0)))})));
     idxPolKey = key; return idxPol;
   }
   function buscarPoliza(f, tipos, mesesPref){
     const P = indicePolizas().filter(p=>tipos.includes(p.tipo)), u8 = String(f.uuid).slice(0,8).toLowerCase(), folio = String(f.folio||"").replace(/^F-?/i,"").toLowerCase(), tk = tokens(f.nombre||"");
     let x = P.find(p=>p.txt.includes(u8)); if(x) return x.id;
     if(folio){ const reF = new RegExp(`(^|[^0-9a-z])f ?${folio.replace(/[^0-9a-z]/g,"")}([^0-9]|$)`); x = P.filter(p=>!mesesPref || mesesPref.includes(p.mk)).find(p=>reF.test(p.txt) && inter(tk, p.tok)>=1); if(x) return x.id; }
+    // Por monto: una póliza del mes con un movimiento por el total de la factura y el nombre del cliente o proveedor
+    const meses = mesesPref || [String(f.fecha).slice(0,7)], tot = r2(+f.total||0);
+    if(tot > 0){ x = P.filter(p=>meses.includes(p.mk) && (p.montos||[]).some(mo=>Math.abs(mo - tot) <= 1) && inter(tk, p.tok)>=1)[0]; if(x) return x.id; }
     return null;
   }
   function estadoContable(f, R, idx){
     const cta = cuentaDe(f, idx), mk = String(f.fecha).slice(0,7), hayPolMes = !!polCQ[mk];
     const asig = R && R.asig ? R.asig : {}, a = asig[f.uuid];
     let prov = null, pago = null;
-    if(f.metodo==="PPD"){ if(a && a.p && a.p.p && a.p.p.tipo==="Diario") prov = a.p.id; else prov = buscarPoliza(f, ["Diario"]); }
+    if(f.metodo==="PPD"){ if(f.polProv) prov = f.polProv; else if(a && a.p && a.p.p && a.p.p.tipo==="Diario") prov = a.p.id; else prov = buscarPoliza(f, ["Diario"]); }
     const tPago = f.tipo==="emitida" ? "Ingresos" : "Egresos";
     const fechasPago = [...(cta.abs||[]).map(x=>String(x.fecha).slice(0,7)), ...complementos.filter(c=>c.doc===f.uuid).map(c=>String(c.fechaPago).slice(0,7))];
-    if(f.metodo==="PUE" && a && a.p && a.p.p && a.p.p.tipo!=="Diario") pago = a.p.id;
+    if(f.polPago) pago = f.polPago;
+    if(!pago && f.metodo==="PUE" && a && a.p && a.p.p && a.p.p.tipo!=="Diario") pago = a.p.id;
     if(!pago) for(const c of complementos.filter(c=>c.doc===f.uuid)){ const ac = asig[c.uuid]; if(ac && ac.p && ac.p.p && ac.p.p.tipo!=="Diario"){ pago = ac.p.id; break; } }
     if(!pago) pago = buscarPoliza(f, [tPago, ...(f.metodo==="PUE" ? [] : [])], fechasPago.length ? fechasPago : null);
+    if(pago && !f.polPago && (f.polPagoNo||[]).includes(pago)) pago = null;
     const tienePago = f.metodo==="PUE" || cta.abonado>0 || complementos.some(c=>c.doc===f.uuid);
     const mesesPago = fechasPago.length ? fechasPago : [mk], hayPolPago = mesesPago.some(m=>!!polCQ[m]);
     return {cta, prov, pago, hayPolMes, tienePago, hayPolPago, pagoFalta: tienePago && !pago && !listo(f.ctrl) && hayPolPago};
+  }
+  // Elegir a mano la póliza de una factura (provisión o pago)
+  let ppF = null, ppCampo = "prov";
+  function abrirPolPick(f, campo){
+    ppF = f; ppCampo = campo; const ec = estadoContable(f, null, indices());
+    $("ppTitulo").textContent = campo==="prov" ? "Póliza de provisión (Diario)" : `Póliza del ${f.tipo==="emitida"?"cobro (Ingresos)":"pago (Egresos)"}`;
+    $("ppFactura").innerHTML = `${esc(f.nombre)} · ${f.folio?`folio ${esc(f.folio)} · `:""}${fechaCorta(f.fecha)} ${String(f.fecha).slice(0,4)} · ${money.format(+f.total||0)}`;
+    $("ppManual").value = (campo==="prov" ? f.polProv : f.polPago) || ""; $("ppBuscar").value = "";
+    $("ppQuitar").style.display = (campo==="prov" ? f.polProv : f.polPago) ? "" : "none";
+    pintarPolPick(); $("polPickDlg").showModal(); setTimeout(()=>$("ppBuscar").focus(), 50);
+  }
+  function pintarPolPick(){
+    const f = ppF, q = normTxt($("ppBuscar").value), mk = String(f.fecha).slice(0,7);
+    const tipos = ppCampo==="prov" ? ["Diario"] : [f.tipo==="emitida" ? "Ingresos" : "Egresos", "Diario"];
+    const sig = (()=>{ const [y,m] = mk.split("-").map(Number); return m===12 ? mesKey(y+1,1) : mesKey(y, m+1); })();
+    const meses = ppCampo==="prov" ? [mk] : [mk, sig, ...complementos.filter(c=>c.doc===f.uuid).map(c=>String(c.fechaPago).slice(0,7))];
+    const tot = r2(+f.total||0), tk = tokens(f.nombre||"");
+    let ps = Object.entries(polCQ).flatMap(([m, x])=>(x.polizas||[]).map(p=>({...p, mk:m, id:`${p.tipo} ${p.num}`}))).filter(p=>tipos.includes(p.tipo));
+    if(q) ps = ps.filter(p=>normTxt(`${p.id} ${p.concepto} ${p.movs.map(m=>`${m.c} ${m.n} ${m.r} ${m.ca||""} ${m.ab||""}`).join(" ")}`).includes(q));
+    else ps = ps.filter(p=>meses.includes(p.mk));
+    const score = p => (p.movs.some(m=>Math.abs(((+m.ca||0)||(+m.ab||0)) - tot) <= 1) ? 2 : 0) + (inter(tk, tokens(p.concepto+" "+p.movs.map(m=>m.n).join(" ")))>0 ? 1 : 0);
+    ps.sort((a,b)=>score(b)-score(a) || String(a.fecha).localeCompare(String(b.fecha)));
+    $("ppLista").innerHTML = ps.length ? ps.slice(0,80).map(p=>`<button type="button" data-ppsel="${esc(p.id)}" style="display:block;width:100%;text-align:left;padding:8px 10px;border:none;border-bottom:1px solid var(--line);background:${score(p)>=2?"var(--today)":"transparent"};color:var(--ink);font:inherit;cursor:pointer"><strong>${esc(p.id)}</strong> · ${fechaCorta(p.fecha)} · ${esc(p.concepto)}${score(p)>=2?' <span class="st pagado" style="font-size:10px">mismo monto</span>':""}<div class="fsub" style="max-width:none">${esc(p.movs.slice(0,3).map(m=>`${m.n||m.c} ${money.format((+m.ca||0)||(+m.ab||0))}`).join(" · "))}</div></button>`).join("")
+      : `<div class="fsub" style="padding:10px">${Object.keys(polCQ).length ? "No hay pólizas que coincidan. Busca por número, concepto o monto, o escríbela abajo." : "Aún no has subido pólizas de CONTPAQi. Escríbela abajo, o sube tus pólizas en Contabilidad."}</div>`;
+  }
+  async function guardarPolPick(valor){
+    const f = ppF, campo = ppCampo==="prov" ? "polProv" : "polPago"; f[campo] = valor || null;
+    try{ await db.doc(`empresas/${empresa}/facturas/${f.id}`).update({[campo]: valor || null}); }catch(err){ handleWriteError(err); }
+    $("polPickDlg").close(); renderFacturas();
+  }
+  $("ppBuscar").addEventListener("input", pintarPolPick);
+  $("ppLista").addEventListener("click", e => { const b = e.target.closest("[data-ppsel]"); if(b){ $("ppManual").value = b.dataset.ppsel; guardarPolPick(b.dataset.ppsel); } });
+  $("ppOk").onclick = () => { const v = $("ppManual").value.trim().replace(/\s+/g," "); if(!v){ $("ppManual").focus(); return; } guardarPolPick(v.replace(/^(diario|egresos|ingresos)/i, m=>m[0].toUpperCase()+m.slice(1).toLowerCase())); };
+  $("ppQuitar").onclick = () => guardarPolPick(null);
+  $("ppCancel").onclick = () => $("polPickDlg").close();
+  // Pago o cobro encontrado en tus pólizas de CONTPAQi para una factura con saldo
+  function pagoEnPolizas(f){
+    const tipo = f.tipo==="emitida" ? "Ingresos" : "Egresos", mk = String(f.fecha).slice(0,7), [y,m] = mk.split("-").map(Number);
+    const meses = Array.from({length:4},(_,i)=>{ const mm = m+i; return mesKey(mm>12?y+1:y, mm>12?mm-12:mm); });
+    let id = f.polPago || null;
+    if(!id) id = buscarPoliza(f, [tipo], meses);
+    if(!id || (!f.polPago && (f.polPagoNo||[]).includes(id))) return null;
+    const [tp, num] = id.split(" "), P = Object.entries(polCQ).flatMap(([mm, x])=>(x.polizas||[]).map(p=>({...p, mk:mm}))).filter(p=>p.tipo===tp && String(p.num)===String(num));
+    const p = P.find(x=>meses.includes(x.mk)) || P[0]; if(!p) return {id, fecha:null, monto:null};
+    const tot = r2(+f.total||0), mov = p.movs.find(mm=>Math.abs(((+mm.ca||0)||(+mm.ab||0)) - tot) <= 1);
+    return {id, fecha: p.fecha, monto: mov ? tot : null};
   }
   function renderFacturas(){
     $("yearLabel").textContent = year;
@@ -1660,11 +1720,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       else {
         const ec = estC[f.uuid], chip = (cls, txt, tit) => `<span class="st ${cls}" title="${esc(tit||"")}" style="white-space:nowrap">${esc(txt)}</span>`;
         // Provisión: solo PPD; la busca en tus pólizas de CONTPAQi (o la marcas tú)
-        const prov = f.metodo!=="PPD" ? chip("na","No aplica (PUE)") : ec.prov ? chip("pagado", ec.prov, "Póliza de provisión encontrada en tus pólizas") :
-          listo(f.prov) ? `${chip("pagado","Marcada por ti","La marcaste tú (en una versión anterior o con «ya está»)")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="prov" data-desmarca="1" style="font-size:12px">quitar</button>`:""}` : !ec.hayPolMes ? chip("na","Sin pólizas del mes","Sube tus pólizas de ese mes para revisarlo") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="prov" data-marca="1" style="font-size:12px">ya está</button>`:""}`;
+        const elegir = campo => canWrite ? ` <button class="linkbtn" data-polpick="${esc(f.id)}" data-campo="${campo}" style="font-size:12px">${(campo==="prov"?f.polProv:f.polPago)?"cambiar":"elegir póliza"}</button>` : "";
+        const prov = f.metodo!=="PPD" ? chip("na","No aplica (PUE)") : ec.prov ? `${chip("pagado", ec.prov, f.polProv ? "La elegiste tú" : "Póliza de provisión encontrada en tus pólizas")}${f.polProv?'<div class="fsub">elegida por ti</div>':""}${elegir("prov")}` :
+          listo(f.prov) ? `${chip("pagado","Marcada por ti","La marcaste tú (en una versión anterior o con «ya está»)")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="prov" data-desmarca="1" style="font-size:12px">quitar</button>`:""}${elegir("prov")}` : !ec.hayPolMes ? chip("na","Sin pólizas del mes","Sube tus pólizas de ese mes para revisarlo") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="prov" data-marca="1" style="font-size:12px">ya está</button>`:""}${elegir("prov")}`;
         // Contabilidad: póliza de ingresos o egresos del pago
-        const cont = ec.pago ? chip("pagado", ec.pago, "Póliza del pago encontrada en tus pólizas") : !ec.tienePago ? chip("na", tipoSel==="emitida"?"Sin cobro aún":"Sin pago aún") :
-          listo(f.ctrl) ? `${chip("pagado","Marcada por ti","La marcaste tú (en una versión anterior o con «ya está»)")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="ctrl" data-desmarca="1" style="font-size:12px">quitar</button>`:""}` : !ec.hayPolPago ? chip("na","Sin pólizas del mes","Sube tus pólizas del mes del pago") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="ctrl" data-marca="1" style="font-size:12px">ya está</button>`:""}`;
+        const cont = ec.pago ? `${chip("pagado", ec.pago, f.polPago ? "La elegiste tú" : "Póliza del pago encontrada en tus pólizas")}${f.polPago?'<div class="fsub">elegida por ti</div>':""}${elegir("pago")}` : !ec.tienePago ? chip("na", tipoSel==="emitida"?"Sin cobro aún":"Sin pago aún") :
+          listo(f.ctrl) ? `${chip("pagado","Marcada por ti","La marcaste tú (en una versión anterior o con «ya está»)")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="ctrl" data-desmarca="1" style="font-size:12px">quitar</button>`:""}${elegir("pago")}` : !ec.hayPolPago ? chip("na","Sin pólizas del mes","Sube tus pólizas del mes del pago") : `${chip("vencido","Falta póliza")}${canWrite?` <button class="linkbtn" data-f="${esc(f.id)}" data-campo="ctrl" data-marca="1" style="font-size:12px">ya está</button>`:""}${elegir("pago")}`;
         // CxC / CxP: estatus del pago y complemento
         const c = ec.cta, est = {pagado:["pagado","Pagada"], parcial:["parcial","Pago parcial"], vencido:["vencido","Vencida"], pendiente:["pendiente","Pendiente"]}[c.estatus] || ["na",""];
         const comp = f.metodo!=="PPD" ? "" : c.comp==="ok" ? chip("pagado","Con complemento") : c.comp==="falta" ? chip("vencido","Falta complemento") : "";
@@ -1699,6 +1760,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         setSaving("Guardado"); }catch(err){ handleWriteError(err); }
       return;
     }
+    const pp = e.target.closest("[data-polpick]"); if(pp){ const fx = facturas.find(x=>x.id===pp.dataset.polpick); if(fx) abrirPolPick(fx, pp.dataset.campo); return; }
     const b = e.target.closest(".cell, [data-marca], [data-desmarca]"); if(!b || !canWrite || !db || !b.dataset.f) return;
     const f = facturas.find(x=>x.id===b.dataset.f); if(!f) return;
     const campo = b.dataset.campo, cur = f[campo]||"";
@@ -2040,7 +2102,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!rows.length){
       $("csheet").innerHTML = `<div class="empty">${filSel==="pend" ? "No hay saldos pendientes." : filSel==="comp" ? "No falta ningún complemento." : `No hay facturas en ${year}.`}</div>`;
     } else {
-      let t = `<table class="ft ct"><thead><tr><th>Fecha</th><th>${quien}</th><th class="num">Total</th><th class="num">${ctSel==="emitida"?"Cobrado":"Pagado"}</th><th class="num">Saldo</th><th>Vence</th><th>Estatus</th><th>Complemento</th><th></th></tr></thead><tbody>`;
+      const enPol = canWrite ? rows.filter(({f,c})=>c.saldo>0 && !(c.abs||[]).length && pagoEnPolizas(f)) : [];
+      let t = (enPol.length ? `<div class="pairbar" style="margin:0 0 10px;flex-wrap:wrap;gap:8px"><span class="st parcial">${enPol.length} ${enPol.length===1?"factura aparece":"facturas aparecen"} ${ctSel==="emitida"?(enPol.length===1?"cobrada":"cobradas"):(enPol.length===1?"pagada":"pagadas")} en tus pólizas, pero sin registrar aquí</span><button class="btn sm primary" id="abPolTodos">Registrar ${enPol.length===1?"ese":"esos"} ${ctSel==="emitida"?"cobros":"pagos"}</button></div>` : "") + `<table class="ft ct"><thead><tr><th>Fecha</th><th>${quien}</th><th class="num">Total</th><th class="num">${ctSel==="emitida"?"Cobrado":"Pagado"}</th><th class="num">Saldo</th><th>Vence</th><th>Estatus</th><th>Complemento</th><th></th></tr></thead><tbody>`;
       for(const {f,c} of rows){
         const abierto = abiertos.has(f.id);
         const diasTxt = c.saldo===0 ? fechaCorta(c.vence) : (c.dias<0 ? `Hace ${-c.dias} ${-c.dias===1?"día":"días"}` : c.dias===0 ? "Hoy" : `En ${c.dias} ${c.dias===1?"día":"días"}`);
@@ -2053,10 +2116,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           <td class="dias ${c.saldo>0&&c.dias<0?"late":""}">${diasTxt}</td>
           <td><span class="st ${c.estatus}">${EST_TXT[c.estatus]}</span></td>
           <td><span class="st ${c.comp}">${COMP_TXT[c.comp]}</span></td>
-          <td>${canWrite && c.saldo>0 ? `<button class="btn sm" data-abonar="${esc(f.id)}">Registrar ${verbo}</button>` : ""}</td></tr>`;
+          <td>${(()=>{ if(!(c.saldo>0)) return ""; const pp = (c.abs||[]).length ? null : pagoEnPolizas(f);
+            return `${pp ? `<div style="margin-bottom:4px"><span class="st parcial" title="Encontrado en tus pólizas de CONTPAQi">En póliza ${esc(pp.id)}${pp.fecha?` · ${fechaCorta(pp.fecha)}`:""}</span>${canWrite?` <button class="linkbtn" data-abpol="${esc(f.id)}" style="font-size:12px">registrar ${verbo} con la póliza</button> · <button class="linkbtn" data-nopol="${esc(f.id)}" style="font-size:12px">no es esta</button>`:""}</div>` : ""}${canWrite ? `<button class="btn sm" data-abonar="${esc(f.id)}">Registrar ${verbo}</button>` : ""}`; })()}</td></tr>`;
         if(abierto){
           let d = `<div class="det-list"><div class="h">${ctSel==="emitida"?"Cobros":"Pagos"} registrados</div>`;
-          d += c.abs.length ? c.abs.map(a=>`<div><span>${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}</span><strong>${money.format(+a.monto||0)}</strong>${a.nota?`<span class="fsub">${esc(a.nota)}</span>`:""}${canWrite?`<button class="linkbtn" data-delab="${esc(a.id)}">Quitar</button>`:""}</div>`).join("") : `<div class="fsub">Ninguno todavía.</div>`;
+          d += c.abs.length ? c.abs.map(a=>`<div><span>${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}</span><strong>${money.format(+a.monto||0)}</strong>${a.nota?`<span class="fsub">${esc(a.nota)}</span>`:""}${canWrite?`<button class="linkbtn" data-editab="${esc(a.id)}">Editar</button> <button class="linkbtn" data-delab="${esc(a.id)}">Quitar</button>`:""}</div>`).join("") : `<div class="fsub">Ninguno todavía.</div>`;
           if(f.metodo==="PPD"){
             d += `<div class="h">Complementos de pago</div>`;
             d += c.cs.length ? c.cs.map(x=>`<div style="flex-wrap:wrap"><span>${fechaCorta(x.fechaPago)} ${String(x.fechaPago).slice(0,4)}</span><strong>${money.format(+x.impPagado||0)}</strong><span class="fsub">Parcialidad ${x.parcialidad||1} · saldo ${money.format(+x.saldoInsoluto||0)}</span><div style="width:100%">${uuidHTML(x.uuid)}${botonesCfdi(x.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(x.uuid)}</div>`:""}</div></div>`).join("") : `<div class="fsub">No hay complementos cargados para esta factura.</div>`;
@@ -2074,6 +2138,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("csheet").addEventListener("click", async e => {
     const ab = e.target.closest("[data-abonar]");
     if(ab){ abrirAbono(ab.dataset.abonar); return; }
+    const ed = e.target.closest("[data-editab]"); if(ed){ const a = abonos.find(x=>x.id===ed.dataset.editab); const f = a && facturas.find(x=>x.uuid===a.uuid); if(f) abrirAbono(f.id, a); return; }
+    const no = e.target.closest("[data-nopol]"); if(no){ const f = facturas.find(x=>x.id===no.dataset.nopol); if(!f) return; const pp = pagoEnPolizas(f); if(!pp) return;
+      const lista = [...new Set([...(f.polPagoNo||[]), pp.id])]; f.polPagoNo = lista; try{ await db.doc(`empresas/${empresa}/facturas/${f.id}`).update({polPagoNo: lista}); }catch(err){ handleWriteError(err); } renderCuentas(); toast("Listo: ya no la sugiero para esta factura. Si quieres, elige la correcta en Facturas."); return; }
     const del = e.target.closest("[data-delab]");
     if(del){
       const a = abonos.find(x=>x.id===del.dataset.delab); if(!a) return;
@@ -2086,13 +2153,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   });
 
   let abFactura = null;
-  function abrirAbono(id){
+  let abEdit = null;
+  function abrirAbono(id, editA){
     const f = facturas.find(x=>x.id===id); if(!f) return;
     const c = cuentaDe(f, indices());
-    abFactura = f;
+    abFactura = f; abEdit = editA || null;
     $("abTitle").textContent = f.tipo==="emitida" ? `Registrar cobro de ${f.nombre}` : `Registrar pago a ${f.nombre}`;
     $("abSub").textContent = `Factura del ${fechaCorta(f.fecha)} ${f.anio} por ${money.format(+f.total||0)}. Saldo: ${money.format(c.saldo)}.`;
-    $("abMonto").value = c.saldo.toFixed(2); $("abFecha").value = hoyISO; $("abNota").value = "";
+    $("abMonto").value = (editA ? +editA.monto : c.saldo).toFixed(2); $("abFecha").value = editA ? String(editA.fecha).slice(0,10) : hoyISO; $("abNota").value = editA ? (editA.nota||"") : "";
+    if(editA) $("abTitle").textContent = `Corregir ${f.tipo==="emitida"?"cobro":"pago"} de ${f.nombre}`;
     $("abDlg").showModal(); $("abMonto").select();
   }
   $("cancelAb").onclick = () => $("abDlg").close();
@@ -2101,7 +2170,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!(monto>0)){ $("abMonto").focus(); return; }
     if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){ $("abFecha").focus(); return; }
     const f = abFactura; if(!f) return;
-    const id = `ab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
+    const id = abEdit ? abEdit.id : `ab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
     const btn = $("confirmAb"); btn.disabled = true;
     try{
       setSaving("Guardando…");
@@ -5890,6 +5959,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(R.deCanceladas.length) h += `<div class="bpanel" style="margin-top:16px"><h3>Complementos de facturas canceladas<small>El complemento sigue vigente pero la factura que paga está cancelada: revisa si hay que cancelar el complemento o relacionarlo con la factura que la sustituyó.</small></h3><table class="decl" style="width:100%"><tbody>${R.deCanceladas.map(({c,f:fx})=>`<tr><td>${fechaCorta(String(c.fechaPago).slice(0,10))}</td><td>${esc(fx.nombre||"")}</td><td>Factura ${esc(fx.folio||String(fx.uuid).slice(0,8))}</td><td class="num">${f(+c.impPagado||0)}</td></tr>`).join("")}</tbody></table></div>`;
     $("csheet").innerHTML = h;
   }
+  async function registrarDesdePoliza(f){
+    const pp = pagoEnPolizas(f), c = cuentaDe(f, indices()); if(!pp || !(c.saldo>0)) return false;
+    const fecha = pp.fecha || String(f.fecha).slice(0,10), monto = r2(pp.monto || c.saldo), id = `ab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
+    await db.doc(`empresas/${empresa}/abonos/${id}`).set({tipo: f.tipo==="emitida"?"cobro":"pago", uuid: f.uuid, fecha, monto: Math.min(monto, c.saldo), nota: `Según póliza ${pp.id} de CONTPAQi`, nombre: f.nombre}); return true;
+  }
+  $("csheet").addEventListener("click", async e => {
+    const b = e.target.closest("[data-abpol]"); if(b){ const f = facturas.find(x=>x.id===b.dataset.abpol); if(!f) return; try{ setSaving("Guardando…"); if(await registrarDesdePoliza(f)) toast("Registrado con la fecha de la póliza."); setSaving("Guardado"); }catch(err){ handleWriteError(err); } return; }
+    if(e.target.closest("#abPolTodos")){ const rows = filasCuentas().filter(({f,c})=>c.saldo>0 && !(c.abs||[]).length && pagoEnPolizas(f));
+      if(!await confirmar(`¿Registrar ${rows.length} ${ctSel==="emitida"?"cobros":"pagos"} con la fecha y el monto de su póliza?`)) return;
+      let n = 0; try{ setSaving("Guardando…"); for(const {f} of rows){ if(await registrarDesdePoliza(f)) n++; } setSaving("Guardado"); toast(`Listo: ${n} registrados.`); }catch(err){ handleWriteError(err); } }
+  });
   $("csheet").addEventListener("change", e => { if(e.target.id==="cppdSolo"){ cppdSolo = e.target.checked; renderCuentas(); } });
   $("csheet").addEventListener("click", async e => {
     if(!e.target.closest("#cppdXls")) return;
