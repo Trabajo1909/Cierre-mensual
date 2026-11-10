@@ -408,7 +408,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 58 · PPD y PUE por mes y año</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 59 · Dashboard del mes completo</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -4224,6 +4224,44 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     await guardarArchivo(`Como va la empresa ${empresaNombre} ${year}.pdf`, doc.output("blob"));
   }
 
+  // ---------- Dashboard del mes: impuestos, IVA, bancos, clientes y proveedores ----------
+  const panelExp = (i, titulo, que, como, lectura, alto=280) => `<div class="bpanel"><h3>${titulo}</h3><div style="height:${alto}px;padding:8px 14px"><canvas data-ch="${i}"></canvas></div>
+      <div style="padding:4px 14px 14px;font-size:13px;line-height:1.5"><div><strong>Qué muestra:</strong> ${que}</div><div><strong>Cómo se calcula:</strong> ${como}</div>${lectura?`<div style="margin-top:4px;padding:8px 10px;border-radius:8px;background:var(--vino-soft)"><strong>Lectura:</strong> ${lectura}</div>`:""}</div></div>`;
+  function operativoMes(y, m, off){
+    const f = money.format, T = tema(false), base = cfgBase(T), mk = mesKey(y, m), k = calcMes(y, m), fin = new Date(Date.UTC(y, m, 0)).toISOString().slice(0,10), idx = indices();
+    const ejes = ap => ({x:{stacked:!!ap, ticks:{color:T.ink}, grid:{display:false}}, y:{stacked:!!ap, ticks:{color:T.muted, callback:moneyTick}, grid:{color:T.line}}});
+    const horiz = (arr, lbl, color) => ({type:"bar", data:{labels: arr.map(x=>x[0].length>26 ? x[0].slice(0,25)+"…" : x[0]), datasets:[{label:lbl, data:arr.map(x=>x[1]), backgroundColor: color || T.serie, borderRadius:4}]}, options:{...base, indexAxis:"y", plugins:{...base.plugins, legend:{display:false}}, scales:{x:{ticks:{color:T.muted, callback:moneyTick}, grid:{color:T.line}}, y:{ticks:{color:T.ink}, grid:{display:false}}}}});
+    // Impuestos del mes por obligación
+    const imp = []; for(const o of OBLIG){ if(o.info || o.clave==="diot") continue; const e = estadoOblig(o, k); if(!e.visible || e.st==="noaplica") continue; const d = e.d || {};
+      const monto = d.presentada ? r2((+d.aPagar||0)) : Math.max(0, r2(+e.calc||0)); if(monto>0.004) imp.push([`${o.aut} · ${o.nombre}`, monto, o.aut, e.st]); }
+    imp.sort((a,b)=>b[1]-a[1]); const totImp = r2(imp.reduce((s,x)=>s+x[1],0)), pend = imp.filter(x=>x[3]==="sinpres"||x[3]==="porpagar");
+    const colAut = a => a==="SAT" ? T.serie[0] : a==="SATEG" ? T.serie[1] : T.serie[2];
+    // Bancos
+    const bancos = cuentasB.map(c=>{ const cc = concDe(c.id, y, m); if(!cc) return null; const b = cc.banco||[], dep = r2(b.filter(x=>x.tipo==="dep").reduce((s,x)=>s+x.monto,0)), ret = r2(b.filter(x=>x.tipo==="ret").reduce((s,x)=>s+x.monto,0)), si = +cc.saldoInicialBanco||0;
+      return {n:c.nombre, si, dep, ret, sf: r2(si + dep - ret)}; }).filter(Boolean);
+    // Clientes y proveedores del mes
+    const topMes = tipo => { const o = {}; facturas.filter(fx=>fx.tipo===tipo && vigente(fx) && String(fx.fecha).slice(0,7)===mk).forEach(fx=>{ o[fx.nombre] = r2((o[fx.nombre]||0) + (+fx.subtotal||0)); }); return Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,8); };
+    const saldoPor = tipo => { const o = {}; facturas.filter(fx=>fx.tipo===tipo && vigente(fx) && String(fx.fecha)<=fin).forEach(fx=>{ const s = cuentaDe(fx, idx, fin).saldo; if(s>0.5) o[fx.nombre] = r2((o[fx.nombre]||0) + s); }); return Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,8); };
+    const cliM = topMes("emitida"), prvM = topMes("recibida"), cxc = saldoPor("emitida"), cxp = saldoPor("recibida");
+    const totCxc = r2(cxc.reduce((s,x)=>s+x[1],0)), totCxp = r2(cxp.reduce((s,x)=>s+x[1],0));
+    const html = `<h3 style="margin:22px 0 10px">Operación de ${MESES[m-1].toLowerCase()}</h3><div class="dgrid">
+      ${panelExp(off, "Impuestos y cuotas del mes", "cada impuesto del mes y cuánto es, en el color de su autoridad (SAT, SATEG o IMSS).", "lo declarado (normal y complementarias) o, si aún no presentas, lo calculado por la app; IMSS con la línea del SIPARE.", imp.length ? `en total <strong>${f(totImp)}</strong>. ${pend.length ? `Falta presentar o pagar <strong>${pend.length}</strong> (${pend.map(x=>x[0].split(" · ")[1]).join(", ")}).` : "Todo presentado y pagado."}` : "sin impuestos por pagar este mes.", Math.max(220, imp.length*34+60))}
+      ${panelExp(off+1, "IVA del mes", "el IVA que cobraste, el que pagaste, las retenciones y el resultado del mes.", "IVA trasladado cobrado − IVA retenido por clientes − IVA acreditable pagado + IVA retenido a proveedores.", k.ivaNeto<0 ? `quedó un <strong>saldo a favor de ${f(-k.ivaNeto)}</strong>: pagaste más IVA del que cobraste.` : `hay <strong>${f(k.ivaNeto)} de IVA a pagar</strong> el día 17 del mes siguiente.`)}
+      ${bancos.length ? panelExp(off+2, "Bancos del mes", "por cada cuenta: con cuánto empezó, cuánto entró, cuánto salió y con cuánto terminó.", "movimientos de tus estados de cuenta del mes cargados en Bancos.", `en total entraron <strong>${f(r2(bancos.reduce((s,x)=>s+x.dep,0)))}</strong>, salieron <strong>${f(r2(bancos.reduce((s,x)=>s+x.ret,0)))}</strong> y el saldo final de todas las cuentas es <strong>${f(r2(bancos.reduce((s,x)=>s+x.sf,0)))}</strong>.`) : `<div class="bpanel"><h3>Bancos del mes</h3><div class="empty" style="padding:14px">Sube los estados de cuenta de ${MESES[m-1].toLowerCase()} en Bancos para ver esta gráfica.</div></div>`}
+      ${panelExp(off+3, "Clientes del mes", "a quién le facturaste más este mes, sin IVA.", "facturas emitidas vigentes del mes, sumadas por cliente.", cliM.length ? `facturaste <strong>${f(r2(cliM.reduce((s,x)=>s+x[1],0)))}</strong>; el principal fue <strong>${esc(cliM[0][0])}</strong>.` : "sin facturas emitidas este mes.", 260)}
+      ${panelExp(off+4, "Proveedores del mes", "a quién le compraste más este mes, sin IVA.", "facturas recibidas vigentes del mes, sumadas por proveedor.", prvM.length ? `te facturaron <strong>${f(r2(prvM.reduce((s,x)=>s+x[1],0)))}</strong>; el principal fue <strong>${esc(prvM[0][0])}</strong>.` : "sin facturas recibidas este mes.", 260)}
+      ${panelExp(off+5, "Quién te debe al cierre del mes", "los clientes con más saldo pendiente de cobrar al último día del mes.", "total de sus facturas vigentes menos los cobros registrados en Cuentas.", totCxc ? `te deben <strong>${f(totCxc)}</strong> entre los principales; revisa en Cuentas cuáles ya están vencidas.` : "no hay saldos por cobrar.", 260)}
+      ${panelExp(off+6, "A quién le debes al cierre del mes", "los proveedores con más saldo pendiente de pagar al último día del mes.", "total de sus facturas vigentes menos los pagos registrados en Cuentas.", totCxp ? `debes <strong>${f(totCxp)}</strong> entre los principales. Si una factura ya se pagó y aquí sale, regístrala en Cuentas (o usa "registrar pago con la póliza").` : "no hay saldos por pagar.", 260)}
+    </div>`;
+    const cfgs = [
+      horiz(imp.map(x=>[x[0], x[1]]), "Importe", imp.map(x=>colAut(x[2]))),
+      {type:"bar", data:{labels:["IVA cobrado","IVA retenido por clientes","IVA pagado","IVA retenido a proveedores","Resultado"], datasets:[{label:"IVA", data:[k.tras, -k.ivaRetCli, -k.acr, k.ret.iva, k.ivaNeto], backgroundColor:[T.a, T.c, T.b, T.c, k.ivaNeto<0?T.d:T.b], borderRadius:4}]}, options:{...base, plugins:{...base.plugins, legend:{display:false}}, scales:ejes()}},
+      {type:"bar", data:{labels: bancos.map(x=>x.n), datasets:[{label:"Saldo inicial", data:bancos.map(x=>x.si), backgroundColor:T.serie[7], borderRadius:4},{label:"Entradas", data:bancos.map(x=>x.dep), backgroundColor:T.a, borderRadius:4},{label:"Salidas", data:bancos.map(x=>x.ret), backgroundColor:T.b, borderRadius:4},{label:"Saldo final", data:bancos.map(x=>x.sf), backgroundColor:T.d, borderRadius:4}]}, options:{...base, scales:ejes()}},
+      horiz(cliM, "Sin IVA", T.a), horiz(prvM, "Sin IVA", T.b), horiz(cxc, "Por cobrar", T.a), horiz(cxp, "Por pagar", T.b)
+    ];
+    return {html, cfgs};
+  }
+
   function listaMeses(){ return Array.from({length:12},(_,i)=>balanzas[mesKey(year,i+1)]).filter(Boolean).map(resumenBalanza); }
   async function renderDashboard(){
     $("yearLabel").textContent = year;
@@ -4233,12 +4271,16 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("dmonths").style.display = dTab==="mes" ? "" : "none";
     if(!dMes && L.length) dMes = L[L.length-1].mes;
     $("dmonths").innerHTML = Array.from({length:12},(_,i)=>{ const ok = !!balanzas[mesKey(year,i+1)]; return `<button class="mchip ${ok?"ok":"vacio"}" data-dmes="${i+1}" aria-current="${dMes===i+1}"><b>${ABR[i]}</b><small>${ok?"Listo":"—"}</small></button>`; }).join("");
+    if(!L.length && dTab==="mes"){ if(!dMes) dMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
+      $("dmonths").innerHTML = Array.from({length:12},(_,i)=>`<button class="mchip" data-dmes="${i+1}" aria-current="${dMes===i+1}"><b>${ABR[i]}</b><small>&nbsp;</small></button>`).join("");
+      const OP = operativoMes(year, dMes, 0); $("dbody").innerHTML = `<div class="empty" style="margin-bottom:10px">Sube tus balanzas para ver también los indicadores contables del mes.</div>` + OP.html; await loadLibs("chart"); pintar(OP.cfgs);
+      $("statusLine").innerHTML = `Dashboard de <strong>${MESES[dMes-1].toLowerCase()} ${year}</strong>.`; return; }
     if(!L.length){ $("dbody").innerHTML = `<div class="empty">Los dashboards se arman con tus balanzas. Sube la balanza de comprobación en la sección <strong>Balanza</strong>.</div>`; $("statusLine").textContent = "Sin balanzas cargadas."; return; }
     const f = x => money.format(x), kpi = (t,v,s,cls="") => `<div class="kpi ${cls}"><span>${t}</span><b>${v}</b>${s?`<small>${s}</small>`:""}</div>`;
     let html = "";
     if(dTab==="mes"){
       const R = L.find(x=>x.mes===dMes);
-      if(!R){ $("dbody").innerHTML = `<div class="empty">No hay balanza de ${MESES[dMes-1].toLowerCase()}.</div>`; return; }
+      if(!R){ const OP = operativoMes(year, dMes, 0); $("dbody").innerHTML = `<div class="empty" style="margin-bottom:10px">No hay balanza de ${MESES[dMes-1].toLowerCase()}: los indicadores contables aparecen al subirla. Mientras, esto es lo que se ve con tus facturas, impuestos y bancos.</div>` + OP.html; await loadLibs("chart"); pintar(OP.cfgs); return; }
       $("statusLine").innerHTML = `Dashboard de <strong>${MESES[R.mes-1].toLowerCase()} ${year}</strong>, con tu balanza de comprobación.`;
       html += `<div class="kpis">${kpi("Ingresos del mes", f(R.ingMes))}${kpi("Gastos del mes", f(R.gasMes))}${kpi(R.resMes>=0?"Utilidad del mes":"Pérdida del mes", f(Math.abs(R.resMes)), "", R.resMes>=0?"pos":"neg")}${kpi("Efectivo al cierre", f(R.efectivo), `Caja y bancos · ${R.efectivo-R.efectivoIni>=0?"+":"−"}${f(Math.abs(R.efectivo-R.efectivoIni))} en el mes`)}${kpi(R.resAcum>=0?"Utilidad del año":"Pérdida del año", f(Math.abs(R.resAcum)), `Ingresos ${f(R.ingAcum)} · gastos ${f(R.gasAcum)}`, R.resAcum>=0?"pos":"neg")}</div>`;
       html += `<div class="relato">${relatoMes(R).map(p=>`<p>${p}</p>`).join("")}</div>`;
@@ -4254,8 +4296,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(c.cuenta.startsWith("601")) for(const r of R.rubros.filter(x=>x.cuenta.startsWith("601")).sort((a,b)=>b.acum-a.acum)) t += `<tr><td style="padding-left:28px">${esc(r.nombre)}<div class="fsub">${r.cuenta}</div></td><td>${esc(EXPL601[r.cuenta.slice(4,6)]||"")}</td><td class="num">${f(r.acum)}</td><td class="num">${f(r.mes)}</td></tr>`;
       }
       t += `</tbody></table></div></div>`;
-      $("dbody").innerHTML = html + t;
-      await loadLibs("chart"); Chart.defaults.font.family = '"IBM Plex Sans", system-ui, sans-serif'; pintar(chartsMes(R, tema(false)));
+      const OP = operativoMes(year, R.mes, 2);
+      $("dbody").innerHTML = html + OP.html + `<div style="margin-top:16px">${t}</div>`;
+      await loadLibs("chart"); Chart.defaults.font.family = '"IBM Plex Sans", system-ui, sans-serif'; pintar([...chartsMes(R, tema(false)), ...OP.cfgs]);
     } else {
       const u = L[L.length-1];
       $("statusLine").innerHTML = `Comparativo de <strong>${MESES[L[0].mes-1].toLowerCase()} a ${MESES[u.mes-1].toLowerCase()} ${year}</strong>.`;
