@@ -408,7 +408,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 53 · PDF de complementos</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 54 · Auxiliares en Excel y PDF</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -2405,8 +2405,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // Guarda el archivo original para poder descargarlo después desde Documentos
     const guardarOriginal = async (f, tipo, meses) => {
       if(!assets || !f.file || !meses.length) return;
-      try{ const up = await assets.upload(f.file); const reg = {id: up.id, nombre: f.name, tipo, subido: hoyISO};
-        for(const [y,m] of meses){ const d = base(y,m); d.archivos = [...(d.archivos||[]).filter(a=>a.tipo!==tipo), reg]; } }catch(_){}
+      try{ const up = await assets.upload(f.file); const ext = (f.name.split(".").pop()||"").toLowerCase(), reg = {id: up.id, nombre: f.name, tipo, ext, subido: hoyISO};
+        const extDe = a => a.ext || (String(a.nombre).split(".").pop()||"").toLowerCase();
+        for(const [y,m] of meses){ const d = base(y,m); d.archivos = [...(d.archivos||[]).filter(a=>!(a.tipo===tipo && extDe(a)===ext)), reg]; } }catch(_){}
     };
     for(const f of files){
       if(f.kind==="edo" || f.kind==="pdf"){
@@ -2550,8 +2551,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const resumenRev = ur && !ur.visto ? (()=>{ const p = [], L = (t, xs) => xs && xs.length ? `<div><strong>${t} (${xs.length}):</strong> ${xs.slice(0,6).map(esc).join(" · ")}${xs.length>6?` y ${xs.length-6} más`:""}</div>` : "";
       const det = L("Pólizas nuevas", ur.aux.nuevas) + L("Pólizas que ya no vienen", ur.aux.eliminadas) + L("Pólizas modificadas", ur.aux.modificadas) + L("Movimientos del banco nuevos", ur.banco.nuevos) + L("Movimientos del banco que ya no vienen", ur.banco.eliminados) + L("Movimientos del banco modificados", ur.banco.modificados);
       return `<div class="bpanel" style="margin:0 0 14px;border-left:4px solid var(--today-line)"><h3>Volviste a subir archivos el ${fechaCorta(ur.fecha)}<small>La conciliación ya se revisó otra vez con los cambios.</small></h3><div style="padding:10px 14px;font-size:13px;display:grid;gap:4px">${det || "<div>No hubo cambios en los movimientos.</div>"}${ur.deshechos ? `<div><strong>${ur.deshechos} ${ur.deshechos===1?"emparejamiento que armaste":"emparejamientos que armaste"} se deshizo</strong> porque una de sus pólizas o movimientos cambió o ya no viene: revisa <strong>Por revisar</strong>.</div>` : ""}${ur.partidasQuitadas ? `<div><strong>${ur.partidasQuitadas} ${ur.partidasQuitadas===1?"partida en conciliación se quitó":"partidas en conciliación se quitaron"}</strong> por la misma razón.</div>` : ""}</div>${canWrite?`<div class="pairbar" style="padding:0 14px 12px"><button class="btn sm" id="revVisto">Entendido</button></div>`:""}</div>`; })() : "";
-    const arch = c.archivos || [], aE = arch.find(a=>a.tipo==="edo"), aA = arch.find(a=>a.tipo==="aux");
-    const verArch = `<div class="pairbar" style="margin:0 0 10px;flex-wrap:wrap;gap:8px">${aE?`<button class="btn sm" data-bver="edo">Ver estado de cuenta</button>`:'<span class="fsub" style="max-width:none">Estado de cuenta: el archivo no está guardado (vuelve a subirlo para poder verlo)</span>'}${aA?`<button class="btn sm" data-bver="aux">Ver auxiliar</button>`:""}</div>`;
+    const arch = c.archivos || [], extDe = a => (a.ext || (String(a.nombre).split(".").pop()||"")).toUpperCase();
+    const bt = (tipo, txt) => arch.filter(a=>a.tipo===tipo).map(a=>`<button class="btn sm" data-bver="${esc(a.id)}">${txt} (${esc(extDe(a)==="XLSX"||extDe(a)==="XLS"?"Excel":extDe(a))})</button>`).join("");
+    const verArch = `<div class="pairbar" style="margin:0 0 10px;flex-wrap:wrap;gap:8px">${bt("edo","Ver estado de cuenta") || '<span class="fsub" style="max-width:none">Estado de cuenta: el archivo no está guardado (vuelve a subirlo para poder verlo)</span>'}${bt("aux","Ver auxiliar")}</div>`;
     let html = resumenRev + verArch + `<div class="bfiles"><span>Estado de cuenta: ${nB ? `<b>${nB} movimientos</b>` : c.edoSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Auxiliar: ${nA ? `<b>${nA} pólizas</b>` : c.auxSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Emparejados: <b>${E.pairs.length}</b></span></div>`;
     const okDif = Math.abs(k.dif)<=0.009;
     html += `<div class="bgrid"><div class="bpanel"><h3>Carátula de conciliación<small>${esc(cta.nombre)}${cta.cuentaContable?` · cuenta ${esc(cta.cuentaContable)}`:""} · al ${new Date(Date.UTC(year,bMes,0)).getUTCDate()} de ${MESES[bMes-1].toLowerCase()} de ${year}</small></h3>
@@ -2721,7 +2723,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
 
   $("bbody").addEventListener("click", async e => {
-    const bv = e.target.closest("[data-bver]"); if(bv){ const c0 = concDe(cuentaSel, year, bMes); const a = c0 && (c0.archivos||[]).find(x=>x.tipo===bv.dataset.bver); if(a) descargarAsset(a, true); return; }
+    const bv = e.target.closest("[data-bver]"); if(bv){ const c0 = concDe(cuentaSel, year, bMes); const a = c0 && (c0.archivos||[]).find(x=>x.id===bv.dataset.bver || x.tipo===bv.dataset.bver); if(a) descargarAsset(a, true); return; }
     const arm = e.target.closest("[data-armar]"); if(arm){ abrirArmar(arm.dataset.armar); return; }
     if(e.target.closest("#revVisto")){ const c0 = concDe(cuentaSel, year, bMes); if(c0 && c0.ultimaRevision){ try{ await escribirConc({...c0, ultimaRevision: {...c0.ultimaRevision, visto:true}}); }catch(err){ handleWriteError(err); } } return; }
     const sb = e.target.closest("[data-selb]"), sa = e.target.closest("[data-sela]");
@@ -6525,7 +6527,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const btn = (id, t, extra="") => `<span style="display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden"><button class="btn sm" style="border:none;border-radius:0" data-gen="${id}" data-ver="1" ${extra} title="Ver sin descargar">Ver</button><button class="btn sm" style="border:none;border-left:1px solid var(--line);border-radius:0" data-gen="${id}" ${extra}>${t}</button></span>`;
     const delAnio = archivosGen.filter(a=>a.anio===year && !a.mes).sort((a,b)=>String(b.subido).localeCompare(String(a.subido)));
     const delAnioHtml = delAnio.length ? `<div class="bpanel" style="margin-bottom:16px"><h3>Archivos del año ${year}<small>Reportes de AdminXML, pólizas y catálogo de CONTPAQi que subiste. Se guarda la última versión de cada archivo.</small></h3>${[...new Set(delAnio.map(a=>a.categoria))].map(g=>`<div style="padding:8px 14px"><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:4px">${esc(g)}</div>${delAnio.filter(a=>a.categoria===g).map(a=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)"><div style="min-width:0"><div>${esc(a.nombre)}</div><div class="fsub">subido el ${fechaCorta(a.subido)}</div></div><span style="display:flex;gap:6px"><button class="btn sm" data-agver="${esc(a.id)}">Ver</button><button class="btn sm" data-agdl="${esc(a.id)}">Descargar</button></span></div>`).join("")}</div>`).join("")}</div>` : "";
-    let html = delAnioHtml + `<div class="pairbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="docZip">Descargar todo ${MESES[docMes-1].toLowerCase()} (.zip)</button><span class="fsub" style="max-width:none">La carpeta del mes con pólizas, conciliaciones, impuestos, acuses, cuentas, facturas, balanza y dashboard.</span></div>`;
+    const subirOtro = canWrite && assets ? `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><select id="docCat" style="width:auto">${["Auxiliares","Pólizas","Contratos","Estados de cuenta","Comprobantes","Otros"].map(c=>`<option>${c}</option>`).join("")}</select><button class="btn sm" id="docSubir">Subir archivo a ${MESES[docMes-1].toLowerCase()}</button><input type="file" id="docFile" multiple hidden><span class="fsub" style="max-width:none">Cualquier archivo (PDF, Excel, Word, imágenes…), para tenerlo con el mes.</span></div>` : "";
+    let html = delAnioHtml + subirOtro + `<div class="pairbar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="docZip">Descargar todo ${MESES[docMes-1].toLowerCase()} (.zip)</button><span class="fsub" style="max-width:none">La carpeta del mes con pólizas, conciliaciones, impuestos, acuses, cuentas, facturas, balanza y dashboard.</span></div>`;
     html += `<div class="dgrid"><div class="bpanel"><h3>Archivos que subiste<small>Los originales, tal como los subiste a la app.</small></h3>${docs.length ? Object.entries(grupos).map(([g, xs])=>`<div style="padding:8px 14px"><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:4px">${esc(g)}</div>${xs.map((d,i)=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)"><div style="min-width:0"><div>${esc(d.nombre)}</div><div class="fsub" style="max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.nota||"")}</div></div><span style="display:flex;gap:6px"><button class="btn sm" data-docver="${esc(d.a.id)}">Ver</button><button class="btn sm" data-docdl="${esc(d.a.id)}">Descargar</button></span></div>`).join("")}</div>`).join("") : `<div class="empty" style="padding:16px">Aún no hay archivos guardados de este mes. Los acuses, estados de cuenta, auxiliares y balanzas que subas a partir de ahora se guardan aquí.</div>`}</div>
       <div class="bpanel"><h3>Reportes que arma la app<small>Siempre con tus datos más recientes.</small></h3><div style="padding:10px 14px;display:grid;gap:12px">
         <div><div style="font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px">Bancos</div><div class="pairbar" style="flex-wrap:wrap;gap:6px">${ctas.length ? ctas.map(c=>btn(`conc-pdf-${c.id}`, `Conciliación ${esc(c.nombre)} (PDF)`) + btn(`conc-xlsx-${c.id}`, `${esc(c.nombre)} (Excel)`)).join("") : '<span class="fsub">Sin conciliaciones este mes.</span>'}${btn("saldos", "Saldos diarios (Excel)")}</div></div>
@@ -6536,9 +6539,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       </div></div></div>`;
     $("docbody").innerHTML = html;
   }
+  $("docbody").addEventListener("change", async e => {
+    if(e.target.id!=="docFile") return; const files = [...e.target.files]; e.target.value = ""; if(!files.length) return;
+    const cat = $("docCat").value; for(const f of files){ setSaving(`Subiendo ${f.name}…`); await guardarArchivoGeneral(f, cat, year, docMes); }
+    setSaving(""); toast(`Listo: ${files.length} ${files.length===1?"archivo guardado":"archivos guardados"} en ${MESES[docMes-1].toLowerCase()}.`);
+  });
   $("docmonths").addEventListener("click", e => { const b = e.target.closest("[data-docmes]"); if(b){ docMes = +b.dataset.docmes; renderDocumentos(); } });
   $("docbody").addEventListener("click", async e => {
     const dl = e.target.closest("[data-docdl]"); if(dl){ const d = docsDelMes(year, docMes).find(x=>x.a.id===dl.dataset.docdl); if(d) descargarAsset(d.a); return; }
+    if(e.target.closest("#docSubir")){ $("docFile").click(); return; }
     const ag = e.target.closest("[data-agver], [data-agdl]"); if(ag){ const a = archivosGen.find(x=>x.id===(ag.dataset.agver||ag.dataset.agdl)); if(a) descargarAsset(a.asset, !!ag.dataset.agver); return; }
     const dv = e.target.closest("[data-docver]"); if(dv){ const d = docsDelMes(year, docMes).find(x=>x.a.id===dv.dataset.docver); if(d) descargarAsset(d.a, true); return; }
     if(e.target.closest("#docZip")){ if(typeof armarZip==="function"){ const prevV = vista; try{ await armarZip(docMes); } finally{ vista = prevV; renderDocumentos(); } } return; }
