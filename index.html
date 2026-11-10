@@ -251,6 +251,8 @@ table.expl td{padding:8px 12px;font-size:13px;border-bottom:1px solid var(--line
 table.expl td.num{text-align:right;white-space:nowrap}
 table.expl tr.grp td{background:var(--group);font-weight:700;color:var(--muted)}
 .ayuda{display:inline-grid;place-items:center;width:17px;height:17px;margin-left:5px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:700 11px/1 "IBM Plex Sans",system-ui,sans-serif;cursor:help;vertical-align:middle;padding:0;flex:none}
+.vtip{border-bottom:1px dotted var(--muted);cursor:help}
+.vtip:hover{border-bottom-color:var(--vino);color:var(--vino)}
 .ayuda:hover,.ayuda:focus-visible{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 #tipBox{position:fixed;z-index:200;max-width:min(360px,90vw);background:var(--ink);color:var(--bg);padding:10px 12px;border-radius:10px;font:500 13px/1.45 "IBM Plex Sans",system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25);pointer-events:none;white-space:normal;text-align:left}
 #tipBox[hidden]{display:none}
@@ -408,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 62 · Finanzas ampliada</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 63 · Finanzas con explicaciones y resumen</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -6311,11 +6313,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const tip = $("tipBox");
   const mostrarTip = b => { tip.textContent = b.dataset.tip; tip.hidden = false; const r = b.getBoundingClientRect(), w = tip.offsetWidth, hh = tip.offsetHeight;
     let x = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width/2 - w/2)), y = r.bottom + 8; if(y + hh > window.innerHeight - 8) y = r.top - hh - 8; tip.style.left = x + "px"; tip.style.top = y + "px"; };
-  document.addEventListener("mouseover", e => { const b = e.target.closest(".ayuda"); if(b) mostrarTip(b); });
-  document.addEventListener("mouseout", e => { if(e.target.closest(".ayuda")) tip.hidden = true; });
-  document.addEventListener("focusin", e => { const b = e.target.closest(".ayuda"); if(b) mostrarTip(b); });
-  document.addEventListener("focusout", e => { if(e.target.closest(".ayuda")) tip.hidden = true; });
-  document.addEventListener("click", e => { const b = e.target.closest(".ayuda"); if(b){ e.preventDefault(); e.stopPropagation(); tip.hidden && b.dataset.tip ? mostrarTip(b) : (tip.hidden = !tip.hidden); return; } if(!tip.hidden) tip.hidden = true; }, true);
+  document.addEventListener("mouseover", e => { const b = e.target.closest(".ayuda, .vtip"); if(b) mostrarTip(b); });
+  document.addEventListener("mouseout", e => { if(e.target.closest(".ayuda, .vtip")) tip.hidden = true; });
+  document.addEventListener("focusin", e => { const b = e.target.closest(".ayuda, .vtip"); if(b) mostrarTip(b); });
+  document.addEventListener("focusout", e => { if(e.target.closest(".ayuda, .vtip")) tip.hidden = true; });
+  document.addEventListener("click", e => { const b = e.target.closest(".ayuda, .vtip"); if(b){ e.preventDefault(); e.stopPropagation(); tip.hidden && b.dataset.tip ? mostrarTip(b) : (tip.hidden = !tip.hidden); return; } if(!tip.hidden) tip.hidden = true; }, true);
   window.addEventListener("scroll", () => { tip.hidden = true; }, {passive:true});
   $("guiaBtn").onclick = () => { $("guiaTitulo").textContent = `Cómo funciona: ${$("viewTitle").textContent}`; $("guiaTexto").textContent = GUIA[vista] || GUIA.tablero; $("guiaDlg").showModal(); };
   $("guiaCerrar").onclick = () => $("guiaDlg").close();
@@ -8391,6 +8393,47 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ["deudaEbitda","Deuda neta ÷ EBITDA (anualizado)","(Pasivo − Caja y bancos) ÷ EBITDA anualizado","x","Cuántos años de EBITDA necesitarías para pagar la deuda. Los bancos suelen pedir menos de 3. Si el EBITDA es negativo no se calcula."],
       ["zAltman","Z de Altman (privadas)","6.56·CT/AT + 3.26·UR/AT + 6.72·EBIT/AT + 1.05·Capital/Pasivo","x","Riesgo de insolvencia: más de 2.6 zona segura, entre 1.1 y 2.6 zona gris, menos de 1.1 zona de riesgo. EBIT anualizado; UR = resultados acumulados."]]]
   ];
+  // Explicación de cada valor (tooltip) con los números del mes
+  function explicaInd(k, x){
+    const f = money.format, mes = MESES[x.m-1].toLowerCase(), v = x[k], B = x.B, pct = n => `${(n*100).toFixed(1)}%`;
+    if(v==null || !isFinite(v)) return `${mes}: no se puede calcular con los datos de la balanza (por ejemplo, divisor en cero o sin ventas).`;
+    const T = {
+      liq: `Por cada $1 que debes a corto plazo tienes $${v.toFixed(2)} en activos de corto plazo. Activo circulante ${f(B.actC)} ÷ pasivo a corto plazo ${f(B.pasCP)}. ${v>=1.5?"Buena liquidez.":v>=1?"Liquidez justa.":"Riesgo: no alcanzaría para pagar todo lo de corto plazo."}`,
+      acida: `Sin contar inventarios (${f(x.inv)}), tienes $${v.toFixed(2)} por cada $1 de deuda de corto plazo. (${f(B.actC)} − ${f(x.inv)}) ÷ ${f(B.pasCP)}.`,
+      efectivoPC: `Con lo que hay en caja y bancos (${f(x.efe)}) podrías pagar hoy el ${pct(v)} de tus deudas de corto plazo (${f(B.pasCP)}).`,
+      ctrab: `Te quedan ${f(v)} de activos de corto plazo después de cubrir lo que debes a corto plazo: ${f(B.actC)} − ${f(B.pasCP)}. ${v<0?"Negativo: la operación se está financiando con proveedores o deuda.":""}`,
+      endeuda: `El ${pct(v)} de lo que tiene la empresa está financiado con deuda: pasivo ${f(B.pasivo)} ÷ activo ${f(B.activo)}. El resto (${pct(1-v)}) es de los socios.`,
+      dcap: `Por cada $1 que pusieron los socios hay $${v.toFixed(2)} de deuda: pasivo ${f(B.pasivo)} ÷ capital ${f(B.capital)}.`,
+      mbruto: `De cada $100 vendidos en ${mes} quedaron $${(v*100).toFixed(1)} después del costo de ventas. Utilidad bruta ${f(x.Rm.bruta)} ÷ ventas ${f(x.Rm.ingOp)}.`,
+      mop: `De cada $100 vendidos en ${mes} ${v>=0?"quedaron":"se perdieron"} $${Math.abs(v*100).toFixed(1)} después de costos y gastos de operación. Utilidad de operación ${f(x.Rm.operacion)} ÷ ventas ${f(x.Rm.ingOp)}.`,
+      mneto: `De cada $100 vendidos en ${mes} ${v>=0?"quedaron":"se perdieron"} $${Math.abs(v*100).toFixed(1)} antes de impuestos. Resultado ${f(x.Rm.antes)} ÷ ventas ${f(x.Rm.ingOp)}.`,
+      mnetoA: `En lo que va del año, de cada $100 vendidos ${v>=0?"quedaron":"se perdieron"} $${Math.abs(v*100).toFixed(1)}. Resultado acumulado ${f(x.resA)} ÷ ventas acumuladas ${f(x.ventasA)}.`,
+      ebitdaM: `La operación de ${mes} ${v>=0?"generó":"consumió"} ${f(Math.abs(v))} antes de intereses, impuestos, depreciación y amortización: utilidad de operación ${f(x.Rm.operacion)} + depreciación ${f(x.depM)}.`,
+      roa: `Los activos (${f(B.activo)}) rinden ${pct(v)} al año: resultado acumulado ${f(x.resA)} llevado a 12 meses ÷ activo total.`,
+      roe: `El dinero de los socios (${f(B.capital)}) rinde ${pct(v)} al año. Compáralo con lo que ganarían en CETES.`,
+      rotAct: `Por cada $1 de activos vendes $${v.toFixed(2)} al año (ventas acumuladas ${f(x.ventasA)} llevadas a 12 meses ÷ activo ${f(B.activo)}).`,
+      dso: `Tus clientes tardan en promedio ${Math.round(v)} días en pagarte: clientes ${f(x.cxc)} ÷ ventas con IVA × ${x.dias} días.`,
+      dpo: `Pagas a tus proveedores en promedio en ${Math.round(v)} días: proveedores ${f(x.cxp)} ÷ costos y gastos con IVA × ${x.dias} días.`,
+      dio: `El inventario tarda ${Math.round(v)} días en venderse.`,
+      ccc: `Tu dinero queda atrapado ${Math.round(v)} días entre que pagas y cobras (días de inventario + cobro − pago). ${v<0?"Negativo: tus proveedores te financian.":""}`,
+      mult: `Por cada $1 de capital la empresa tiene $${v.toFixed(2)} de activos: activo ${f(B.activo)} ÷ capital ${f(B.capital)}.`,
+      deudaEbitda: `Necesitarías ${v.toFixed(1)} años de EBITDA para pagar la deuda neta.`,
+      zAltman: `Z'' = ${v.toFixed(2)}: ${v>2.6?"zona segura":v>1.1?"zona gris, conviene vigilar":"zona de riesgo de insolvencia"}.`
+    };
+    return `${MESES[x.m-1]}: ${T[k] || ""}`;
+  }
+  // Semáforo de cada área con su explicación
+  function diagnosticoFin(u){
+    const sem = (v, bueno, regular, mayorEsMejor=true) => v==null || !isFinite(v) ? "gris" : (mayorEsMejor ? (v>=bueno?"verde":v>=regular?"amarillo":"rojo") : (v<=bueno?"verde":v<=regular?"amarillo":"rojo"));
+    return [
+      ["Liquidez", sem(u.liq, 1.5, 1), u.liq==null ? "Sin datos." : u.liq>=1.5 ? `Puede pagar con holgura sus deudas de corto plazo (razón circulante ${u.liq.toFixed(2)}).` : u.liq>=1 ? `Alcanza justo para sus deudas de corto plazo (razón ${u.liq.toFixed(2)}).` : `No alcanza para cubrir sus deudas de corto plazo (razón ${u.liq.toFixed(2)}).`],
+      ["Endeudamiento", sem(u.endeuda, 0.5, 0.7, false), u.endeuda==null ? "Sin datos." : `El ${(u.endeuda*100).toFixed(1)}% de los activos está financiado con deuda${u.endeuda<=0.5?": nivel sano":u.endeuda<=0.7?": nivel moderado":": nivel alto"}.`],
+      ["Rentabilidad", sem(u.mnetoA, 0.08, 0), u.mnetoA==null ? "Sin ventas para calcular márgenes." : u.mnetoA>=0 ? `Gana ${(u.mnetoA*100).toFixed(1)}% de lo que vende en el año.` : `Pierde ${Math.abs(u.mnetoA*100).toFixed(1)}% de lo que vende: los costos y gastos superan a las ventas.`],
+      ["Cobranza", sem(u.dso, 45, 75, false), u.dso==null ? "Sin datos." : `Cobra en promedio en ${Math.round(u.dso)} días.`],
+      ["Solidez (Z de Altman)", u.zAltman==null ? "gris" : u.zAltman>2.6 ? "verde" : u.zAltman>1.1 ? "amarillo" : "rojo", u.zAltman==null ? "Sin datos." : `Z'' de ${u.zAltman.toFixed(2)}: ${u.zAltman>2.6?"zona segura":u.zAltman>1.1?"zona gris":"zona de riesgo"}.`]
+    ];
+  }
+
   const fmtInd = (v, u) => v==null || !isFinite(v) ? "—" : u==="%" ? `${(v*100).toFixed(1)}%` : u==="x" ? v.toFixed(2) : u==="$" ? money.format(v) : `${Math.round(v)}`;
   function renderFinanzas(){
     $("yearLabel").textContent = year;
@@ -8401,10 +8444,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(!D.length){ $("finbody").innerHTML = `<div class="empty">Los indicadores financieros se calculan con tus balanzas de CONTPAQi. Súbelas en <strong>Balanza</strong>.</div>`; $("statusLine").textContent = "Sin balanzas."; return; }
       const u = D[D.length-1];
       $("statusLine").innerHTML = `Indicadores con tus balanzas de ${MESES[D[0].m-1].toLowerCase()} a ${MESES[u.m-1].toLowerCase()} ${year}. Toca un indicador para ver su gráfica, fórmula y cómo leerlo.`;
-      h += `<div class="kpis">${[["liq","Razón circulante","x"],["endeuda","Endeudamiento","%"],["mnetoA","Margen neto acumulado","%"],["roe","ROE anualizado","%"],["dso","Días de cobro","días"],["ebitdaA","EBITDA acumulado","$"]].map(([k,t,un])=>`<div class="kpi"><span>${t}</span><b>${fmtInd(u[k], un)}</b><small>al cierre de ${MESES[u.m-1].toLowerCase()}</small></div>`).join("")}</div>`;
+      h += `<div class="kpis">${[["liq","Razón circulante","x"],["endeuda","Endeudamiento","%"],["mnetoA","Margen neto acumulado","%"],["roe","ROE anualizado","%"],["dso","Días de cobro","días"],["ebitdaA","EBITDA acumulado","$"]].map(([k,t,un])=>`<div class="kpi"><span>${t} <button type="button" class="ayuda" data-tip="${esc(k==="ebitdaA" ? `EBITDA de enero a ${MESES[u.m-1].toLowerCase()}: utilidad de operación ${money.format(u.Ra.operacion)} + depreciación ${money.format(u.depA)}.` : explicaInd(k, u))}" aria-label="Explicación">i</button></span><b>${fmtInd(u[k], un)}</b><small>al cierre de ${MESES[u.m-1].toLowerCase()}</small></div>`).join("")}</div>`;
       h += `<div class="sheet" style="margin-top:14px"><table class="ft" style="min-width:${360+D.length*90}px"><thead><tr><th>Indicador</th>${D.map(x=>`<th class="num">${ABR[x.m-1]}</th>`).join("")}</tr></thead><tbody>`;
       for(const [grupo, inds] of FIN_IND){ h += `<tr style="background:var(--group)"><td colspan="${D.length+1}"><strong>${grupo}</strong></td></tr>`;
-        for(const [k, nom, form, un] of inds) h += `<tr class="row" data-finind="${k}" style="cursor:pointer;${finSel===k?"background:var(--today)":""}"><td>${nom}<div class="fsub" style="max-width:none;white-space:normal">${esc(form)}</div></td>${D.map(x=>`<td class="num">${fmtInd(x[k], un)}</td>`).join("")}</tr>`; }
+        for(const [k, nom, form, un, lee] of inds) h += `<tr class="row" data-finind="${k}" style="cursor:pointer;${finSel===k?"background:var(--today)":""}"><td>${nom} <button type="button" class="ayuda" data-tip="${esc(`${form}. ${lee}`)}" aria-label="Qué es">i</button><div class="fsub" style="max-width:none;white-space:normal">${esc(form)}</div></td>${D.map(x=>`<td class="num"><span class="vtip" tabindex="0" data-tip="${esc(explicaInd(k, x))}">${fmtInd(x[k], un)}</span></td>`).join("")}</tr>`; }
       h += `</tbody></table></div>`;
       const sel = FIN_IND.flatMap(g=>g[1]).find(x=>x[0]===finSel) || FIN_IND[0][1][0], [k, nom, form, un, lee] = sel;
       const vals = D.map(x=>x[k]), ult = vals[vals.length-1], prim = vals.find(v=>v!=null && isFinite(v));
@@ -8412,10 +8455,34 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         <div class="bpanel"><h3>Cómo se calcula y cómo leerlo</h3><div style="padding:10px 14px;font-size:14px;line-height:1.55"><div><strong>Fórmula:</strong> ${esc(form)}</div><div style="margin-top:6px"><strong>Qué significa:</strong> ${esc(lee)}</div>
         <div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--vino-soft)"><strong>Tu resultado:</strong> ${fmtInd(ult, un)} al cierre de ${MESES[u.m-1].toLowerCase()}${prim!=null && ult!=null && prim!==ult ? `, contra ${fmtInd(prim, un)} en ${MESES[D[0].m-1].toLowerCase()}` : ""}.</div>
         <div class="fsub" style="max-width:none;white-space:normal;margin-top:8px">Datos usados al cierre de ${MESES[u.m-1].toLowerCase()}: activo circulante ${f(u.B.actC)}, pasivo a corto plazo ${f(u.B.pasCP)}, activo total ${f(u.B.activo)}, pasivo ${f(u.B.pasivo)}, capital ${f(u.B.capital)}, ventas acumuladas ${f(u.ventasA)}, resultado acumulado ${f(u.resA)}, clientes ${f(u.cxc)}, proveedores ${f(u.cxp)}, inventarios ${f(u.inv)}, caja y bancos ${f(u.efe)}.</div></div></div></div>`;
+      // Resumen financiero de la empresa (didáctico)
+      const dg = diagnosticoFin(u), colSem = {verde:"var(--done)", amarillo:"var(--wip)", rojo:"var(--late)", gris:"var(--muted)"};
+      const pf = n => n==null||!isFinite(n) ? "—" : `${(n*100).toFixed(1)}%`;
+      const roeD = [u.mnetoA, u.rotAct, u.mult];
+      h += `<h3 style="margin:26px 0 10px">Resumen financiero de la empresa al cierre de ${MESES[u.m-1].toLowerCase()} ${year}</h3>
+        <div class="bpanel" style="margin-bottom:14px"><h3>Semáforo<small>Cada área con su color y lo que significa. Pasa el mouse por los puntos para ver el detalle.</small></h3><div style="padding:6px 14px 14px;display:grid;gap:8px">
+        ${dg.map(([a, c, t])=>`<div style="display:flex;gap:10px;align-items:flex-start"><span class="vtip" tabindex="0" data-tip="${esc(t)}" style="width:14px;height:14px;border-radius:50%;background:${colSem[c]};flex:none;margin-top:3px;border:none"></span><div><strong>${a}</strong><div class="fsub" style="max-width:none;white-space:normal">${esc(t)}</div></div></div>`).join("")}</div></div>
+        <div class="dgrid">
+        ${panelExp(1, "¿Cómo se financia la empresa?", "de dónde sale el dinero con el que la empresa tiene sus activos: deuda de corto plazo, de largo plazo o dinero de los socios.", "pasivo a corto plazo, pasivo a largo plazo y capital contable del balance general.", `el ${pf(u.endeuda)} viene de deuda y el ${pf(u.endeuda==null?null:1-u.endeuda)} de los socios.`, 260)}
+        ${panelExp(2, "Liquidez mes a mes", "si la empresa puede pagar lo que debe a corto plazo: arriba de la línea de 1 alcanza; arriba de 1.5 hay holgura.", "razón circulante = activo circulante ÷ pasivo a corto plazo; prueba ácida, sin inventarios.", u.liq==null ? "" : `al cierre de ${MESES[u.m-1].toLowerCase()} la razón circulante es ${u.liq.toFixed(2)}.`)}
+        ${panelExp(3, "Márgenes mes a mes", "qué porcentaje de cada venta se queda después de costos (bruto), de gastos de operación (operativo) y de todo (neto).", "utilidad bruta, de operación y antes de impuestos ÷ ventas del mes.", `en el año el margen neto acumulado es ${pf(u.mnetoA)}.`)}
+        ${panelExp(4, "¿De dónde viene el ROE? (DuPont)", "el rendimiento de los socios descompuesto en tres palancas: qué tanto gana por venta (margen), qué tanto vende con sus activos (rotación) y qué tanto usa deuda (multiplicador).", "ROE = margen neto × rotación de activos × multiplicador de capital.", roeD.every(v=>v!=null&&isFinite(v)) ? `${pf(roeD[0])} × ${roeD[1].toFixed(2)} × ${roeD[2].toFixed(2)} = ROE de ${pf(u.roe)}. La palanca más débil es la que más conviene trabajar.` : "")}
+        ${panelExp(5, "Días de cobro y de pago", "cuántos días tardan tus clientes en pagarte contra cuántos tardas tú en pagar a tus proveedores.", "clientes ÷ ventas × días; proveedores ÷ costos y gastos × días (con IVA).", u.dso!=null && u.dpo!=null ? (u.dso > u.dpo ? `cobras en ${Math.round(u.dso)} días y pagas en ${Math.round(u.dpo)}: financias a tus clientes ${Math.round(u.dso-u.dpo)} días.` : `cobras en ${Math.round(u.dso)} días y pagas en ${Math.round(u.dpo)}: tus proveedores te financian.`) : "")}
+        </div>`;
       $("finbody").innerHTML = h;
       const T = tema(false), base = cfgBase(T);
+
       const cfg = {type:"line", data:{labels:D.map(x=>ABR[x.m-1]), datasets:[{label:nom, data:vals.map(v=>v==null||!isFinite(v)?null:(un==="%"?r2(v*100):r2(v))), borderColor:T.b, backgroundColor:T.b, tension:.25}]}, options:{...base, plugins:{...base.plugins, legend:{display:false}, tooltip:{callbacks:{label:c=>`${nom}: ${un==="%"?c.raw+"%":un==="$"?money.format(c.raw):c.raw}`}}}, scales:{x:{ticks:{color:T.ink}, grid:{display:false}}, y:{ticks:{color:T.muted, callback: v => un==="%" ? v+"%" : un==="$" ? moneyTick(v) : v}, grid:{color:T.line}}}}};
-      loadLibs("chart").then(()=>{ charts.forEach(c=>c.destroy()); charts = []; const cv = $("finbody").querySelector("canvas[data-ch]"); if(cv) charts.push(new Chart(cv, cfg)); }).catch(()=>{});
+      const labs = D.map(x=>ABR[x.m-1]), pc = v => v==null||!isFinite(v) ? null : r2(v*100), ej = (cb) => ({x:{ticks:{color:T.ink}, grid:{display:false}}, y:{ticks:{color:T.muted, callback:cb}, grid:{color:T.line}}});
+      const extras = [
+        {type:"doughnut", data:{labels:["Deuda a corto plazo","Deuda a largo plazo","Capital de los socios"], datasets:[{data:[Math.max(0,u.B.pasCP), Math.max(0,u.B.pasLP), Math.max(0,u.B.capital)], backgroundColor:[T.b, T.c, T.a]}]}, options:{...base, plugins:{...base.plugins, legend:{position:"bottom", labels:{color:T.ink}}}}},
+        {type:"line", data:{labels:labs, datasets:[{label:"Razón circulante", data:D.map(x=>x.liq==null?null:r2(x.liq)), borderColor:T.a, backgroundColor:T.a, tension:.25},{label:"Prueba ácida", data:D.map(x=>x.acida==null?null:r2(x.acida)), borderColor:T.d, backgroundColor:T.d, tension:.25},{label:"Mínimo sano (1)", data:D.map(()=>1), borderColor:T.b, borderDash:[6,4], pointRadius:0}]}, options:{...base, plugins:{...base.plugins, tooltip:{}}, scales:ej(v=>v)}},
+        {type:"line", data:{labels:labs, datasets:[{label:"Margen bruto", data:D.map(x=>pc(x.mbruto)), borderColor:T.a, backgroundColor:T.a, tension:.25},{label:"Margen de operación", data:D.map(x=>pc(x.mop)), borderColor:T.c, backgroundColor:T.c, tension:.25},{label:"Margen neto", data:D.map(x=>pc(x.mneto)), borderColor:T.b, backgroundColor:T.b, tension:.25}]}, options:{...base, plugins:{...base.plugins, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw}%`}}}, scales:ej(v=>v+"%")}},
+        {type:"bar", data:{labels:["Margen neto (%)","Rotación de activos (veces)","Multiplicador de capital (veces)"], datasets:[{label:"Factor", data:[pc(roeD[0]), roeD[1]==null?null:r2(roeD[1]), roeD[2]==null?null:r2(roeD[2])], backgroundColor:[T.b, T.d, T.c], borderRadius:4}]}, options:{...base, plugins:{...base.plugins, legend:{display:false}, tooltip:{}}, scales:ej(v=>v)}},
+        {type:"bar", data:{labels:labs, datasets:[{label:"Días de cobro", data:D.map(x=>x.dso==null?null:Math.round(x.dso)), backgroundColor:T.a, borderRadius:4},{label:"Días de pago", data:D.map(x=>x.dpo==null?null:Math.round(x.dpo)), backgroundColor:T.b, borderRadius:4}]}, options:{...base, plugins:{...base.plugins, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw} días`}}}, scales:ej(v=>v)}}
+      ];
+      loadLibs("chart").then(()=>{ charts.forEach(c=>c.destroy()); charts = []; $("finbody").querySelectorAll("canvas[data-ch]").forEach(cv=>{ const i = +cv.dataset.ch, cf = i===0 ? cfg : extras[i-1]; if(cf) charts.push(new Chart(cv, cf)); }); }).catch(()=>{});
+
       return;
     }
     if(finTab==="calc"){
