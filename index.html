@@ -408,7 +408,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 57 · Cómo va la empresa</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 58 · PPD y PUE por mes y año</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1705,6 +1705,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("fsum").innerHTML = !rows.length ? "" :
       `${qF ? `Búsqueda en todo ${year}` : MESES[mesSel-1]}: ${vig.length} ${tipoTxt} vigentes${canc?` y ${canc} ${canc===1?"cancelada":"canceladas"}`:""}. ` +
       (sinProv||sinCtrl ? `PPD sin póliza de provisión: <strong>${sinProv}</strong> · ${tipoSel==="emitida"?"cobros":"pagos"} sin póliza de ${tipoSel==="emitida"?"ingresos":"egresos"}: <strong>${sinCtrl}</strong>.` : "<strong>Todo listo.</strong>");
+    // Cuántas son PPD y cuántas PUE, del mes y del año
+    { const vAnio = lista.filter(vigente), cuenta = (xs, m) => { const ys = xs.filter(f=>f.metodo===m); return {n: ys.length, t: r2(ys.reduce((s,f)=>s+(+f.total||0),0))}; };
+      const mM = {ppd: cuenta(vig,"PPD"), pue: cuenta(vig,"PUE")}, mA = {ppd: cuenta(vAnio,"PPD"), pue: cuenta(vAnio,"PUE")}, f = money.format;
+      const caja = (t, x) => `<div class="kpi" style="min-width:0"><span>${t}</span><b style="font-size:18px">${x.ppd.n} PPD · ${x.pue.n} PUE</b><small>PPD ${f(x.ppd.t)} · PUE ${f(x.pue.t)}<br>${x.ppd.n+x.pue.n ? `${Math.round(x.ppd.n/(x.ppd.n+x.pue.n)*100)}% en PPD` : ""}</small></div>`;
+      $("fsum").innerHTML += `<div class="kpis" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${qF ? "" : caja(`${MESES[mesSel-1]} ${year}`, mM)}${caja(`Todo ${year}`, mA)}</div>`; }
     if(soloPend) rows = rows.filter(f=>vigente(f) && !completa(f));
     if(!facturas.length){ $("fsheet").innerHTML = `<div class="empty">Todavía no hay facturas. Usa <strong>Subir reporte de AdminXML</strong> para cargarlas.</div>`; return; }
     if(!rows.length){ $("fsheet").innerHTML = `<div class="empty">${soloPend && lista.some(f=>f.mes===mesSel) ? "No hay pendientes en este mes." : `No hay facturas ${tipoTxt} en ${MESES[mesSel-1].toLowerCase()}.`}</div>`; return; }
