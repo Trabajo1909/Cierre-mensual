@@ -404,11 +404,11 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="leyes" aria-selected="false">Leyes</button><button class="view" data-view="prestaciones" aria-selected="false">Nómina: calculadora y prestaciones</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="finanzas" aria-selected="false">Finanzas</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="leyes" aria-selected="false">Leyes</button><button class="view" data-view="prestaciones" aria-selected="false">Nómina: calculadora y prestaciones</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 59 · Dashboard del mes completo</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 62 · Finanzas ampliada</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -500,6 +500,11 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
     <div class="ftools"><button class="btn sm primary" id="vpSubir">Subir reporte de ventas</button><input type="file" id="vpFile" accept=".xlsx,.xls,.csv,.pdf,.xml" multiple hidden></div>
     <div class="months" id="vpmonths"></div>
     <div id="vpbody"></div>
+  </section>
+
+  <section id="vFinanzas" hidden>
+    <div class="tabs2" id="fintabs" aria-label="Finanzas"></div>
+    <div id="finbody"></div>
   </section>
 
   <section id="vEstados" hidden>
@@ -1098,7 +1103,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas","#nominas","#calendario","#prestaciones","#leyes"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas","#nominas","#calendario","#prestaciones","#leyes","#finanzas"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -1157,6 +1162,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="calendario"){ renderCalendario(); return; }
     if(vista==="prestaciones"){ renderPrestaciones(); return; }
     if(vista==="leyes"){ renderLeyes(); return; }
+    if(vista==="finanzas"){ renderFinanzas(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1172,9 +1178,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const g of grupos){
       const items = actividades.filter(a => a.grupo === g);
       if(!items.length) continue;
-      h += `<tr class="grp"><td class="act" colspan="1">${esc(g)}</td><td colspan="12"></td></tr>`;
-      for(const a of items){
-        h += `<tr><td class="act">${esc(a.nombre)}${editMode?`<span class="row-tools"><button class="del" data-del="${esc(a.id)}">Quitar</button></span>`:''}</td>`;
+      const gi = grupos.indexOf(g);
+      h += `<tr class="grp"><td class="act" colspan="1">${esc(g)}${editMode?`<span class="row-tools"><button class="linkbtn" data-gmov="${esc(g)}" data-dir="-1" ${gi===0?"disabled":""} aria-label="Subir sección">↑</button><button class="linkbtn" data-gmov="${esc(g)}" data-dir="1" ${gi===grupos.length-1?"disabled":""} aria-label="Bajar sección">↓</button><button class="linkbtn" data-gren="${esc(g)}">Renombrar</button></span>`:""}</td><td colspan="12"></td></tr>`;
+      for(const [ii, a] of items.entries()){
+        h += `<tr><td class="act">${esc(a.nombre)}${editMode?`<span class="row-tools"><button class="linkbtn" data-amov="${esc(a.id)}" data-dir="-1" ${ii===0?"disabled":""} aria-label="Subir">↑</button><button class="linkbtn" data-amov="${esc(a.id)}" data-dir="1" ${ii===items.length-1?"disabled":""} aria-label="Bajar">↓</button><button class="linkbtn" data-aren="${esc(a.id)}">Renombrar</button><select data-agrp="${esc(a.id)}" aria-label="Cambiar de sección" style="width:auto;padding:2px 4px;font-size:12px">${grupos.map(x=>`<option ${x===a.grupo?"selected":""}>${esc(x)}</option>`).join("")}<option value="__nueva">+ Nueva sección…</option></select><button class="del" data-del="${esc(a.id)}">Quitar</button></span>`:''}</td>`;
         for(let m=1;m<=12;m++){
           const s = (estados[a.id]||{})[m] || "";
           h += `<td class="c${m===cm?' now':''}"><button class="cell ${s}" data-a="${esc(a.id)}" data-m="${m}" aria-label="${esc(a.nombre)}, ${MESES[m-1]}: ${NOMBRE_ESTADO[s]}">${ICON[s]}</button></td>`;
@@ -1242,7 +1249,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   async function saveEmpresa(){
     if(!db) return;
     setSaving("Guardando…");
-    try{ await empresaRef().set({nombre: empresaNombre, grupos, actividades}); setSaving("Guardado"); }
+    // Conserva los demás datos de la empresa (RFC, "no aplica", etc.) al guardar la lista
+    const {id: _id, ...resto} = empresas.find(x=>x.id===empresa) || {};
+    try{ await empresaRef().set({...resto, nombre: empresaNombre, grupos, actividades}); setSaving("Guardado"); }
     catch(e){ handleWriteError(e); }
   }
   function handleWriteError(e){
@@ -1353,7 +1362,20 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
 
   // ---------- Interacción ----------
+  $("sheet").addEventListener("change", async e => {
+    const s = e.target.closest("[data-agrp]"); if(!s) return; const a = actividades.find(x=>x.id===s.dataset.agrp); if(!a) return;
+    let g = s.value; if(g==="__nueva"){ g = (prompt("Nombre de la nueva sección:")||"").trim(); if(!g){ render(); return; } if(!grupos.includes(g)) grupos = [...grupos, g]; }
+    a.grupo = g; actividades = [...actividades.filter(x=>x.id!==a.id), a]; grupos = grupos.filter(x => actividades.some(y=>y.grupo===x)); render(); saveEmpresa();
+  });
   $("sheet").addEventListener("click", async e => {
+    const am = e.target.closest("[data-amov]"); if(am){ const a = actividades.find(x=>x.id===am.dataset.amov); if(!a) return;
+      const mismos = actividades.filter(x=>x.grupo===a.grupo), i = mismos.indexOf(a), j = i + (+am.dataset.dir); if(j<0 || j>=mismos.length) return;
+      const otro = mismos[j], ia = actividades.indexOf(a), io = actividades.indexOf(otro); const arr = [...actividades]; arr[ia] = otro; arr[io] = a; actividades = arr; render(); saveEmpresa(); return; }
+    const gm = e.target.closest("[data-gmov]"); if(gm){ const i = grupos.indexOf(gm.dataset.gmov), j = i + (+gm.dataset.dir); if(i<0 || j<0 || j>=grupos.length) return;
+      const arr = [...grupos]; [arr[i], arr[j]] = [arr[j], arr[i]]; grupos = arr; render(); saveEmpresa(); return; }
+    const ar = e.target.closest("[data-aren]"); if(ar){ const a = actividades.find(x=>x.id===ar.dataset.aren); if(!a) return; const n = (prompt("Nuevo nombre de la actividad:", a.nombre)||"").trim(); if(!n || n===a.nombre) return; a.nombre = n; actividades = [...actividades]; render(); saveEmpresa(); return; }
+    const gr = e.target.closest("[data-gren]"); if(gr){ const g = gr.dataset.gren, n = (prompt("Nuevo nombre de la sección:", g)||"").trim(); if(!n || n===g) return; if(grupos.includes(n)){ toast("Ya existe una sección con ese nombre."); return; }
+      grupos = grupos.map(x=>x===g?n:x); actividades = actividades.map(a=>a.grupo===g?{...a, grupo:n}:a); render(); saveEmpresa(); return; }
     const del = e.target.closest("[data-del]");
     if(del){
       const a = actividades.find(x=>x.id===del.dataset.del);
@@ -1569,15 +1591,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="nominas") renderNominas(); else if(vista==="calendario") renderCalendario(); else if(vista==="prestaciones") renderPrestaciones(); else if(vista==="leyes") renderLeyes(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="nominas") renderNominas(); else if(vista==="calendario") renderCalendario(); else if(vista==="prestaciones") renderPrestaciones(); else if(vista==="leyes") renderLeyes(); else if(vista==="finanzas") renderFinanzas(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas"; $("vCalendario").hidden = v!=="calendario"; $("vPrestaciones").hidden = v!=="prestaciones"; $("vLeyes").hidden = v!=="leyes";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario", prestaciones:"Nómina: calculadora y prestaciones", leyes:"Leyes"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas"; $("vCalendario").hidden = v!=="calendario"; $("vPrestaciones").hidden = v!=="prestaciones"; $("vLeyes").hidden = v!=="leyes"; $("vFinanzas").hidden = v!=="finanzas";
+    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario", prestaciones:"Nómina: calculadora y prestaciones", leyes:"Leyes", finanzas:"Finanzas"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || v==="prestaciones" || v==="leyes" || !canWrite;
-    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario","prestaciones","leyes"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario","prestaciones","leyes"].includes(v);
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || v==="prestaciones" || v==="leyes" || v==="finanzas" || !canWrite;
+    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario","prestaciones","leyes","finanzas"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario","prestaciones","leyes","finanzas"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
@@ -6262,6 +6284,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     ventas: "Tus ventas en Mercado Libre, Mercado Pago, TikTok Shop u otras plataformas: sube el reporte de ventas (Excel o CSV) o regístralas a mano. Por mes ves lo vendido por plataforma, comisiones, envíos y neto, lo que Mercado Pago te liberó en el banco y cuánto va a tu factura global.",
     estados: "Tus estados financieros, armados con tus balanzas de CONTPAQi: balanza de comprobación, estado de resultados (del mes y acumulado, con % sobre ingresos), balance general al cierre del mes y flujo de efectivo por el método indirecto. Descárgalos en PDF o Excel con los botones de arriba.",
     presupuesto: "Sube el presupuesto que hace administración (Excel con la hoja PRESUPUESTO; si trae HOJA CONTROL y ENVIO, también se leen). Al inicio del mes el inicial; al cierre, el actualizado. La app compara inicial, actualizado y lo pagado por subcategoría, te muestra lo que salió fuera de presupuesto, el saldo inicial y final de bancos, y cuánto fondear para el siguiente mes.",
+    finanzas: "Herramientas de análisis financiero: razones de liquidez, endeudamiento, rentabilidad y eficiencia calculadas cada mes con tus balanzas (con fórmula, gráfica y cómo leerlas), calculadoras (VPN, TIR, préstamos, punto de equilibrio, WACC, CAPM, valor del dinero) y un glosario de términos.",
     leyes: "Sube los PDF de las leyes (LISR, LIVA, CFF, LSS, LFT, RMF, estatales…) para leerlas aquí, descargarlas o imprimirlas. Abajo tienes los artículos más usados de cada ley, con tasas y reglas clave, y un buscador por tema.",
     prestaciones: "Referencia rápida para nómina y finiquitos: valores del año (UMA, salario mínimo, topes), cada prestación con su mínimo de ley, cómo se calcula, su exención de ISR y su tratamiento en IMSS, la tabla de vacaciones y una calculadora de finiquito y liquidación con exentos y gravados.",
     calendario: "Tu agenda: vela por mes, semana, día o como lista. Agenda juntas, tareas, pendientes, pagos y recordatorios, con hora, lugar o link, notas y repeticiones. Además, la app agrega sola los vencimientos de impuestos, opiniones de cumplimiento y el día 5 de complementos de pago (puedes ocultarlos).",
@@ -8312,6 +8335,260 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     setSaving(""); if(n) toast(`Listo: ${n} ${n===1?"documento guardado":"documentos guardados"}.`);
   });
 
+  // ---------- Finanzas: razones financieras, calculadoras y glosario ----------
+  let finTab = "razones", finSel = "liq", finBuscar = "";
+  const FIN_TABS = [["razones","Indicadores"],["calc","Calculadoras"],["glosario","Glosario"]];
+  function datosFinancieros(y){
+    const meses = Object.keys(balanzas).filter(k=>k.startsWith(String(y))).map(k=>+k.slice(5)).sort((a,b)=>a-b);
+    return meses.map(m=>{
+      const E = estadosDe(y, m); if(!E) return null;
+      const B = E.B, Rm = E.R("mes"), Ra = E.R("acum"), n = s => sinAcento(String(s)).toLowerCase();
+      const sumaBal = fn => r2(E.bal.filter(fn).reduce((s,x)=>s+x.saldo,0));
+      const inv = sumaBal(x=>grupoDe(x.c)<150 && /inventar|almacen|mercanc/.test(n(x.c.nombre)));
+      const cxc = sumaBal(x=>grupoDe(x.c)<150 && /client/.test(n(x.c.nombre)));
+      const cxp = sumaBal(x=>grupoDe(x.c)>=200 && grupoDe(x.c)<250 && /proveedor/.test(n(x.c.nombre)));
+      const efe = sumaBal(x=>grupoDe(x.c)>=101 && grupoDe(x.c)<=103);
+      const dep = c => r2(E.ctas.filter(x=>esNivel2(x) && grupoDe(x)>=600 && grupoDe(x)<700 && /deprec|amortiz/.test(n(x.nombre))).reduce((s,x)=>s + (c==="acum" ? (+x.sf||0) : (+x.cargos||0)-(+x.abonos||0)),0));
+      const dias = Math.round((Date.UTC(y, m, 0) - Date.UTC(y, 0, 0)) / 86400000), anual = 12 / m;
+      const div = (a,b) => b ? a/b : null;
+      return {m, B, Rm, Ra, inv, cxc, cxp, efe, depM: dep("mes"), depA: dep("acum"), dias,
+        liq: div(B.actC, B.pasCP), acida: div(B.actC - inv, B.pasCP), ctrab: r2(B.actC - B.pasCP), efectivoPC: div(efe, B.pasCP),
+        endeuda: div(B.pasivo, B.activo), dcap: div(B.pasivo, B.capital),
+        mbruto: div(Rm.bruta, Rm.ingOp), mop: div(Rm.operacion, Rm.ingOp), mneto: div(Rm.antes, Rm.ingOp),
+        mbrutoA: div(Ra.bruta, Ra.ingOp), mopA: div(Ra.operacion, Ra.ingOp), mnetoA: div(Ra.antes, Ra.ingOp),
+        roa: div(Ra.antes*anual, B.activo), roe: div(Ra.antes*anual, B.capital), rotAct: div(Ra.ingOp*anual, B.activo),
+        mult: div(B.activo, B.capital), deudaEbitda: (Ra.operacion + dep("acum")) > 0 ? (B.pasivo - efe) / ((Ra.operacion + dep("acum"))*anual) : null,
+        zAltman: B.activo ? 6.56*(B.actC - B.pasCP)/B.activo + 3.26*(B.capital - B.cap + (E.bal.filter(x=>grupoDe(x.c)>=300 && grupoDe(x.c)<400 && /resultado|utilidad|perdida/.test(n(x.c.nombre))).reduce((s,x)=>s+x.saldo,0)))/B.activo + 6.72*(Ra.operacion*anual)/B.activo + 1.05*B.capital/(B.pasivo||1) : null,
+        dso: Ra.ingOp ? r2(cxc / (Ra.ingOp*1.16) * dias) : null, dpo: (Ra.costo+Ra.gastos) ? r2(cxp / ((Ra.costo+Ra.gastos)*1.16) * dias) : null, dio: Ra.costo ? r2(inv / Ra.costo * dias) : null,
+        ccc: null, ebitdaM: r2(Rm.operacion + dep("mes")), ebitdaA: r2(Ra.operacion + dep("acum")), ventasM: Rm.ingOp, ventasA: Ra.ingOp, resM: Rm.antes, resA: Ra.antes};
+    }).filter(Boolean).map(x=>({...x, ccc: x.dso!=null && x.dpo!=null ? r2((x.dio||0) + x.dso - x.dpo) : null}));
+  }
+  const FIN_IND = [
+    ["Liquidez", [
+      ["liq","Razón circulante","Activo circulante ÷ Pasivo a corto plazo","x","Cuántos pesos de activos de corto plazo tienes por cada peso que debes a corto plazo. Sano: entre 1.5 y 2. Menos de 1: podrías no alcanzar a pagar tus deudas de corto plazo."],
+      ["acida","Prueba ácida","(Activo circulante − Inventarios) ÷ Pasivo a corto plazo","x","Igual que la circulante pero sin inventarios, que tardan en convertirse en dinero. Sano: 1 o más."],
+      ["efectivoPC","Razón de efectivo","Caja y bancos ÷ Pasivo a corto plazo","x","Qué parte de las deudas de corto plazo podrías pagar hoy con el dinero que tienes. Entre 0.2 y 0.5 es común."],
+      ["ctrab","Capital de trabajo","Activo circulante − Pasivo a corto plazo","$","El colchón para operar: si es negativo, la operación se financia con proveedores o deuda de corto plazo."]]],
+    ["Endeudamiento", [
+      ["endeuda","Endeudamiento","Pasivo total ÷ Activo total","%","Qué parte de lo que tiene la empresa está financiada con deuda. Arriba de 60–70% es un nivel alto."],
+      ["dcap","Deuda a capital (apalancamiento)","Pasivo total ÷ Capital contable","x","Cuántos pesos de deuda hay por cada peso de los socios. Más de 1 significa que se financia más con terceros que con los socios. Si el capital es negativo, el indicador no es útil."]]],
+    ["Rentabilidad", [
+      ["mbruto","Margen bruto (mes)","Utilidad bruta ÷ Ventas","%","Qué queda de cada peso vendido después del costo de ventas."],
+      ["mop","Margen de operación (mes)","Utilidad de operación ÷ Ventas","%","Qué queda después de costos y gastos de operación: mide si el negocio en sí gana dinero."],
+      ["mneto","Margen neto antes de impuestos (mes)","Resultado antes de impuestos ÷ Ventas","%","Lo que queda de cada peso vendido después de todo, antes de ISR y PTU."],
+      ["mnetoA","Margen neto acumulado","Resultado acumulado ÷ Ventas acumuladas","%","El mismo margen neto, con todo lo que va del año."],
+      ["ebitdaM","EBITDA (mes)","Utilidad de operación + Depreciación y amortización","$","La utilidad que genera la operación antes de intereses, impuestos, depreciación y amortización. Se usa como aproximación al flujo de la operación y para valuar empresas."],
+      ["roa","ROA (anualizado)","Resultado acumulado × (12 ÷ meses) ÷ Activo total","%","Cuánto rinden los activos de la empresa al año. Compara contra lo que pagarías por financiarlos."],
+      ["roe","ROE (anualizado)","Resultado acumulado × (12 ÷ meses) ÷ Capital contable","%","Lo que rinde al año el dinero de los socios. Debe superar lo que ganarían en una inversión sin riesgo (por ejemplo, CETES)."]]],
+    ["Eficiencia", [
+      ["rotAct","Rotación de activos (anualizada)","Ventas anualizadas ÷ Activo total","x","Cuántos pesos vendes al año por cada peso de activos."],
+      ["dso","Días de cobro (DSO)","Clientes ÷ (Ventas acumuladas × 1.16) × días transcurridos","días","En cuántos días en promedio te pagan tus clientes. Compáralo con el plazo de crédito que das."],
+      ["dpo","Días de pago (DPO)","Proveedores ÷ ((Costos + Gastos acumulados) × 1.16) × días","días","En cuántos días en promedio pagas a tus proveedores. Si es mayor que el DSO, tus proveedores financian tu operación."],
+      ["dio","Días de inventario","Inventarios ÷ Costo de ventas acumulado × días","días","Cuántos días tarda en venderse el inventario (solo si manejas inventarios)."],
+      ["ccc","Ciclo de conversión de efectivo","Días de inventario + Días de cobro − Días de pago","días","Cuántos días pasa tu dinero atrapado entre que pagas a proveedores y cobras a clientes. Negativo: tus proveedores financian tu operación."]]],
+    ["Análisis integral", [
+      ["mult","Multiplicador de capital (DuPont)","Activo total ÷ Capital contable","x","Tercer factor del análisis DuPont: ROE = margen neto × rotación de activos × multiplicador. Mientras más alto, más se apoya la empresa en deuda."],
+      ["deudaEbitda","Deuda neta ÷ EBITDA (anualizado)","(Pasivo − Caja y bancos) ÷ EBITDA anualizado","x","Cuántos años de EBITDA necesitarías para pagar la deuda. Los bancos suelen pedir menos de 3. Si el EBITDA es negativo no se calcula."],
+      ["zAltman","Z de Altman (privadas)","6.56·CT/AT + 3.26·UR/AT + 6.72·EBIT/AT + 1.05·Capital/Pasivo","x","Riesgo de insolvencia: más de 2.6 zona segura, entre 1.1 y 2.6 zona gris, menos de 1.1 zona de riesgo. EBIT anualizado; UR = resultados acumulados."]]]
+  ];
+  const fmtInd = (v, u) => v==null || !isFinite(v) ? "—" : u==="%" ? `${(v*100).toFixed(1)}%` : u==="x" ? v.toFixed(2) : u==="$" ? money.format(v) : `${Math.round(v)}`;
+  function renderFinanzas(){
+    $("yearLabel").textContent = year;
+    $("fintabs").innerHTML = FIN_TABS.map(([k,n])=>`<button data-fintab="${k}" aria-pressed="${finTab===k}">${n}</button>`).join("");
+    const f = money.format; let h = "";
+    if(finTab==="razones"){
+      const D = datosFinancieros(year);
+      if(!D.length){ $("finbody").innerHTML = `<div class="empty">Los indicadores financieros se calculan con tus balanzas de CONTPAQi. Súbelas en <strong>Balanza</strong>.</div>`; $("statusLine").textContent = "Sin balanzas."; return; }
+      const u = D[D.length-1];
+      $("statusLine").innerHTML = `Indicadores con tus balanzas de ${MESES[D[0].m-1].toLowerCase()} a ${MESES[u.m-1].toLowerCase()} ${year}. Toca un indicador para ver su gráfica, fórmula y cómo leerlo.`;
+      h += `<div class="kpis">${[["liq","Razón circulante","x"],["endeuda","Endeudamiento","%"],["mnetoA","Margen neto acumulado","%"],["roe","ROE anualizado","%"],["dso","Días de cobro","días"],["ebitdaA","EBITDA acumulado","$"]].map(([k,t,un])=>`<div class="kpi"><span>${t}</span><b>${fmtInd(u[k], un)}</b><small>al cierre de ${MESES[u.m-1].toLowerCase()}</small></div>`).join("")}</div>`;
+      h += `<div class="sheet" style="margin-top:14px"><table class="ft" style="min-width:${360+D.length*90}px"><thead><tr><th>Indicador</th>${D.map(x=>`<th class="num">${ABR[x.m-1]}</th>`).join("")}</tr></thead><tbody>`;
+      for(const [grupo, inds] of FIN_IND){ h += `<tr style="background:var(--group)"><td colspan="${D.length+1}"><strong>${grupo}</strong></td></tr>`;
+        for(const [k, nom, form, un] of inds) h += `<tr class="row" data-finind="${k}" style="cursor:pointer;${finSel===k?"background:var(--today)":""}"><td>${nom}<div class="fsub" style="max-width:none;white-space:normal">${esc(form)}</div></td>${D.map(x=>`<td class="num">${fmtInd(x[k], un)}</td>`).join("")}</tr>`; }
+      h += `</tbody></table></div>`;
+      const sel = FIN_IND.flatMap(g=>g[1]).find(x=>x[0]===finSel) || FIN_IND[0][1][0], [k, nom, form, un, lee] = sel;
+      const vals = D.map(x=>x[k]), ult = vals[vals.length-1], prim = vals.find(v=>v!=null && isFinite(v));
+      h += `<div class="dgrid" style="margin-top:16px"><div class="bpanel"><h3>${nom}<small>${MESES[D[0].m-1]} a ${MESES[u.m-1].toLowerCase()} ${year}</small></h3><div style="height:260px;padding:8px 14px"><canvas data-ch="0"></canvas></div></div>
+        <div class="bpanel"><h3>Cómo se calcula y cómo leerlo</h3><div style="padding:10px 14px;font-size:14px;line-height:1.55"><div><strong>Fórmula:</strong> ${esc(form)}</div><div style="margin-top:6px"><strong>Qué significa:</strong> ${esc(lee)}</div>
+        <div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--vino-soft)"><strong>Tu resultado:</strong> ${fmtInd(ult, un)} al cierre de ${MESES[u.m-1].toLowerCase()}${prim!=null && ult!=null && prim!==ult ? `, contra ${fmtInd(prim, un)} en ${MESES[D[0].m-1].toLowerCase()}` : ""}.</div>
+        <div class="fsub" style="max-width:none;white-space:normal;margin-top:8px">Datos usados al cierre de ${MESES[u.m-1].toLowerCase()}: activo circulante ${f(u.B.actC)}, pasivo a corto plazo ${f(u.B.pasCP)}, activo total ${f(u.B.activo)}, pasivo ${f(u.B.pasivo)}, capital ${f(u.B.capital)}, ventas acumuladas ${f(u.ventasA)}, resultado acumulado ${f(u.resA)}, clientes ${f(u.cxc)}, proveedores ${f(u.cxp)}, inventarios ${f(u.inv)}, caja y bancos ${f(u.efe)}.</div></div></div></div>`;
+      $("finbody").innerHTML = h;
+      const T = tema(false), base = cfgBase(T);
+      const cfg = {type:"line", data:{labels:D.map(x=>ABR[x.m-1]), datasets:[{label:nom, data:vals.map(v=>v==null||!isFinite(v)?null:(un==="%"?r2(v*100):r2(v))), borderColor:T.b, backgroundColor:T.b, tension:.25}]}, options:{...base, plugins:{...base.plugins, legend:{display:false}, tooltip:{callbacks:{label:c=>`${nom}: ${un==="%"?c.raw+"%":un==="$"?money.format(c.raw):c.raw}`}}}, scales:{x:{ticks:{color:T.ink}, grid:{display:false}}, y:{ticks:{color:T.muted, callback: v => un==="%" ? v+"%" : un==="$" ? moneyTick(v) : v}, grid:{color:T.line}}}}};
+      loadLibs("chart").then(()=>{ charts.forEach(c=>c.destroy()); charts = []; const cv = $("finbody").querySelector("canvas[data-ch]"); if(cv) charts.push(new Chart(cv, cfg)); }).catch(()=>{});
+      return;
+    }
+    if(finTab==="calc"){
+      $("statusLine").textContent = "Calculadoras financieras: cambia los datos y el resultado se actualiza.";
+      const c = window.__fc = window.__fc || {flujos:"-100000, 30000, 35000, 40000, 45000", tasa:12, monto:500000, tasaP:18, plazo:24, cf:80000, pv:150, cv:90, e:6000000, d:2000000, ke:18, kd:14, t:30, rf:10.5, beta:1.2, rm:14, vp:100000, ti:10, n:5};
+      const inp = (k, lbl, st="any") => `<div><label style="margin:0 0 2px">${lbl}</label><input data-fc="${k}" type="${k==="flujos"?"text":"number"}" step="${st}" value="${esc(String(c[k]))}"></div>`;
+      const caja = (t, cont) => `<div class="bpanel"><h3>${t}</h3><div style="padding:10px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">${cont}</div><div data-fcres="${t}" style="padding:0 14px 14px;font-size:14px;line-height:1.55"></div></div>`;
+      h += `<div class="dgrid">
+        ${caja("VPN y TIR de un proyecto", inp("flujos","Flujos por periodo (el primero es la inversión, negativo)") + inp("tasa","Tasa de descuento % anual"))}
+        ${caja("Préstamo (pagos fijos)", inp("monto","Monto") + inp("tasaP","Tasa anual %") + inp("plazo","Plazo en meses","1"))}
+        ${caja("Punto de equilibrio", inp("cf","Costos fijos del mes") + inp("pv","Precio de venta por unidad") + inp("cv","Costo variable por unidad"))}
+        ${caja("Costo de capital (WACC) y CAPM", inp("e","Capital (E)") + inp("d","Deuda (D)") + inp("ke","Costo del capital Ke %") + inp("kd","Costo de la deuda Kd %") + inp("t","Tasa de ISR %") + inp("rf","Tasa libre de riesgo % (ej. CETES)") + inp("beta","Beta") + inp("rm","Rendimiento del mercado %"))}
+        ${caja("Valor del dinero en el tiempo", inp("vp","Monto hoy (VP)") + inp("ti","Tasa anual %") + inp("n","Años","1"))}
+        ${FIN_CALCS.map(x=>{ x.i.forEach(([k,,def])=>{ if(c[k]==null) c[k] = def; }); return caja(x.t, x.i.map(([k,lbl,,tp])=>`<div><label style="margin:0 0 2px">${lbl}</label><input data-fc="${k}" type="${tp==="text"?"text":"number"}" step="any" value="${esc(String(c[k]))}"></div>`).join("")); }).join("")}
+      </div>`;
+      $("finbody").innerHTML = h; calcFinanzas(); return;
+    }
+    // Glosario
+    $("statusLine").textContent = "Términos financieros, con su fórmula y para qué sirven.";
+    const q = normTxt(finBuscar), G = [...GLOSARIO_FIN, ...GLOSARIO_FIN2].sort((a,b)=>a[0].localeCompare(b[0])).filter(([t, d, fo])=>!q || normTxt(`${t} ${d} ${fo||""}`).includes(q));
+    h += `<div class="pairbar" style="margin-bottom:10px"><input id="finBuscar" type="search" placeholder="Buscar término (ej.: EBITDA, TIR, apalancamiento)" value="${esc(finBuscar)}" style="max-width:380px"></div>
+      <div class="bpanel"><table class="decl" style="width:100%"><tbody>${G.map(([t, d, fo])=>`<tr><td style="width:24%;white-space:normal"><strong>${esc(t)}</strong></td><td style="white-space:normal">${esc(d)}${fo?`<div class="fsub" style="max-width:none;white-space:normal;margin-top:3px"><strong>Fórmula:</strong> ${esc(fo)}</div>`:""}</td></tr>`).join("") || '<tr><td class="fsub">Sin resultados</td></tr>'}</tbody></table></div>`;
+    $("finbody").innerHTML = h;
+  }
+  // Más calculadoras financieras
+  const N = x => +x || 0, P = x => (x*100).toFixed(2)+"%";
+  const normCDF = x => { const t = 1/(1+0.2316419*Math.abs(x)), d = 0.3989423*Math.exp(-x*x/2), p = d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return x>0 ? 1-p : p; };
+  const FIN_CALCS = [
+    {t:"Recuperación e índice de rentabilidad", i:[["flujos2","Flujos (el primero es la inversión, negativo)","-100000, 30000, 35000, 40000, 45000","text"],["tasa2","Tasa de descuento %",12]], f:c=>{ const fl = String(c.flujos2).split(/[,;\s]+/).map(Number).filter(x=>!isNaN(x)), r = N(c.tasa2)/100; let acum = 0, acD = 0, pb = null, pbd = null;
+      fl.forEach((x,i)=>{ const pa = acum, pd = acD; acum += x; acD += x/Math.pow(1+r,i); if(pb==null && i>0 && acum>=0) pb = i-1 + (-pa)/x; if(pbd==null && i>0 && acD>=0) pbd = i-1 + (-pd)/(x/Math.pow(1+r,i)); });
+      const vpF = fl.slice(1).reduce((s,x,i)=>s+x/Math.pow(1+r,i+1),0), ir = fl[0] ? vpF/Math.abs(fl[0]) : 0;
+      return `<div><strong>Periodo de recuperación:</strong> ${pb==null?"no se recupera":pb.toFixed(2)+" periodos"} · <strong>descontado:</strong> ${pbd==null?"no se recupera":pbd.toFixed(2)+" periodos"}</div><div><strong>Índice de rentabilidad:</strong> ${ir.toFixed(2)} ${ir>1?"(> 1: conviene)":"(< 1: no conviene)"}</div><div class="fsub">IR = VP de los flujos futuros ÷ inversión inicial.</div>`; }},
+    {t:"Tasas: nominal, efectiva y continua", i:[["tn","Tasa nominal anual %",12],["m","Capitalizaciones al año (12 = mensual)",12]], f:c=>{ const j = N(c.tn)/100, m = N(c.m)||1, ef = Math.pow(1+j/m, m)-1, cont = Math.exp(j)-1;
+      return `<div><strong>Tasa efectiva anual:</strong> ${P(ef)} · <strong>con capitalización continua:</strong> ${P(cont)} · <strong>tasa por periodo:</strong> ${P(j/m)}</div><div class="fsub">Efectiva = (1 + j/m)^m − 1 · Continua = e^j − 1.</div>`; }},
+    {t:"Anualidades (ahorro y metas)", i:[["pmt","Aportación por periodo",5000],["ta","Tasa anual %",10],["na","Número de periodos (meses)",60],["meta","Meta a juntar",500000]], f:c=>{ const i = N(c.ta)/100/12, n = N(c.na), vf = i ? N(c.pmt)*(Math.pow(1+i,n)-1)/i : N(c.pmt)*n, vp = i ? N(c.pmt)*(1-Math.pow(1+i,-n))/i : N(c.pmt)*n, pm = i ? N(c.meta)*i/(Math.pow(1+i,n)-1) : N(c.meta)/n;
+      return `<div><strong>Valor futuro de las aportaciones:</strong> ${money.format(r2(vf))} · <strong>valor presente:</strong> ${money.format(r2(vp))}</div><div><strong>Para juntar ${money.format(N(c.meta))}</strong> necesitas aportar ${money.format(r2(pm))} cada mes.</div><div class="fsub">VF = A × ((1+i)^n − 1) ÷ i · VP = A × (1 − (1+i)^−n) ÷ i.</div>`; }},
+    {t:"Bonos: precio y duración", i:[["vn","Valor nominal",1000],["cup","Cupón anual %",8],["ytm","Rendimiento al vencimiento (YTM) %",10],["anos","Años al vencimiento",5],["frec","Pagos al año",2]], f:c=>{ const fr = N(c.frec)||1, n = Math.round(N(c.anos)*fr), cpn = N(c.vn)*N(c.cup)/100/fr, y = N(c.ytm)/100/fr; let pr = 0, dur = 0;
+      for(let k=1;k<=n;k++){ const cf = cpn + (k===n?N(c.vn):0), pv = cf/Math.pow(1+y,k); pr += pv; dur += k*pv; } const mac = pr ? dur/pr/fr : 0, mod = mac/(1+y);
+      return `<div><strong>Precio:</strong> ${money.format(r2(pr))} (${pr>N(c.vn)?"sobre la par":pr<N(c.vn)?"bajo la par":"a la par"})</div><div><strong>Duración de Macaulay:</strong> ${mac.toFixed(2)} años · <strong>modificada:</strong> ${mod.toFixed(2)} → si las tasas suben 1%, el precio baja cerca de ${mod.toFixed(2)}%.</div><div class="fsub">Precio = Σ cupón ÷ (1+y)^t + nominal ÷ (1+y)^n.</div>`; }},
+    {t:"Valuación por flujos descontados (DCF)", i:[["fcf","Flujo libre del año 1",1000000],["gc","Crecimiento años 1–5 %",10],["gp","Crecimiento perpetuo %",3],["w","WACC %",14],["deuda","Deuda neta",2000000]], f:c=>{ const w = N(c.w)/100, g1 = N(c.gc)/100, gp = N(c.gp)/100; let vp = 0, fcf = N(c.fcf);
+      for(let k=1;k<=5;k++){ vp += fcf/Math.pow(1+w,k); if(k<5) fcf *= 1+g1; } const vt = w>gp ? fcf*(1+gp)/(w-gp) : 0, vpt = vt/Math.pow(1+w,5), ev = vp + vpt;
+      return `<div><strong>Valor de la empresa (EV):</strong> ${money.format(r2(ev))} · <strong>valor del capital:</strong> ${money.format(r2(ev - N(c.deuda)))}</div><div>VP de 5 años: ${money.format(r2(vp))} · VP del valor terminal: ${money.format(r2(vpt))} (${ev?Math.round(vpt/ev*100):0}% del total)</div><div class="fsub">Valor terminal (Gordon) = FCF₅ × (1 + g) ÷ (WACC − g). Valor del capital = EV − deuda neta.</div>`; }},
+    {t:"Apalancamiento operativo, financiero y total", i:[["vt","Ventas",5000000],["cvt","Costos variables",3000000],["cft","Costos fijos",1200000],["int","Intereses",200000]], f:c=>{ const mc = N(c.vt)-N(c.cvt), ebit = mc - N(c.cft), uai = ebit - N(c.int), gao = ebit ? mc/ebit : null, gaf = uai ? ebit/uai : null;
+      return `<div><strong>GAO:</strong> ${gao==null?"—":gao.toFixed(2)} → si las ventas suben 10%, la utilidad de operación sube ${gao==null?"—":(gao*10).toFixed(1)+"%"}.</div><div><strong>GAF:</strong> ${gaf==null?"—":gaf.toFixed(2)} · <strong>GAT:</strong> ${gao&&gaf?(gao*gaf).toFixed(2):"—"}</div><div class="fsub">GAO = Margen de contribución ÷ EBIT · GAF = EBIT ÷ (EBIT − intereses) · GAT = GAO × GAF.</div>`; }},
+    {t:"EVA y ROIC", i:[["ebitE","EBIT (utilidad de operación)",1500000],["tE","Tasa de ISR %",30],["ci","Capital invertido",8000000],["wE","WACC %",14]], f:c=>{ const nopat = N(c.ebitE)*(1-N(c.tE)/100), roic = N(c.ci) ? nopat/N(c.ci) : 0, eva = nopat - N(c.ci)*N(c.wE)/100;
+      return `<div><strong>NOPAT:</strong> ${money.format(r2(nopat))} · <strong>ROIC:</strong> ${P(roic)}</div><div><strong>EVA:</strong> ${money.format(r2(eva))} → ${eva>=0?"la empresa <strong>crea valor</strong> (rinde más que su costo de capital)":"la empresa <strong>destruye valor</strong> (rinde menos que su costo de capital)"}.</div><div class="fsub">NOPAT = EBIT × (1 − t) · ROIC = NOPAT ÷ capital invertido · EVA = NOPAT − WACC × capital invertido.</div>`; }},
+    {t:"Lote económico de pedido (EOQ)", i:[["dem","Demanda anual (unidades)",12000],["cped","Costo por pedido",800],["cman","Costo de mantener una unidad al año",15]], f:c=>{ const q = N(c.cman) ? Math.sqrt(2*N(c.dem)*N(c.cped)/N(c.cman)) : 0;
+      return `<div><strong>Cantidad óptima por pedido:</strong> ${Math.round(q).toLocaleString("es-MX")} unidades · <strong>pedidos al año:</strong> ${q?(N(c.dem)/q).toFixed(1):"—"}</div><div class="fsub">EOQ = √(2 × Demanda × Costo de pedir ÷ Costo de mantener).</div>`; }},
+    {t:"Portafolio de dos activos y Sharpe", i:[["ra","Rendimiento esperado A %",14],["sa","Riesgo (desv. estándar) A %",20],["rb","Rendimiento esperado B %",8],["sb","Riesgo B %",8],["corr","Correlación entre A y B",0.2],["pa","Peso en A %",60],["rfS","Tasa libre de riesgo %",10.5]], f:c=>{ const wa = N(c.pa)/100, wb = 1-wa, rp = wa*N(c.ra)+wb*N(c.rb), vp = Math.pow(wa*N(c.sa),2)+Math.pow(wb*N(c.sb),2)+2*wa*wb*N(c.sa)*N(c.sb)*N(c.corr), sp = Math.sqrt(vp), sh = sp ? (rp - N(c.rfS))/sp : 0;
+      return `<div><strong>Rendimiento del portafolio:</strong> ${rp.toFixed(2)}% · <strong>riesgo:</strong> ${sp.toFixed(2)}% · <strong>índice de Sharpe:</strong> ${sh.toFixed(2)}</div><div class="fsub">σp² = wA²σA² + wB²σB² + 2·wA·wB·σA·σB·ρ · Sharpe = (Rp − Rf) ÷ σp. La diversificación baja el riesgo cuando la correlación es menor que 1.</div>`; }},
+    {t:"Opciones: Black-Scholes", i:[["S","Precio del activo (S)",100],["K","Precio de ejercicio (K)",100],["Tbs","Tiempo en años (T)",1],["rbs","Tasa libre de riesgo %",10],["sig","Volatilidad anual %",25]], f:c=>{ const S = N(c.S), K = N(c.K), T = N(c.Tbs), r = N(c.rbs)/100, s = N(c.sig)/100; if(!(S>0 && K>0 && T>0 && s>0)) return "Captura valores mayores que cero.";
+      const d1 = (Math.log(S/K)+(r+s*s/2)*T)/(s*Math.sqrt(T)), d2 = d1 - s*Math.sqrt(T), call = S*normCDF(d1) - K*Math.exp(-r*T)*normCDF(d2), put = K*Math.exp(-r*T)*normCDF(-d2) - S*normCDF(-d1);
+      return `<div><strong>Call:</strong> ${money.format(r2(call))} · <strong>Put:</strong> ${money.format(r2(put))} · <strong>Delta del call:</strong> ${normCDF(d1).toFixed(3)}</div><div class="fsub">C = S·N(d1) − K·e^(−rT)·N(d2) · P = K·e^(−rT)·N(−d2) − S·N(−d1). Paridad put-call: C − P = S − K·e^(−rT).</div>`; }},
+    {t:"Z de Altman (empresas privadas)", i:[["zct","Capital de trabajo",1000000],["zua","Utilidades retenidas",500000],["zebit","EBIT anual",400000],["zcap","Capital contable",3000000],["zat","Activo total",6000000],["zpt","Pasivo total",3000000]], f:c=>{ const at = N(c.zat)||1, z = 6.56*N(c.zct)/at + 3.26*N(c.zua)/at + 6.72*N(c.zebit)/at + 1.05*N(c.zcap)/(N(c.zpt)||1);
+      return `<div><strong>Z'' = ${z.toFixed(2)}</strong> → ${z>2.6?"zona segura":z>1.1?"zona gris (vigilar)":"zona de riesgo de insolvencia"}.</div><div class="fsub">Z'' = 6.56·X1 + 3.26·X2 + 6.72·X3 + 1.05·X4, con X1 = capital de trabajo ÷ activo, X2 = utilidades retenidas ÷ activo, X3 = EBIT ÷ activo, X4 = capital ÷ pasivo. Más de 2.6: sana; menos de 1.1: riesgo.</div>`; }},
+    {t:"Depreciación", i:[["dc","Costo del activo",300000],["dvr","Valor de rescate",30000],["dvu","Vida útil (años)",5]], f:c=>{ const base = N(c.dc)-N(c.dvr), lr = N(c.dvu) ? base/N(c.dvu) : 0; let sd = N(c.dc), filas = ""; const tasa = 2/(N(c.dvu)||1);
+      for(let k=1;k<=Math.min(N(c.dvu),10);k++){ const d = Math.min(sd*tasa, Math.max(0, sd - N(c.dvr))); sd -= d; filas += `<tr><td>${k}</td><td class="num">${money.format(r2(lr))}</td><td class="num">${money.format(r2(d))}</td></tr>`; }
+      return `<table class="decl" style="width:100%"><thead><tr><th>Año</th><th class="num">Línea recta</th><th class="num">Saldos dobles decrecientes</th></tr></thead><tbody>${filas}</tbody></table><div class="fsub">Línea recta = (costo − rescate) ÷ vida útil. Fiscalmente se usan las tasas de los arts. 34 y 35 de la LISR.</div>`; }}
+  ];
+  const GLOSARIO_FIN2 = [
+    ["NOPAT","Utilidad de operación después de impuestos, sin considerar cómo se financia la empresa.","EBIT × (1 − t)"],
+    ["ROIC","Rendimiento sobre el capital invertido (deuda + capital) en la operación.","NOPAT ÷ Capital invertido"],
+    ["EVA","Valor económico agregado: lo que gana la empresa por encima de su costo de capital.","NOPAT − WACC × Capital invertido"],
+    ["Z de Altman","Indicador que estima el riesgo de quiebra con razones de liquidez, rentabilidad y endeudamiento."],
+    ["Cobertura de intereses","Cuántas veces la utilidad de operación paga los intereses.","EBIT ÷ Gastos por intereses"],
+    ["Deuda neta / EBITDA","Cuántos años de EBITDA se necesitarían para pagar la deuda; los bancos suelen pedir menos de 3.","(Deuda − Efectivo) ÷ EBITDA"],
+    ["Modelo de Gordon","Valor de algo que paga un flujo que crece a una tasa constante para siempre.","Valor = Flujo₁ ÷ (r − g)"],
+    ["Valor terminal","Valor de la empresa después del periodo proyectado en un DCF; suele ser la mayor parte del valor."],
+    ["Duración","Sensibilidad del precio de un bono a cambios en las tasas; mientras mayor, más riesgo de tasa."],
+    ["Convexidad","Curvatura de la relación precio-tasa de un bono; mejora la estimación de la duración."],
+    ["Rendimiento al vencimiento (YTM)","Tasa que iguala el precio de un bono con el valor presente de sus flujos."],
+    ["Curva de rendimiento","Relación entre plazo y tasa de los bonos; invertida suele anticipar recesión."],
+    ["TIIE","Tasa de interés interbancaria de equilibrio; referencia de muchos créditos en México."],
+    ["Tasa objetivo de Banxico","Tasa de política monetaria con la que Banxico controla la inflación."],
+    ["Índice de Sharpe","Rendimiento extra por unidad de riesgo total.","(Rp − Rf) ÷ σp"],
+    ["Índice de Treynor","Rendimiento extra por unidad de riesgo de mercado (beta).","(Rp − Rf) ÷ β"],
+    ["Alfa de Jensen","Rendimiento por encima del que predice el CAPM.","Rp − [Rf + β(Rm − Rf)]"],
+    ["Valor en riesgo (VaR)","Pérdida máxima esperada con cierto nivel de confianza en un plazo."],
+    ["Diversificación","Combinar activos poco correlacionados para reducir el riesgo sin bajar tanto el rendimiento."],
+    ["Frontera eficiente","Conjunto de portafolios con el mayor rendimiento para cada nivel de riesgo (Markowitz)."],
+    ["Riesgo sistemático y no sistemático","El sistemático afecta a todo el mercado y no se diversifica; el no sistemático es propio de la empresa y sí."],
+    ["Forward","Contrato para comprar o vender algo en una fecha futura a un precio pactado hoy (no estandarizado)."],
+    ["Futuro","Como el forward, pero estandarizado y en bolsa, con márgenes diarios."],
+    ["Opción call / put","Derecho (no obligación) de comprar (call) o vender (put) un activo a un precio pactado."],
+    ["Swap","Intercambio de flujos entre dos partes, por ejemplo tasa fija por variable o pesos por dólares."],
+    ["Black-Scholes","Modelo para valuar opciones europeas con precio, ejercicio, tiempo, tasa y volatilidad."],
+    ["Paridad put-call","Relación entre el precio de un call y un put con el mismo ejercicio y vencimiento.","C − P = S − K·e^(−rT)"],
+    ["Cobertura (hedging)","Usar derivados para reducir un riesgo, por ejemplo de tipo de cambio o de tasa."],
+    ["Paridad de tasas de interés","El tipo de cambio a futuro refleja la diferencia de tasas entre dos países.","F = S × (1 + i_MXN) ÷ (1 + i_USD)"],
+    ["Modigliani-Miller","Sin impuestos ni costos de quiebra, el valor de la empresa no depende de su estructura de capital; con impuestos, la deuda agrega valor por el escudo fiscal."],
+    ["Escudo fiscal","Ahorro de impuestos por deducir intereses o depreciación.","Intereses × tasa de ISR"],
+    ["Estructura de capital óptima","Mezcla de deuda y capital que minimiza el WACC y maximiza el valor."],
+    ["Política de dividendos","Decidir cuánto de la utilidad se reparte y cuánto se reinvierte."],
+    ["Múltiplo P/U (P/E)","Precio de la acción ÷ utilidad por acción; cuántos años de utilidad paga el mercado."],
+    ["Múltiplo P/VL","Precio ÷ valor en libros por acción."],
+    ["Factoraje","Vender o ceder tus cuentas por cobrar para obtener liquidez antes de su vencimiento."],
+    ["Arrendamiento financiero vs. puro","Financiero: el activo se trata como compra financiada; puro: es una renta deducible."],
+    ["LBO","Compra de una empresa financiada principalmente con deuda que se paga con sus propios flujos."],
+    ["Sinergias","Valor adicional de combinar dos empresas (más ventas o menos costos)."],
+    ["Capital de riesgo (venture capital)","Inversión en empresas jóvenes con alto potencial y alto riesgo, a cambio de participación."],
+    ["Oferta pública inicial (IPO)","Primera colocación de acciones de una empresa en bolsa."],
+    ["Lote económico (EOQ)","Cantidad de pedido que minimiza el costo total de pedir y mantener inventario."],
+    ["Presupuesto de capital","Proceso para decidir en qué proyectos de inversión de largo plazo invertir (VPN, TIR, payback)."],
+    ["Análisis de sensibilidad y escenarios","Ver cómo cambia el resultado de un proyecto si cambian las variables clave (ventas, costos, tasa)."]
+  ];
+
+  function calcFinanzas(){
+    const c = window.__fc; document.querySelectorAll("[data-fc]").forEach(i=>{ c[i.dataset.fc] = i.type==="text" ? i.value : +i.value; });
+    const f = money.format, set = (t, html) => { const el = document.querySelector(`[data-fcres="${t}"]`); if(el) el.innerHTML = html; };
+    // VPN y TIR
+    const fl = String(c.flujos).split(/[,;\s]+/).map(Number).filter(x=>!isNaN(x)), r = c.tasa/100;
+    const vpn = fl.reduce((s,x,i)=>s + x/Math.pow(1+r, i), 0);
+    let tir = null; { let lo = -0.99, hi = 10; const v = t => fl.reduce((s,x,i)=>s + x/Math.pow(1+t, i), 0); if(v(lo)*v(hi) < 0){ for(let k=0;k<200;k++){ const mid = (lo+hi)/2; (v(lo)*v(mid) <= 0) ? hi = mid : lo = mid; } tir = (lo+hi)/2; } }
+    set("VPN y TIR de un proyecto", `<div><strong>VPN:</strong> ${f(r2(vpn))} → ${vpn>=0?"el proyecto <strong>crea valor</strong> a esa tasa":"el proyecto <strong>no alcanza</strong> a pagar la tasa pedida"}.</div><div><strong>TIR:</strong> ${tir==null?"no se puede calcular con esos flujos":`${(tir*100).toFixed(2)}%`} ${tir!=null?(tir>r?"(mayor que tu tasa: conviene)":"(menor que tu tasa: no conviene)"):""}</div><div class="fsub" style="max-width:none;white-space:normal">VPN = Σ flujo ÷ (1 + tasa)^periodo. TIR = la tasa que hace el VPN igual a cero.</div>`);
+    // Préstamo
+    const i = c.tasaP/100/12, n = c.plazo|0, pago = i ? c.monto * i / (1 - Math.pow(1+i, -n)) : c.monto/n;
+    let saldo = c.monto, filas = ""; for(let k=1;k<=Math.min(n, 360);k++){ const int = saldo*i, cap = pago - int; saldo -= cap; if(k<=6 || k===n) filas += `<tr><td>${k}</td><td class="num">${f(r2(pago))}</td><td class="num">${f(r2(int))}</td><td class="num">${f(r2(cap))}</td><td class="num">${f(Math.max(0,r2(saldo)))}</td></tr>`; else if(k===7) filas += `<tr><td colspan="5" class="fsub">…</td></tr>`; }
+    set("Préstamo (pagos fijos)", `<div><strong>Pago mensual:</strong> ${f(r2(pago))} · <strong>Intereses totales:</strong> ${f(r2(pago*n - c.monto))}</div><table class="decl" style="width:100%;margin-top:6px"><thead><tr><th>Mes</th><th class="num">Pago</th><th class="num">Interés</th><th class="num">Capital</th><th class="num">Saldo</th></tr></thead><tbody>${filas}</tbody></table><div class="fsub" style="max-width:none">Pago = Monto × i ÷ (1 − (1 + i)^−n), con i = tasa anual ÷ 12.</div>`);
+    // Punto de equilibrio
+    const mc = c.pv - c.cv, peU = mc>0 ? c.cf/mc : null;
+    set("Punto de equilibrio", mc>0 ? `<div><strong>Unidades:</strong> ${Math.ceil(peU).toLocaleString("es-MX")} al mes · <strong>Ventas:</strong> ${f(r2(peU*c.pv))}</div><div><strong>Margen de contribución:</strong> ${f(r2(mc))} por unidad (${(mc/c.pv*100).toFixed(1)}%)</div><div class="fsub" style="max-width:none">PE (unidades) = Costos fijos ÷ (Precio − Costo variable). Arriba de ese volumen hay utilidad.</div>` : "El precio debe ser mayor que el costo variable.");
+    // WACC y CAPM
+    const V = c.e + c.d, wacc = V ? (c.e/V)*c.ke/100 + (c.d/V)*c.kd/100*(1 - c.t/100) : 0, capm = c.rf/100 + c.beta*(c.rm - c.rf)/100;
+    set("Costo de capital (WACC) y CAPM", `<div><strong>WACC:</strong> ${(wacc*100).toFixed(2)}% → el rendimiento mínimo que deben dar los proyectos para crear valor.</div><div><strong>CAPM (Ke):</strong> ${(capm*100).toFixed(2)}% → lo que deberían exigir los socios por el riesgo.</div><div class="fsub" style="max-width:none;white-space:normal">WACC = E/V × Ke + D/V × Kd × (1 − t). CAPM: Ke = Rf + β × (Rm − Rf).</div>`);
+    // Valor del dinero
+    const vf = c.vp * Math.pow(1 + c.ti/100, c.n), vpDe = c.vp / Math.pow(1 + c.ti/100, c.n);
+    FIN_CALCS.forEach(x=>{ try{ set(x.t, x.f(c)); }catch(_){ set(x.t, "Revisa los datos."); } });
+    set("Valor del dinero en el tiempo", `<div><strong>Valor futuro:</strong> ${f(r2(vf))} en ${c.n} años</div><div><strong>Valor presente</strong> de ${f(c.vp)} recibidos en ${c.n} años: ${f(r2(vpDe))}</div><div class="fsub" style="max-width:none">VF = VP × (1 + i)^n · VP = VF ÷ (1 + i)^n.</div>`);
+  }
+  const GLOSARIO_FIN = [
+    ["Activo circulante","Lo que la empresa tiene y puede convertir en dinero en menos de un año: caja, bancos, clientes, inventarios, impuestos a favor."],
+    ["Pasivo a corto plazo","Lo que la empresa debe pagar en menos de un año: proveedores, acreedores, impuestos por pagar, créditos de corto plazo."],
+    ["Capital contable","Lo que es de los socios: aportaciones más utilidades (o menos pérdidas) acumuladas.","Activo − Pasivo"],
+    ["Capital de trabajo","Recursos de corto plazo disponibles para operar.","Activo circulante − Pasivo a corto plazo"],
+    ["Utilidad bruta","Lo que queda de las ventas después del costo de lo vendido.","Ventas − Costo de ventas"],
+    ["Utilidad de operación (EBIT)","Utilidad del negocio antes de intereses e impuestos.","Utilidad bruta − Gastos de operación"],
+    ["EBITDA","Utilidad de operación antes de depreciación y amortización; aproxima el flujo de la operación y se usa para valuar empresas (múltiplos de EBITDA).","EBIT + Depreciación + Amortización"],
+    ["Flujo de efectivo libre (FCF)","Dinero que genera la empresa después de invertir lo necesario para operar; es lo que podría repartirse o usarse para pagar deuda.","EBIT × (1 − t) + Depreciación − Inversiones de capital − Aumento del capital de trabajo"],
+    ["Razón circulante","Capacidad de pagar deudas de corto plazo.","Activo circulante ÷ Pasivo a corto plazo"],
+    ["Prueba ácida","Liquidez sin contar inventarios.","(Activo circulante − Inventarios) ÷ Pasivo a corto plazo"],
+    ["Apalancamiento","Uso de deuda para financiar la empresa; aumenta el rendimiento de los socios si la inversión rinde más que el costo de la deuda, y el riesgo si no.","Pasivo ÷ Capital"],
+    ["ROA","Rendimiento sobre activos.","Utilidad neta ÷ Activo total"],
+    ["ROE","Rendimiento sobre el capital de los socios.","Utilidad neta ÷ Capital contable"],
+    ["Análisis DuPont","Descompone el ROE en margen, rotación y apalancamiento para ver qué lo mueve.","ROE = Margen neto × Rotación de activos × (Activo ÷ Capital)"],
+    ["Margen de contribución","Lo que aporta cada venta para cubrir costos fijos y generar utilidad.","Precio − Costo variable"],
+    ["Punto de equilibrio","Nivel de ventas en el que no hay ni utilidad ni pérdida.","Costos fijos ÷ Margen de contribución por unidad"],
+    ["Ciclo de conversión de efectivo","Días que pasan entre que pagas a proveedores y cobras a clientes; mientras más corto, menos financiamiento necesitas.","Días de inventario + Días de cobro − Días de pago"],
+    ["Valor presente (VP)","Lo que vale hoy un dinero que recibirás en el futuro.","VF ÷ (1 + i)^n"],
+    ["Valor presente neto (VPN)","Suma de los flujos de un proyecto traídos a valor presente, menos la inversión. Si es positivo, el proyecto crea valor.","Σ Flujo_t ÷ (1 + i)^t"],
+    ["TIR","Tasa interna de retorno: la tasa a la que el VPN es cero. Si es mayor que el costo de capital, el proyecto conviene."],
+    ["Periodo de recuperación (payback)","Tiempo que tarda un proyecto en recuperar la inversión con sus flujos."],
+    ["WACC","Costo promedio ponderado de capital: lo que le cuesta a la empresa financiarse con deuda y con capital.","E/V × Ke + D/V × Kd × (1 − t)"],
+    ["CAPM","Modelo para estimar el rendimiento que exigen los inversionistas según el riesgo de la empresa.","Ke = Rf + β × (Rm − Rf)"],
+    ["Beta (β)","Qué tanto se mueve una acción o empresa respecto al mercado: 1 = igual que el mercado; más de 1 = más riesgosa."],
+    ["Tasa libre de riesgo","Rendimiento de una inversión sin riesgo; en México se usan los CETES."],
+    ["Costo de oportunidad","Lo que dejas de ganar por elegir una alternativa en lugar de otra."],
+    ["Tasa nominal vs. efectiva","La nominal es la anunciada; la efectiva incluye la capitalización.","Efectiva anual = (1 + nominal ÷ m)^m − 1"],
+    ["Amortización","Pago gradual de una deuda (capital más intereses) o reparto del costo de un intangible en el tiempo."],
+    ["Depreciación","Reparto del costo de un activo fijo durante su vida útil; es un gasto que no implica salida de dinero."],
+    ["Presupuesto maestro","Conjunto de presupuestos (ventas, producción, gastos, efectivo) que integran el plan del año."],
+    ["Flujo de efectivo (método indirecto)","Parte de la utilidad y la ajusta por partidas que no son dinero y cambios en capital de trabajo para llegar al cambio en efectivo."],
+    ["Valor de empresa (EV)","Valor total de la empresa para socios y acreedores.","Capitalización de mercado + Deuda − Efectivo"],
+    ["Múltiplo EV/EBITDA","Cuántas veces el EBITDA vale la empresa; se usa para comparar y valuar."],
+    ["Riesgo financiero","Riesgo de no poder pagar las deudas; crece con el apalancamiento."],
+    ["Riesgo operativo","Variación de la utilidad de operación por cambios en ventas; crece con los costos fijos.","Grado de apalancamiento operativo = Margen de contribución ÷ EBIT"],
+    ["Liquidez vs. solvencia","Liquidez: pagar lo de corto plazo. Solvencia: pagar todas las deudas con todos los activos."],
+    ["Inflación (INPC)","Aumento general de precios; el INPC lo publica el INEGI cada mes."],
+    ["UDI","Unidad de inversión que se actualiza con la inflación; se usa en créditos y en algunos cálculos fiscales."]
+  ];
+  $("fintabs").addEventListener("click", e => { const b = e.target.closest("[data-fintab]"); if(b){ finTab = b.dataset.fintab; renderFinanzas(); } });
+  $("finbody").addEventListener("click", e => { const r = e.target.closest("[data-finind]"); if(r){ finSel = r.dataset.finind; renderFinanzas(); } });
+  $("finbody").addEventListener("input", e => { if(e.target.dataset.fc){ calcFinanzas(); } if(e.target.id==="finBuscar"){ finBuscar = e.target.value; const pos = e.target.selectionStart; renderFinanzas(); const i = $("finBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
+
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
   $("recCfgOk").onclick = async () => {
     const inpc = {}, tasa = {}, dias = {};
@@ -8331,10 +8608,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       dashboard:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', expediente:'<path d="M3 7h6l2 2h10v10H3z"/>', notas:'<path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h3"/>', activos:'<path d="M3 6h18v11H3zM8 21h8M12 17v4"/>',
       conta:'<path d="M5 3h14v18H5zM9 7h6M9 11h6M9 15h2M14 15h1"/>', directorio:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 19v-1a3 3 0 0 0-2-2.8M17 5.2a3 3 0 0 1 0 5.6"/>',
       documentos:'<path d="M6 3h9l4 4v14H6zM14 3v5h5"/>', resumen:'<path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/>', accesos:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-      leyes:'<path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2zM4 17a2 2 0 0 1 2-2h12M9 7h6"/>', prestaciones:'<path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/><circle cx="16" cy="16" r="2"/>', calendario:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>', nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
+      finanzas:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>', leyes:'<path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2zM4 17a2 2 0 0 1 2-2h12M9 7h6"/>', prestaciones:'<path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/><circle cx="16" cy="16" r="2"/>', calendario:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>', nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
     };
     const GRUPOS = [["Cierre", ["tablero","calendario","notas","expediente"]], ["Operación", ["facturas","cuentas","bancos","ventas","nominas","prestaciones","directorio"]], ["Impuestos", ["impuestos"]],
-      ["Contabilidad", ["conta","balanza","estados","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","leyes","accesos"]]];
+      ["Contabilidad", ["conta","balanza","estados","finanzas","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","leyes","accesos"]]];
     const vistas = document.querySelector(".views"); if(!vistas) return;
     const nav = document.createElement("aside"); nav.id = "sideNav"; nav.setAttribute("aria-label", "Secciones");
     nav.innerHTML = `<div class="marca"><i aria-hidden="true">C</i><b>Cierre mensual</b></div>`;
