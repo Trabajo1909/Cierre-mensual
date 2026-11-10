@@ -408,7 +408,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 54 · Auxiliares en Excel y PDF</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 57 · Cómo va la empresa</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -572,7 +572,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </section>
 
   <section id="vDashboard" hidden>
-    <div class="tabs2" aria-label="Tipo de dashboard"><button data-dtab="mes" aria-pressed="true">Del mes</button><button data-dtab="comp" aria-pressed="false">Comparativo del año</button></div>
+    <div class="tabs2" aria-label="Tipo de dashboard"><button data-dtab="duenos" aria-pressed="false">Cómo va la empresa</button><button data-dtab="mes" aria-pressed="true">Del mes</button><button data-dtab="comp" aria-pressed="false">Comparativo del año</button></div>
     <div class="months" id="dmonths"></div>
     <div id="dbody"></div>
   </section>
@@ -3394,7 +3394,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       + fila("Asimilados a salarios", f(k.nom.asim)) + fila("ISR retenido por asimilados", f(k.nom.isrAsim), "res");
     calc += sec("IVA") + fila("Actos gravados al 16% (base)", f(k.trasBase), "sub") + fila("IVA a cargo al 16%", f(k.tras)) + fila("Actos pagados al 16% (base)", f(k.acrBase), "sub")
       + fila("IVA acreditable", f(-k.acr)) + (k.ivaRetCli ? fila("IVA retenido por clientes", f(-k.ivaRetCli)) : "") + fila("Otras cantidades a cargo (IVA retenido a terceros)", f(k.ret.iva))
-      + fila(k.ivaNeto<0 ? "Saldo a favor" : "Cantidad a cargo", f(Math.abs(k.ivaNeto)), "res");
+      + fila(k.ivaNeto<0 ? "Saldo a favor" : "Cantidad a cargo", f(Math.abs(k.ivaNeto)), "res")
+      + sec("IVA neto del mes (ya restando retenciones)")
+      + fila("IVA trasladado cobrado", f(k.tras), "sub") + (k.ivaRetCli ? fila("(−) IVA que te retuvieron tus clientes", f(-k.ivaRetCli), "sub") : "")
+      + fila("IVA trasladado neto (lo que realmente cobraste de IVA)", f(r2(k.tras - k.ivaRetCli)), "res")
+      + fila("IVA acreditable pagado", f(k.acr), "sub") + (k.ret.iva ? fila("(−) IVA que retuviste a tus proveedores", f(-k.ret.iva), "sub") : "")
+      + fila("IVA acreditable neto (lo que realmente pagaste de IVA)", f(r2(k.acr - k.ret.iva)), "res")
+      + fila(r2((k.tras - k.ivaRetCli) - (k.acr - k.ret.iva))<0 ? "Diferencia: saldo a favor" : "Diferencia: IVA a pagar", f(Math.abs(r2((k.tras - k.ivaRetCli) - (k.acr - k.ret.iva)))), "res");
     calc += sec("Retenciones a terceros") + fila("IVA retenido", f(k.ret.iva), "res") + fila("ISR retenido a personas físicas", f(k.ret.isrPF)) + fila("ISR retenido a RESICO", f(k.ret.isrRES)) + fila("Total ISR retenciones", f(k.montos["isr-ret"]), "res");
     calc += sec("SATEG") + fila("Nómina total (sueldos y asimilados)", f(k.nom.sueldos + k.nom.asim))
       + fila("Tasa de impuesto sobre nómina", canWrite ? `<input type="number" step="0.001" min="0" id="isnInput" value="${(cfg.tasaISN*100).toFixed(2)}" aria-label="Tasa ISN en porcentaje"> %` : `${(cfg.tasaISN*100).toFixed(2)} %`)
@@ -3782,7 +3788,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const filas = [
       ["ISR personas morales",""],["Ingresos nominales del mes",k.ingMes],["Ingresos de periodos anteriores",k.ingAnt],["Total de ingresos nominales",k.ingAcum],["Coeficiente de utilidad",k.cfg.coeficiente],["Cantidad a pagar ISR",k.isrPM],
       ["ISR retenciones por nómina",""],["Sueldos y salarios",k.nom.sueldos],["ISR retenido por sueldos",k.nom.isrSueldos],["Asimilados a salarios",k.nom.asim],["ISR retenido por asimilados",k.nom.isrAsim],
-      ["IVA",""],["Actos gravados al 16% (base)",k.trasBase],["IVA a cargo al 16%",k.tras],["Actos pagados al 16% (base)",k.acrBase],["IVA acreditable",k.acr],["IVA retenido por clientes",k.ivaRetCli],["Otras cantidades a cargo",k.ret.iva],[k.ivaNeto<0?"Saldo a favor":"Cantidad a cargo",Math.abs(k.ivaNeto)],
+      ["IVA",""],["Actos gravados al 16% (base)",k.trasBase],["IVA a cargo al 16%",k.tras],["Actos pagados al 16% (base)",k.acrBase],["IVA acreditable",k.acr],["IVA retenido por clientes",k.ivaRetCli],["Otras cantidades a cargo",k.ret.iva],["IVA trasladado neto (menos IVA retenido por clientes)",r2(k.tras-k.ivaRetCli)],["IVA acreditable neto (menos IVA retenido a proveedores)",r2(k.acr-k.ret.iva)],[k.ivaNeto<0?"Saldo a favor":"Cantidad a cargo",Math.abs(k.ivaNeto)],
       ["Retenciones a terceros",""],["IVA retenido",k.ret.iva],["ISR retenido a personas físicas",k.ret.isrPF],["ISR retenido a RESICO",k.ret.isrRES],
       ["SATEG",""],["Nómina total",r2(k.nom.sueldos+k.nom.asim)],["Tasa ISN",k.cfg.tasaISN],["Impuesto sobre nómina",k.isn],["Cedular honorarios",k.ret.cedPF],["Cedular RESICO",k.ret.cedRES],
       ["Totales",""],["Total SAT",k.totSAT],["Total SATEG",k.totSATEG],["Total IMSS (línea de captura)", (()=>{ const d = declDe(k.y, k.m, "imss"); return d && d.presentada ? r2(+d.aPagar||0) : 0; })()],["Total a pagar del mes", r2(k.totSAT+k.totSATEG+(()=>{ const d = declDe(k.y, k.m, "imss"); return d && d.presentada ? r2(+d.aPagar||0) : 0; })())]];
@@ -4108,8 +4114,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   // --- gráficas ---
   function tema(claro){
     const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
-    return claro ? {ink:"#18241D", muted:"#5D6B62", line:"#D9E0DA", a:"#2F7A4C", b:"#C2533A", c:"#D9A400", d:"#5B8BC4", serie:["#2F7A4C","#5B8BC4","#D9A400","#C2533A","#8A6FB0","#3E9E9E","#B07A4F","#9AA9A0"]}
-      : {ink:v("--ink"), muted:v("--muted"), line:v("--line"), a:v("--done"), b:v("--late"), c:v("--wip"), d:v("--today-line"), serie:[v("--done"), v("--today-line"), v("--wip"), v("--late"), "#8A6FB0","#3E9E9E","#B07A4F", v("--muted")]};
+    return claro ? {ink:"#151515", muted:"#66665F", line:"#E4E4E0", a:"#2E6B4E", b:"#7A1F3D", c:"#B98A1E", d:"#2F6FB3", serie:["#7A1F3D","#2F6FB3","#B98A1E","#2E6B4E","#6B5BA8","#3E9E9E","#B07A4F","#9A9A93"]}
+      : {ink:v("--ink"), muted:v("--muted"), line:v("--line"), a:v("--done"), b:v("--vino"), c:v("--wip"), d:"#4C8FD6", serie:[v("--vino"), "#4C8FD6", v("--wip"), v("--done"), "#8A7BC8","#3E9E9E","#B07A4F", v("--muted")]};
   }
   const moneyTick = x => { const a = Math.abs(x); return (x<0?"-":"") + "$" + (a>=1e6 ? (a/1e6).toFixed(1)+"M" : a>=1e3 ? Math.round(a/1e3)+"k" : Math.round(a)); };
   function cfgBase(T){ return {responsive:true, maintainAspectRatio:false, animation:false, plugins:{legend:{labels:{color:T.ink, font:{family:"IBM Plex Sans"}}}, tooltip:{callbacks:{label:c=>`${c.dataset.label||c.label}: ${money.format(+c.raw||0)}`}}},
@@ -4143,10 +4149,81 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     box.remove(); return out;
   }
 
+  // ---------- Dashboard "Cómo va la empresa": gráficas con explicación ----------
+  function datosDuenos(y){
+    const ult = y < now.getFullYear() ? 12 : y===now.getFullYear() ? now.getMonth()+1 : 12, meses = Array.from({length:ult},(_,i)=>i+1);
+    const R = meses.map(m=>({m, ...resumenMes(y, m)})), K = meses.map(m=>{ const k = calcMes(y, m); return {m, tras:k.tras, acr:k.acr, retCli:k.ivaRetCli, retProv:k.ret.iva, neto:k.ivaNeto}; });
+    const top = tipo => { const o = {}; facturas.filter(f=>f.tipo===tipo && vigente(f) && f.anio===y).forEach(f=>{ o[f.nombre] = r2((o[f.nombre]||0) + (+f.subtotal||0)); }); return Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,8); };
+    const idx = indices(), saldos = meses.map(m=>{ const fin = new Date(Date.UTC(y, m, 0)).toISOString().slice(0,10);
+      const s = tipo => r2(facturas.filter(f=>f.tipo===tipo && vigente(f) && String(f.fecha)<=fin).reduce((a,f)=>a + cuentaDe(f, idx, fin).saldo, 0));
+      return {m, cxc: s("emitida"), cxp: s("recibida")}; });
+    const contable = meses.map(m=>{ const E = estadosDe(y, m); return E ? {m, res: E.R("acum").antes, efectivo: r2(E.bal.filter(x=>grupoDe(x.c)>=101 && grupoDe(x.c)<=103).reduce((s,x)=>s+x.saldo,0))} : {m, res:null, efectivo:null}; });
+    return {meses, R, K, prov: top("recibida"), cli: top("emitida"), saldos, contable};
+  }
+  function renderDuenos(){
+    const D = datosDuenos(year), f = money.format, T = tema(false), S = (xs, k) => r2(xs.reduce((s,x)=>s+(+x[k]||0),0)), labels = D.meses.map(m=>ABR[m-1]);
+    const ing = S(D.R,"ingFact"), gas = S(D.R,"gasFact"), nom = S(D.R,"nom"), imp = S(D.R,"imp"), cob = S(D.R,"ingCob"), pag = S(D.R,"gasPag"), fon = S(D.R,"fondeo");
+    const ivaNeto = r2(D.K.reduce((s,x)=>s+x.neto,0)), favor = D.K.filter(x=>x.neto<0).reduce((s,x)=>s-x.neto,0);
+    const tarjeta = (titulo, valor, que, como, cls="") => `<div class="kpi ${cls}"><span>${titulo}</span><b>${valor}</b><small style="white-space:normal"><strong>Qué es:</strong> ${que}<br><strong>Cómo se calcula:</strong> ${como}</small></div>`;
+    const panel = (i, titulo, que, como, lectura, alto=280) => `<div class="bpanel"><h3>${titulo}</h3><div style="height:${alto}px;padding:8px 14px"><canvas data-ch="${i}"></canvas></div>
+      <div style="padding:4px 14px 14px;font-size:13px;line-height:1.5"><div><strong>Qué muestra:</strong> ${que}</div><div><strong>Cómo se calcula:</strong> ${como}</div>${lectura?`<div style="margin-top:4px;padding:8px 10px;border-radius:8px;background:var(--vino-soft)"><strong>Lectura:</strong> ${lectura}</div>`:""}</div></div>`;
+    const mesMax = (arr, k) => arr.reduce((a,b)=>(+b[k]||0) > (+a[k]||0) ? b : a, arr[0]||{});
+    const mI = mesMax(D.R, "ingFact"), mG = mesMax(D.R, "gasFact");
+    const margen = ing ? Math.round((ing - gas - nom) / ing * 100) : 0;
+    let h = `<div class="kpis">
+      ${tarjeta("Ventas del año (sin IVA)", f(ing), "lo que facturaste a tus clientes.", "suma de tus facturas emitidas vigentes, sin IVA.")}
+      ${tarjeta("Gastos con proveedores (sin IVA)", f(gas), "lo que te facturaron tus proveedores.", "suma de tus facturas recibidas vigentes, sin IVA.")}
+      ${tarjeta("Nómina del año", f(nom), "sueldos y asimilados pagados a tu equipo.", "suma de las percepciones de tus recibos de nómina.")}
+      ${tarjeta("Impuestos y cuotas", f(imp), "SAT, SATEG e IMSS del año.", "lo declarado (o calculado si aún no presentas) más las cuotas del SIPARE.")}
+      ${tarjeta(ivaNeto<0?"IVA a favor acumulado":"IVA a pagar acumulado", f(Math.abs(ivaNeto)), ivaNeto<0?"IVA que pagaste a proveedores de más contra el que cobraste; se puede acreditar en meses siguientes o pedir en devolución.":"IVA cobrado a clientes que entregas al SAT.", "IVA trasladado cobrado − IVA retenido por clientes − IVA acreditable pagado + IVA retenido a proveedores, mes por mes.", ivaNeto<0?"":"")}
+      ${tarjeta("Margen antes de impuestos", `${margen}%`, "de cada $100 que vendes, cuánto queda después de proveedores y nómina.", "(ventas − gastos con proveedores − nómina) ÷ ventas. Es una aproximación: el resultado contable exacto está en Estados financieros.", margen<0?"late":"")}
+    </div>`;
+    h += `<div class="dgrid" style="margin-top:16px">
+      ${panel(0, "Ventas contra gastos, por mes", "lo que facturaste (ventas) contra lo que te facturaron tus proveedores, más la nómina, mes por mes.", "facturas emitidas y recibidas vigentes, sin IVA; nómina = percepciones de los recibos.", `el mes con más ventas fue <strong>${MESES[(mI.m||1)-1]}</strong> (${f(+mI.ingFact||0)}) y el de más gasto con proveedores <strong>${MESES[(mG.m||1)-1]}</strong> (${f(+mG.gasFact||0)}). Cuando la barra de gastos más nómina supera a la de ventas, ese mes la operación necesitó fondeo.`)}
+      ${panel(1, "Dinero que entró y salió", "el flujo real del dinero: cobros a clientes y fondeo contra pagos a proveedores, nómina e impuestos.", "cobros y pagos registrados en Cuentas y facturas PUE; fondeo = depósitos del banco que no son cobros ni traspasos.", `en el año entraron <strong>${f(r2(cob + fon))}</strong> (${f(cob)} de clientes y ${f(fon)} de fondeo) y se pagaron <strong>${f(pag)}</strong> a proveedores.`)}
+      ${panel(2, "IVA del mes: cobrado contra pagado", "el IVA que cobraste en tus ventas contra el IVA que pagaste en tus compras, y el resultado de cada mes.", "IVA trasladado = IVA de lo cobrado en el mes; IVA acreditable = IVA de lo pagado a proveedores con factura; resultado = trasladado − acreditable − retenciones de clientes + retenciones a proveedores.", favor ? `en los meses en que el resultado es negativo hubo <strong>saldo a favor</strong> (en total ${f(r2(favor))}): pagaste más IVA del que cobraste, normalmente porque compras e inviertes más de lo que vendes.` : "cuando el resultado es positivo, ese IVA se entrega al SAT el día 17 del mes siguiente.")}
+      ${panel(3, "Impuestos y cuotas por autoridad", "lo que se paga cada mes al SAT (ISR, IVA y retenciones), al SATEG (impuesto sobre nómina y cedulares) y al IMSS (cuotas obrero-patronales).", "declaraciones presentadas (o calculadas si aún no se presentan) y líneas de captura del SIPARE.", `en el año: SAT <strong>${f(S(D.R,"impSAT"))}</strong>, SATEG <strong>${f(S(D.R,"impSATEG"))}</strong> e IMSS <strong>${f(S(D.R,"impIMSS"))}</strong>.`)}
+      ${panel(4, "Principales proveedores del año", "a quién le compras más, sin IVA.", "suma de las facturas recibidas vigentes de cada proveedor en el año.", D.prov.length ? `<strong>${esc(D.prov[0][0])}</strong> concentra el ${gas?Math.round(D.prov[0][1]/gas*100):0}% del gasto con proveedores.` : "", 300)}
+      ${panel(5, "Principales clientes del año", "quién te compra más, sin IVA.", "suma de las facturas emitidas vigentes a cada cliente en el año.", D.cli.length ? `<strong>${esc(D.cli[0][0])}</strong> representa el ${ing?Math.round(D.cli[0][1]/ing*100):0}% de las ventas: si es más del 30%, hay dependencia de un solo cliente.` : "", 300)}
+      ${panel(7, "Lo que te deben y lo que debes", "al cierre de cada mes, cuánto te deben tus clientes (por cobrar) y cuánto debes a tus proveedores (por pagar).", "saldo de las facturas vigentes emitidas y recibidas hasta el último día de cada mes, menos los cobros y pagos registrados en Cuentas.", (()=>{ const u = D.saldos[D.saldos.length-1]||{}; return `hoy te deben <strong>${f(u.cxc||0)}</strong> y debes <strong>${f(u.cxp||0)}</strong>. Si lo que debes crece más rápido que lo que te deben, la empresa se está financiando con sus proveedores.`; })())}
+      ${D.contable.some(x=>x.res!=null) ? panel(8, "Resultado contable y efectivo", "la utilidad o pérdida acumulada del año según tu contabilidad y el dinero en caja y bancos al cierre de cada mes.", "de tus balanzas de CONTPAQi: ingresos − costos − gastos acumulados (cuentas 4xx a 7xx) y saldo de las cuentas 101 a 103.", (()=>{ const u = [...D.contable].reverse().find(x=>x.res!=null); return u ? `al cierre de ${MESES[u.m-1].toLowerCase()} la empresa lleva una ${u.res>=0?"utilidad":"pérdida"} de <strong>${f(Math.abs(u.res))}</strong> y tiene <strong>${f(u.efectivo)}</strong> en caja y bancos.` : ""; })()) : ""}
+      ${panel(6, "Nómina por mes", "cuánto cuesta el equipo cada mes, separado en sueldos (con IMSS) y asimilados.", "percepciones de los recibos de nómina timbrados en el mes.", nom ? `la nómina equivale al <strong>${ing?Math.round(nom/ing*100):0}%</strong> de las ventas del año.` : "")}
+    </div>
+    <div class="fsub" style="max-width:none;white-space:normal;margin-top:10px">Todo sale de tus facturas, cobros y pagos registrados, nóminas, declaraciones y estados de cuenta cargados en la app. Si falta información de algún mes (por ejemplo, cobros sin registrar o estados de cuenta sin subir), esa gráfica saldrá baja en ese mes.</div>`;
+    $("dbody").innerHTML = h;
+    const base = cfgBase(T), ejes = (apilado) => ({x:{stacked:!!apilado, ticks:{color:T.ink}, grid:{display:false}}, y:{stacked:!!apilado, ticks:{color:T.muted, callback:moneyTick}, grid:{color:T.line}}});
+    const horiz = arr => ({type:"bar", data:{labels: arr.map(x=>x[0].length>28 ? x[0].slice(0,27)+"…" : x[0]), datasets:[{label:"Sin IVA", data:arr.map(x=>x[1]), backgroundColor:T.serie, borderRadius:4}]}, options:{...base, indexAxis:"y", plugins:{...base.plugins, legend:{display:false}}, scales:{x:{ticks:{color:T.muted, callback:moneyTick}, grid:{color:T.line}}, y:{ticks:{color:T.ink}, grid:{display:false}}}}});
+    const cfgs = [
+      {type:"bar", data:{labels, datasets:[{label:"Ventas", data:D.R.map(x=>x.ingFact), backgroundColor:T.a, borderRadius:4},{label:"Gastos con proveedores", data:D.R.map(x=>x.gasFact), backgroundColor:T.b, borderRadius:4},{label:"Nómina", data:D.R.map(x=>x.nom), backgroundColor:T.c, borderRadius:4}]}, options:{...base, scales:ejes()}},
+      {type:"line", data:{labels, datasets:[{label:"Cobrado a clientes", data:D.R.map(x=>x.ingCob), borderColor:T.a, backgroundColor:T.a, tension:.25},{label:"Fondeo", data:D.R.map(x=>x.fondeo), borderColor:T.d, backgroundColor:T.d, tension:.25},{label:"Pagado a proveedores", data:D.R.map(x=>x.gasPag), borderColor:T.b, backgroundColor:T.b, tension:.25}]}, options:{...base, scales:ejes()}},
+      {type:"bar", data:{labels, datasets:[{label:"IVA cobrado (trasladado)", data:D.K.map(x=>x.tras), backgroundColor:T.a, borderRadius:4},{label:"IVA pagado (acreditable)", data:D.K.map(x=>x.acr), backgroundColor:T.b, borderRadius:4},{type:"line", label:"Resultado (+ a pagar / − a favor)", data:D.K.map(x=>x.neto), borderColor:T.d, backgroundColor:T.d, tension:.25}]}, options:{...base, scales:ejes()}},
+      {type:"bar", data:{labels, datasets:[{label:"SAT", data:D.R.map(x=>x.impSAT), backgroundColor:T.serie[0]},{label:"SATEG", data:D.R.map(x=>x.impSATEG), backgroundColor:T.serie[1]},{label:"IMSS", data:D.R.map(x=>x.impIMSS), backgroundColor:T.serie[2]}]}, options:{...base, scales:ejes(true)}},
+      horiz(D.prov), horiz(D.cli),
+      {type:"bar", data:{labels, datasets:[{label:"Sueldos (IMSS)", data:D.R.map(x=>x.nomSue), backgroundColor:T.serie[0]},{label:"Asimilados", data:D.R.map(x=>x.nomAsi), backgroundColor:T.serie[2]}]}, options:{...base, scales:ejes(true)}},
+      {type:"line", data:{labels, datasets:[{label:"Te deben (por cobrar)", data:D.saldos.map(x=>x.cxc), borderColor:T.a, backgroundColor:T.a, tension:.25},{label:"Debes (por pagar)", data:D.saldos.map(x=>x.cxp), borderColor:T.b, backgroundColor:T.b, tension:.25}]}, options:{...base, scales:ejes()}},
+      {type:"bar", data:{labels, datasets:[{label:"Resultado acumulado", data:D.contable.map(x=>x.res), backgroundColor:D.contable.map(x=>(x.res||0)>=0?T.a:T.b), borderRadius:4},{type:"line", label:"Caja y bancos", data:D.contable.map(x=>x.efectivo), borderColor:T.d, backgroundColor:T.d, tension:.25}]}, options:{...base, scales:ejes()}}
+    ];
+    window.__cfgDuenos = () => { const T2 = tema(true), b2 = cfgBase(T2); return cfgs.map(c=>JSON.parse(JSON.stringify(c, (k,v)=>typeof v==="function"?undefined:v))).map((c,i)=>{ c.options = {...c.options, ...b2, scales: c.options.scales ? Object.fromEntries(Object.entries(c.options.scales).map(([k,s])=>[k, {...s, ticks:{...(s.ticks||{}), color:T2.muted, callback: k===(c.options.indexAxis==="y"?"x":"y") ? moneyTick : undefined}}])) : undefined, indexAxis:c.options.indexAxis}; return c; }); };
+    loadLibs("chart").then(()=>pintar(cfgs)).catch(()=>{});
+    $("statusLine").innerHTML = `${year} · ventas <strong>${f(ing)}</strong> · gastos con proveedores <strong>${f(gas)}</strong> · nómina <strong>${f(nom)}</strong> · impuestos <strong>${f(imp)}</strong>.`;
+  }
+  async function exportDuenos(){
+    await loadLibs("chart"); await loadLibs("pdf");
+    const D = datosDuenos(year), imgs = await imagenes(window.__cfgDuenos ? window.__cfgDuenos() : []), {jsPDF} = window.jspdf, doc = new jsPDF({orientation:"landscape", unit:"pt", format:"letter"});
+    const titulos = [...document.querySelectorAll("#dbody .bpanel h3")].map(x=>x.innerText);
+    const orden = [...document.querySelectorAll("#dbody canvas[data-ch]")].map(c=>+c.dataset.ch);
+    const notas = [...document.querySelectorAll("#dbody .bpanel")].map(p=>[...p.querySelectorAll(":scope > div:last-child > div")].map(d=>d.innerText).join("\n"));
+    doc.setFontSize(18); doc.text(`${empresaNombre} · Cómo va la empresa ${year}`, 40, 50); doc.setFontSize(10);
+    const kp = [...document.querySelectorAll("#dbody .kpis .kpi")].map(k=>`${k.querySelector("span").innerText}: ${k.querySelector("b").innerText}`); kp.forEach((t,i)=>doc.text(t, 40 + (i%2)*360, 80 + Math.floor(i/2)*18));
+    orden.forEach((ci,i)=>{ const img = imgs[ci]; if(!img) return; doc.addPage(); doc.setFontSize(15); doc.text(titulos[i]||"", 40, 44); doc.addImage(img, "PNG", 40, 60, 700, 327); doc.setFontSize(9.5); doc.text(doc.splitTextToSize(notas[i]||"", 700), 40, 410); });
+    await guardarArchivo(`Como va la empresa ${empresaNombre} ${year}.pdf`, doc.output("blob"));
+  }
+
   function listaMeses(){ return Array.from({length:12},(_,i)=>balanzas[mesKey(year,i+1)]).filter(Boolean).map(resumenBalanza); }
   async function renderDashboard(){
     $("yearLabel").textContent = year;
     document.querySelectorAll("[data-dtab]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.dtab===dTab));
+    if(dTab==="duenos"){ $("dmonths").style.display = "none"; renderDuenos(); return; }
     const L = listaMeses();
     $("dmonths").style.display = dTab==="mes" ? "" : "none";
     if(!dMes && L.length) dMes = L[L.length-1].mes;
@@ -4194,6 +4271,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("dmonths").addEventListener("click", e => { const b = e.target.closest("[data-dmes]"); if(b && balanzas[mesKey(year,+b.dataset.dmes)]){ dMes = +b.dataset.dmes; renderDashboard(); } });
 
   async function exportDashboard(fmt){
+    if(dTab==="duenos"){ if(fmt==="pdf") return exportDuenos(); toast("Este resumen se descarga en PDF."); return; }
     const L = listaMeses(); if(!L.length){ toast("Primero sube tus balanzas."); return; }
     const esMes = dTab==="mes", R = L.find(x=>x.mes===dMes) || L[L.length-1], u = L[L.length-1];
     const titulo = esMes ? `${empresaNombre} · Dashboard de ${MESES[R.mes-1]} ${year}` : `${empresaNombre} · Comparativo ${MESES[L[0].mes-1]} a ${MESES[u.mes-1]} ${year}`;
@@ -6134,7 +6212,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     notas: "Tus pendientes, preguntas para tu jefe y notas. Las abiertas se cuentan en el tablero.",
     activos: "Registra tus activos fijos (la app detecta facturas con uso de CFDI de inversión). Calcula depreciación contable mensual, la póliza del mes y la deducción fiscal anual, y la compara contra tu balanza.",
     ventas: "Tus ventas en Mercado Libre, Mercado Pago, TikTok Shop u otras plataformas: sube el reporte de ventas (Excel o CSV) o regístralas a mano. Por mes ves lo vendido por plataforma, comisiones, envíos y neto, lo que Mercado Pago te liberó en el banco y cuánto va a tu factura global.",
-    estados: "Los estados financieros que piden los dueños, armados con tus balanzas de CONTPAQi: balanza de comprobación, estado de resultados (del mes y acumulado, con % sobre ingresos), balance general al cierre del mes y flujo de efectivo por el método indirecto. Descárgalos en PDF o Excel con los botones de arriba.",
+    estados: "Tus estados financieros, armados con tus balanzas de CONTPAQi: balanza de comprobación, estado de resultados (del mes y acumulado, con % sobre ingresos), balance general al cierre del mes y flujo de efectivo por el método indirecto. Descárgalos en PDF o Excel con los botones de arriba.",
     presupuesto: "Sube el presupuesto que hace administración (Excel con la hoja PRESUPUESTO; si trae HOJA CONTROL y ENVIO, también se leen). Al inicio del mes el inicial; al cierre, el actualizado. La app compara inicial, actualizado y lo pagado por subcategoría, te muestra lo que salió fuera de presupuesto, el saldo inicial y final de bancos, y cuánto fondear para el siguiente mes.",
     leyes: "Sube los PDF de las leyes (LISR, LIVA, CFF, LSS, LFT, RMF, estatales…) para leerlas aquí, descargarlas o imprimirlas. Abajo tienes los artículos más usados de cada ley, con tasas y reglas clave, y un buscador por tema.",
     prestaciones: "Referencia rápida para nómina y finiquitos: valores del año (UMA, salario mínimo, topes), cada prestación con su mínimo de ley, cómo se calcula, su exención de ISR y su tratamiento en IMSS, la tabla de vacaciones y una calculadora de finiquito y liquidación con exentos y gravados.",
