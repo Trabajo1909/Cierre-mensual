@@ -408,7 +408,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 52 · Corregir pagos y sugerencias</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 53 · PDF de complementos</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1814,7 +1814,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const docs = [], comps = [], bancoFiles = [], impPdfs = [], noms = [], balPdfs = [], polXlsx = [], canceladas = [], acusesCan = [], txtRes = [], xmlFiles = [];
       for(const file of files){
         if(/\.(xml|zip)$/i.test(file.name)){ xmlFiles.push(file); continue; }
-        if(/\.pdf$/i.test(file.name) && /[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/.test(file.name)){ xmlFiles.push(file); continue; }
+        if(/\.pdf$/i.test(file.name) && (/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/.test(file.name) || files.some(x=>/\.(xml|zip)$/i.test(x.name)))){ xmlFiles.push(file); continue; }
         if(/\.txt$/i.test(file.name) || file.type==="text/plain"){
           const txt = new TextDecoder("windows-1252").decode(await file.arrayBuffer());
           const res = await importarTxtContpaq(txt, file.name);
@@ -6350,7 +6350,21 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(assets){
       const pend = [];
       for(const d of xs){ const T2 = el("TimbreFiscalDigital", d), u = at(T2,"UUID").toUpperCase(); if(u && !(cfdiMap[u]||{}).xml) pend.push({u, tipo:"xml", nombre: d.__nombre || `${u}.xml`, blob: async () => new Blob([d.__texto], {type:"application/xml"})}); }
-      for(const p of pdfs){ const m = p.nombre.match(/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/); if(m){ const u = m[0].toUpperCase(); if(!(cfdiMap[u]||{}).pdf) pend.push({u, tipo:"pdf", nombre: p.nombre, blob: p.blob}); } }
+      // El PDF se liga por el UUID de su nombre; si el nombre no lo trae, se lee el PDF y se toma su folio fiscal
+      const RE_U = /[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/g;
+      const propios = new Set(xs.map(d=>at(el("TimbreFiscalDigital", d),"UUID").toUpperCase()).filter(Boolean));
+      const conocidos = new Set([...complementos.map(c=>String(c.uuid).toUpperCase()), ...facturas.map(f=>String(f.uuid).toUpperCase()), ...nominas.map(n=>String(n.uuid).toUpperCase())]);
+      let leidos = 0;
+      for(const p of pdfs){
+        let u = (p.nombre.match(RE_U)||[])[0];
+        if(!u && leidos < 400){ try{ leidos++; setSaving(`Leyendo PDF ${leidos}…`); const bl = await p.blob(); const L = await leerPdf(new File([bl], p.nombre, {type:"application/pdf"}));
+            const T = L ? L.todo : "", todos = [...T.matchAll(RE_U)].map(x=>x[0].toUpperCase());
+            // Primero el folio fiscal rotulado; si no, el primero que sea de un XML de este lote, un complemento o una factura conocida
+            const rot = (T.match(/folio\s*fiscal[^0-9A-Fa-f]{0,40}([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/i)||[])[1];
+            u = rot || todos.find(x=>propios.has(x)) || todos.find(x=>complementos.some(c=>String(c.uuid).toUpperCase()===x)) || todos.find(x=>conocidos.has(x)) || todos[0];
+          }catch(_){} }
+        if(u){ u = u.toUpperCase(); if(!(cfdiMap[u]||{}).pdf) pend.push({u, tipo:"pdf", nombre: p.nombre, blob: p.blob}); }
+      }
       let i = 0;
       for(const x of pend){ i++; setSaving(`Guardando XML y PDF ${i} de ${pend.length}…`);
         try{ if(!cfdiMap[x.u]){ try{ const s = await db.doc(`empresas/${empresa}/cfdi/${x.u}`).get(); if(s.exists) cfdiMap = {...cfdiMap, [x.u]: s.data()}; }catch(_){} }
