@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 69 · Lee fotos y escaneos</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 72 · Revisión de IVA y sueldos en Balanza</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -4119,14 +4119,26 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const c21301 = get("213-01-000");
     if(k.ivaNeto>0.009){
       // El IVA a cargo se puede haber pagado (213-01) o compensado con saldos a favor (abonos a las subcuentas de 113-01)
-      const comp113 = r2(hijos("113-01").filter(c=>!/-000$/.test(c.cuenta)).reduce((s,c)=>s+(+c.abonos||0),0)), en213 = c21301 ? r2(c21301.abonos) : 0, bal = r2(en213 + comp113);
+      // Solo cuentan como compensación los abonos a saldos a favor de MESES ANTERIORES (no la subcuenta del mes, que se mueve con la propia determinación)
+      const subsComp = hijos("113-01").filter(c=>!/-000$/.test(c.cuenta) && c!==ivaMes && (+c.abonos||0) > 0.004);
+      const comp113 = r2(subsComp.reduce((s,c)=>s+(+c.abonos||0),0)), en213 = c21301 ? r2(c21301.abonos) : 0;
+      // La compensación con saldos a favor solo se suma si el IVA del mes no pasó completo por la 213-01
+      const sumaComp = comp113 > 0 && Math.abs(en213 - k.ivaNeto) > 1 && Math.abs(en213 + comp113 - k.ivaNeto) <= 1, bal = r2(en213 + (sumaComp ? comp113 : 0));
       add("Movimientos del mes", `IVA a cargo de ${MESES[m-1].toLowerCase()}`, (c21301 || comp113) ? bal : null, k.ivaNeto,
-        c21301 || comp113 ? `${en213?`213-01 por pagar ${money.format(en213)}`:""}${en213&&comp113?" + ":""}${comp113?`compensado con IVA a favor (113-01) ${money.format(comp113)}`:""}` : "No encontré la cuenta 213-01 IVA por pagar ni compensaciones en 113-01");
+        c21301 || comp113 ? `Movimiento del mes: ${en213?`abonos a 213-01 (IVA por pagar) por ${money.format(en213)}`:""}${sumaComp?` + compensado con IVA a favor ${money.format(comp113)}`:""}${comp113 && !sumaComp?` · Aparte, en 113-01 hubo abonos por ${money.format(comp113)} (${subsComp.map(c=>`${c.cuenta} ${c.nombre}`).join(", ")}): son aplicaciones de IVA a favor de otros meses, no forman parte del IVA a cargo de este mes.`:""}${c21301?` · El saldo final de 213-01 es ${money.format(Math.abs(+c21301.sf||0))}: incluye IVA de meses anteriores que aún no se paga, por eso puede ser mayor.`:""}` : "No encontré la cuenta 213-01 IVA por pagar ni compensaciones en 113-01");
     }
     else if(ivaMes || k.ivaNeto<0) add("Movimientos del mes", `IVA a favor de ${MESES[m-1].toLowerCase()}`, ivaMes ? r2(ivaMes.cargos - ivaMes.abonos) : null, r2(-k.ivaNeto), ivaMes ? "Cuenta 113-01" : "No encontré la subcuenta del mes en 113-01");
     const c216 = ["216-01-000","216-02-000"].map(get).filter(Boolean); if(c216.length) add("Movimientos del mes", "ISR retenido por sueldos y asimilados", r2(c216.reduce((s,c)=>s+c.abonos,0)), r2(k.nom.isrSueldos + k.nom.isrAsim), "Nóminas del mes");
     const c21611 = get("216-11-000"); if(c21611) add("Movimientos del mes", "IMSS obrero retenido", r2(c21611.abonos), r2(nominas.filter(n=>n.anio===y && n.mes===m && vigente(n)).reduce((s,n)=>s+(+n.imss||0),0)), "Nóminas del mes");
-    const sue = ["601-01-000","601-09-000"].map(get).filter(Boolean); if(sue.length) add("Movimientos del mes", "Sueldos y salarios (incluye días festivos)", r2(sue.reduce((s,c)=>s+c.cargos,0)), k.nom.sueldos, "Nóminas con IMSS");
+    const sue = ["601-01-000","601-09-000"].map(get).filter(Boolean);
+    if(sue.length){
+      // Si los recibos traen el detalle por concepto (XML o reporte completo), se compara solo sueldo y días festivos; el resto de percepciones va en otras cuentas
+      const nomsS = nominas.filter(n=>n.anio===y && n.mes===m && vigente(n) && +n.imss>0), otras = {}; let sueldoDet = 0, conDetalle = nomsS.length && nomsS.every(n=>n.conceptos && Object.keys(n.conceptos.perc||{}).length && !Object.keys(n.conceptos.perc).some(kk=>/sin detalle/i.test(kk)));
+      if(conDetalle) nomsS.forEach(n=>Object.entries(n.conceptos.perc).forEach(([kk,v])=>{ if(/sueldo|salario|festiv|jornal/i.test(kk)) sueldoDet += +v||0; else otras[kk] = r2((otras[kk]||0) + (+v||0)); }));
+      const otrasTxt = Object.entries(otras).map(([kk,v])=>`${kk} ${money.format(v)}`).join(", ");
+      add("Movimientos del mes", "Sueldos y salarios (incluye días festivos)", r2(sue.reduce((s,c)=>s+c.cargos,0)), conDetalle ? r2(sueldoDet) : k.nom.sueldos,
+        conDetalle ? `Solo el concepto de sueldos de tus recibos con IMSS${otrasTxt?`; las demás percepciones (${otrasTxt}) van en otras cuentas`:""}.` : "Total de percepciones de los recibos con IMSS. Incluye otras percepciones (prima vacacional, bonos, horas extra…) que en tu balanza van en otras cuentas: sube los XML de nómina para comparar solo el sueldo.");
+    }
     const asi = get("601-31-000"); if(asi) add("Movimientos del mes", "Asimilados a salarios", r2(asi.cargos), k.nom.asim, "Nóminas sin IMSS");
     const isn = get("213-04-000"); if(isn) add("Movimientos del mes", "Provisión de ISN", r2(isn.abonos), k.isn, "Cálculo de impuestos");
     const imP = get("211-01-000"), dI = (declDe(y, m, "imss")||{}).imssDet;
