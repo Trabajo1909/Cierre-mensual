@@ -406,11 +406,11 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="finanzas" aria-selected="false">Finanzas</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="leyes" aria-selected="false">Leyes</button><button class="view" data-view="prestaciones" aria-selected="false">Nómina: calculadora y prestaciones</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas y cuentas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="finanzas" aria-selected="false">Finanzas</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="leyes" aria-selected="false">Leyes</button><button class="view" data-view="prestaciones" aria-selected="false">Nómina: calculadora y prestaciones</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 63 · Finanzas con explicaciones y resumen</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 64 · Facturas y cuentas en una sola sección</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -449,14 +449,17 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
     <div id="obsPanel"></div>
     <div class="ftools">
       <div class="seg" aria-label="Tipo de factura"><button data-tipo="emitida" aria-pressed="true">Emitidas</button><button data-tipo="recibida" aria-pressed="false">Recibidas</button></div>
-      <label class="check inline"><input type="checkbox" id="soloPend"> Mostrar solo pendientes</label>
+      <label class="check inline" style="display:none"><input type="checkbox" id="soloPend"> Mostrar solo pendientes</label>
+      <div class="seg" aria-label="Vista"><button data-fvista="lista" aria-pressed="true">Lista</button><button data-fvista="tercero" aria-pressed="false">Por cliente o proveedor</button><button data-fvista="concppd" aria-pressed="false">PPD vs complementos</button></div>
       <input id="fBuscar" type="search" placeholder="Buscar proveedor o cliente, RFC o folio" style="max-width:280px" aria-label="Buscar factura">
       <button class="btn sm" id="folderBtn" type="button" title="Sube la carpeta de AdminXML con los XML y PDF">Subir carpeta de XML y PDF</button><input type="file" id="folderFile" webkitdirectory multiple hidden>
     </div>
+    <div id="fFiltros" class="ftools" style="margin-top:4px"></div>
     <div class="months" id="months"></div>
     <p class="fsum" id="fsum"></p>
     <div class="sheet" id="fsheet"></div>
-    <p class="note">Toca <strong>Provisión</strong> cuando hagas la póliza en CONTPAQi y la columna de cuentas cuando la registres en tu control. Un segundo toque la marca como No aplica, y un tercero la regresa a pendiente. Cuando todas las facturas de un mes estén listas, la revisión se marca sola en verde en tu tablero.</p>
+    <div id="fCuentasBox" hidden></div>
+    <p class="note" id="fNota">Cada factura muestra su provisión, su póliza de cobro o pago, lo cobrado o pagado y su saldo. Toca la fila para ver y registrar cobros o pagos, sus complementos y su UUID.</p>
   </section>
 
   <section id="vCuentas" hidden>
@@ -1598,7 +1601,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
     $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas"; $("vCalendario").hidden = v!=="calendario"; $("vPrestaciones").hidden = v!=="prestaciones"; $("vLeyes").hidden = v!=="leyes"; $("vFinanzas").hidden = v!=="finanzas";
-    $("viewTitle").textContent = {facturas:"Facturas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario", prestaciones:"Nómina: calculadora y prestaciones", leyes:"Leyes", finanzas:"Finanzas"}[v] || "Cierre";
+    $("viewTitle").textContent = {facturas:"Facturas y cuentas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario", prestaciones:"Nómina: calculadora y prestaciones", leyes:"Leyes", finanzas:"Finanzas"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
     $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || v==="prestaciones" || v==="leyes" || v==="finanzas" || !canWrite;
     const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario","prestaciones","leyes","finanzas"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario","prestaciones","leyes","finanzas"].includes(v);
@@ -1698,8 +1701,24 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const tot = r2(+f.total||0), mov = p.movs.find(mm=>Math.abs(((+mm.ca||0)||(+mm.ab||0)) - tot) <= 1);
     return {id, fecha: p.fecha, monto: mov ? tot : null};
   }
+  let fPeriodo = "mes", fFiltro = "todas", fVista = "lista", fAbiertos = new Set();
+  document.addEventListener("click", e => {
+    const pe = e.target.closest("[data-fper]"); if(pe){ fPeriodo = pe.dataset.fper; renderFacturas(); return; }
+    const fi = e.target.closest("[data-ffil]"); if(fi){ fFiltro = fi.dataset.ffil; renderFacturas(); return; }
+    const vi = e.target.closest("[data-fvista]"); if(vi){ fVista = vi.dataset.fvista; renderFacturas(); return; }
+  });
   function renderFacturas(){
     $("yearLabel").textContent = year;
+    // Vistas de cuentas dentro de esta misma sección
+    document.querySelectorAll("[data-fvista]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.fvista===fVista));
+    if(fVista!=="lista"){
+      const box = $("fCuentasBox"); if($("csheet").parentElement!==box){ box.appendChild($("cstats")); box.appendChild($("csheet")); }
+      box.hidden = false; $("fsheet").hidden = true; $("months").style.display = "none"; $("fFiltros").style.display = "none"; $("fsum").innerHTML = ""; $("fNota").hidden = true;
+      ctSel = tipoSel; filSel = fVista; renderCuentas(); return;
+    }
+    $("fCuentasBox").hidden = true; $("fsheet").hidden = false; $("fFiltros").style.display = ""; $("fNota").hidden = false; $("months").style.display = fPeriodo==="mes" ? "" : "none";
+    const FIL = [["todas","Todas"],["saldo","Con saldo"],["vencidas","Vencidas"],["pagadas", tipoSel==="emitida"?"Cobradas":"Pagadas"],["ppd","PPD"],["pue","PUE"],["comp","Falta complemento"],["poliza","Falta póliza"]];
+    $("fFiltros").innerHTML = `<div class="seg" aria-label="Periodo"><button data-fper="mes" aria-pressed="${fPeriodo==="mes"}">Del mes</button><button data-fper="anio" aria-pressed="${fPeriodo==="anio"}">Todo ${year}</button><button data-fper="saldo" aria-pressed="${fPeriodo==="saldo"}">Con saldo (todos los años)</button></div><div class="chips">${FIL.map(([k,t])=>`<button class="chip" data-ffil="${k}" aria-pressed="${fFiltro===k}">${t}</button>`).join("")}</div>`;
     renderObservaciones();
     const lista = delAnio();
     const pendTot = facturas.filter(f => f.anio===year && vigente(f) && !completa(f)).length;
@@ -1719,32 +1738,47 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }).join("");
     if(!facLoaded){ $("fsheet").innerHTML = '<div class="empty">Cargando…</div>'; $("fsum").textContent=""; return; }
     const qF = normTxt($("fBuscar").value||"");
-    let rows = (qF ? lista.filter(f=>normTxt(`${f.nombre} ${f.rfc} ${f.folio} ${f.uuid}`).includes(qF)) : lista.filter(f=>f.mes===mesSel)).sort((a,b)=> (vigente(b)-vigente(a)) || String(a.fecha).localeCompare(String(b.fecha)));
+    const IDX0 = indices();
+    const basePer = fPeriodo==="anio" ? lista : fPeriodo==="saldo" ? facturas.filter(f=>f.tipo===tipoSel && vigente(f) && cuentaDe(f, IDX0).saldo > 0.5) : lista.filter(f=>f.mes===mesSel);
+    let rows = (qF ? (fPeriodo==="saldo" ? basePer : lista).filter(f=>normTxt(`${f.nombre} ${f.rfc} ${f.folio} ${f.uuid}`).includes(qF)) : basePer).sort((a,b)=> (vigente(b)-vigente(a)) || String(a.fecha).localeCompare(String(b.fecha)));
     const vig = rows.filter(vigente), canc = rows.length - vig.length;
     if(qF){ const tot = vig.reduce((s,f)=>s+(+f.total||0),0); }
     const RX = (()=>{ try{ return conciliarXml(); }catch(_){ return null; } })(), IDX = indices(), estC = {};
     vig.forEach(f=>{ estC[f.uuid] = estadoContable(f, RX, IDX); });
     const sinProv = vig.filter(f=>f.metodo==="PPD" && !estC[f.uuid].prov && !listo(f.prov)).length, sinCtrl = vig.filter(f=>estC[f.uuid].pagoFalta).length;
+    // Indicadores de cobranza o pagos del periodo
+    { const ce = f => estC[f.uuid].cta, sal = r2(vig.reduce((s,f)=>s+ce(f).saldo,0)), venc = vig.filter(f=>ce(f).estatus==="vencido"), pag = vig.filter(f=>ce(f).estatus==="pagado"), pend = vig.filter(f=>ce(f).saldo>0.5), sinComp = vig.filter(f=>f.metodo==="PPD" && ce(f).comp==="falta");
+      window.__fKpi = `<div class="kpis" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+        <div class="kpi"><span>${tipoSel==="emitida"?"Por cobrar":"Por pagar"}</span><b style="font-size:18px">${money.format(sal)}</b><small>${pend.length} ${pend.length===1?"factura con saldo":"facturas con saldo"}</small></div>
+        <div class="kpi"><span>Vencidas</span><b style="font-size:18px;color:${venc.length?"var(--late-ink)":"inherit"}">${venc.length}</b><small>${money.format(r2(venc.reduce((s,f)=>s+ce(f).saldo,0)))}</small></div>
+        <div class="kpi"><span>${tipoSel==="emitida"?"Cobradas":"Pagadas"}</span><b style="font-size:18px">${pag.length}</b><small>de ${vig.length} vigentes</small></div>
+        <div class="kpi"><span>Falta complemento</span><b style="font-size:18px">${sinComp.length}</b><small>PPD ya ${tipoSel==="emitida"?"cobradas":"pagadas"}</small></div></div>`; }
+    if(fFiltro!=="todas"){ const ok = f => { if(!vigente(f)) return false; const ec = estC[f.uuid] || estadoContable(f, RX, IDX), c = ec.cta;
+        return fFiltro==="saldo" ? c.saldo>0.5 : fFiltro==="vencidas" ? c.estatus==="vencido" : fFiltro==="pagadas" ? c.estatus==="pagado" : fFiltro==="ppd" ? f.metodo==="PPD" : fFiltro==="pue" ? f.metodo==="PUE" : fFiltro==="comp" ? f.metodo==="PPD" && c.comp==="falta" : fFiltro==="poliza" ? ((f.metodo==="PPD" && !ec.prov && !listo(f.prov)) || ec.pagoFalta) : true; };
+      rows = rows.filter(ok); }
     const tipoTxt = tipoSel==="emitida" ? "emitidas" : "recibidas";
     $("fsum").innerHTML = !rows.length ? "" :
-      `${qF ? `Búsqueda en todo ${year}` : MESES[mesSel-1]}: ${vig.length} ${tipoTxt} vigentes${canc?` y ${canc} ${canc===1?"cancelada":"canceladas"}`:""}. ` +
+      `${qF ? `Búsqueda en ${fPeriodo==="saldo"?"facturas con saldo":`todo ${year}`}` : fPeriodo==="anio" ? `Todo ${year}` : fPeriodo==="saldo" ? "Con saldo (todos los años)" : MESES[mesSel-1]}: ${vig.length} ${tipoTxt} vigentes${canc?` y ${canc} ${canc===1?"cancelada":"canceladas"}`:""}. ` +
       (sinProv||sinCtrl ? `PPD sin póliza de provisión: <strong>${sinProv}</strong> · ${tipoSel==="emitida"?"cobros":"pagos"} sin póliza de ${tipoSel==="emitida"?"ingresos":"egresos"}: <strong>${sinCtrl}</strong>.` : "<strong>Todo listo.</strong>");
     // Cuántas son PPD y cuántas PUE, del mes y del año
     { const vAnio = lista.filter(vigente), cuenta = (xs, m) => { const ys = xs.filter(f=>f.metodo===m); return {n: ys.length, t: r2(ys.reduce((s,f)=>s+(+f.total||0),0))}; };
       const mM = {ppd: cuenta(vig,"PPD"), pue: cuenta(vig,"PUE")}, mA = {ppd: cuenta(vAnio,"PPD"), pue: cuenta(vAnio,"PUE")}, f = money.format;
       const caja = (t, x) => `<div class="kpi" style="min-width:0"><span>${t}</span><b style="font-size:18px">${x.ppd.n} PPD · ${x.pue.n} PUE</b><small>PPD ${f(x.ppd.t)} · PUE ${f(x.pue.t)}<br>${x.ppd.n+x.pue.n ? `${Math.round(x.ppd.n/(x.ppd.n+x.pue.n)*100)}% en PPD` : ""}</small></div>`;
-      $("fsum").innerHTML += `<div class="kpis" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${qF ? "" : caja(`${MESES[mesSel-1]} ${year}`, mM)}${caja(`Todo ${year}`, mA)}</div>`; }
+      $("fsum").innerHTML += `<div class="kpis" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${qF || fPeriodo!=="mes" ? "" : caja(`${MESES[mesSel-1]} ${year}`, mM)}${caja(`Todo ${year}`, mA)}</div>` + (window.__fKpi||""); }
     if(soloPend) rows = rows.filter(f=>vigente(f) && !completa(f));
     if(!facturas.length){ $("fsheet").innerHTML = `<div class="empty">Todavía no hay facturas. Usa <strong>Subir reporte de AdminXML</strong> para cargarlas.</div>`; return; }
     if(!rows.length){ $("fsheet").innerHTML = `<div class="empty">${soloPend && lista.some(f=>f.mes===mesSel) ? "No hay pendientes en este mes." : `No hay facturas ${tipoTxt} en ${MESES[mesSel-1].toLowerCase()}.`}</div>`; return; }
-    let t = `<table class="ft"><thead><tr><th>Fecha</th><th>${tipoSel==="emitida"?"Cliente":"Proveedor"}</th><th>Folio / UUID</th><th>Método</th><th class="num">Total</th><th>Provisión</th><th>Contabilidad</th><th>${CTRL_LBL[tipoSel]}</th></tr></thead><tbody>`;
+    const verboF = tipoSel==="emitida" ? "cobro" : "pago";
+    let t = `<table class="ft"><thead><tr><th>Fecha</th><th>${tipoSel==="emitida"?"Cliente":"Proveedor"}</th><th>Folio / UUID</th><th>Método</th><th class="num">Total</th><th class="num">${tipoSel==="emitida"?"Cobrado":"Pagado"} / saldo</th><th>Provisión</th><th>Contabilidad</th><th>${tipoSel==="emitida"?"Cobranza":"Pago"}</th></tr></thead><tbody>`;
     for(const f of rows){
-      const v = vigente(f);
-      t += `<tr class="${v?"":"canc"}"><td>${fechaCorta(f.fecha)}</td>
+      const v = vigente(f), abiertoF = fAbiertos.has(f.id);
+      t += `<tr class="${v?"":"canc"} frow" data-frow="${esc(f.id)}" style="cursor:pointer"><td>${abiertoF?"▾":"▸"} ${fechaCorta(f.fecha)}${f.anio!==year?` <span class="fsub">${f.anio}</span>`:""}</td>
         <td><div class="fname" title="${esc(f.nombre)}">${esc(f.nombre||"—")}</div><div class="fsub" title="${esc(f.conceptos||"")}">${v?esc(f.conceptos||""):f.canceladaManual?"Marcada como cancelada por ti":"Cancelada en el SAT"}</div>${botonesCfdi(f.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(f.uuid)}</div>` : ""}${!v && f.canceladaManual && canWrite && !f.acuseCancel ? `<button class="btn sm" data-descancelar="${esc(f.id)}" style="margin-top:4px;opacity:1">Fue un error: volver a vigente</button>` : ""}${!v ? (f.acuseCancel ? `<div class="fsub" style="max-width:none;opacity:1"><span class="st pagado">Acuse de cancelación</span> <button class="linkbtn" data-acusedl="${esc(f.id)}">${esc(f.acuseCancel.nombre)}</button>${f.acuseCancel.fecha?` · cancelada el ${fechaCorta(f.acuseCancel.fecha)} ${f.acuseCancel.fecha.slice(0,4)}`:""}</div>` : `<div class="fsub" style="max-width:none;opacity:1"><span class="st parcial">Falta acuse de cancelación</span>${canWrite?` <button class="linkbtn" data-acuseup="${esc(f.id)}">Subir acuse</button>`:""}</div>`) : ""}${v && canWrite ? `<button class="linkbtn" data-cancelar="${esc(f.id)}" style="font-size:11px">Marcar como cancelada</button>` : ""}</td>
         <td style="min-width:150px">${f.folio?`<div>${esc(f.folio)}</div>`:""}${uuidHTML(f.uuid)}${f.metodo==="PPD"?complementosHTML(f):""}</td>
         <td><span class="mp ${f.metodo==="PPD"?"ppd":""}">${esc(f.metodo||"—")}</span></td>
         <td class="num">${money.format(+f.total||0)}</td>`;
+      const cF = v ? (estC[f.uuid] || estadoContable(f, RX, IDX)).cta : null;
+      t += `<td class="num">${v ? `${money.format(cF.abonado)}<div class="fsub">saldo <strong>${money.format(cF.saldo)}</strong></div>` : ""}</td>`;
       if(!v){ t += `<td></td><td></td><td></td>`; }
       else {
         const ec = estC[f.uuid], chip = (cls, txt, tit) => `<span class="st ${cls}" title="${esc(tit||"")}" style="white-space:nowrap">${esc(txt)}</span>`;
@@ -1758,9 +1792,18 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         // CxC / CxP: estatus del pago y complemento
         const c = ec.cta, est = {pagado:["pagado","Pagada"], parcial:["parcial","Pago parcial"], vencido:["vencido","Vencida"], pendiente:["pendiente","Pendiente"]}[c.estatus] || ["na",""];
         const comp = f.metodo!=="PPD" ? "" : c.comp==="ok" ? chip("pagado","Con complemento") : c.comp==="falta" ? chip("vencido","Falta complemento") : "";
-        t += `<td>${prov}</td><td>${cont}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${chip(est[0], tipoSel==="emitida" && est[1]==="Pagada" ? "Cobrada" : est[1])}${comp}</div></td>`;
+        const diasTxt = c.saldo>0.5 ? (c.dias<0 ? `venció hace ${-c.dias} días` : c.dias===0 ? "vence hoy" : `vence en ${c.dias} días`) : "";
+        const ppol = c.saldo>0.5 && !(c.abs||[]).length ? pagoEnPolizas(f) : null;
+        t += `<td>${prov}</td><td>${cont}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${chip(est[0], tipoSel==="emitida" && est[1]==="Pagada" ? "Cobrada" : est[1])}${comp}</div>${diasTxt?`<div class="fsub">${diasTxt}</div>`:""}${ppol?`<div style="margin-top:3px"><span class="st parcial" style="font-size:11px">En póliza ${esc(ppol.id)}</span>${canWrite?` <button class="linkbtn" data-abpol="${esc(f.id)}" style="font-size:12px">registrar ${verboF} con la póliza</button> · <button class="linkbtn" data-nopol="${esc(f.id)}" style="font-size:12px">no es esta</button>`:""}</div>`:""}${canWrite && c.saldo>0.5 ? `<div style="margin-top:4px"><button class="btn sm" data-abonar="${esc(f.id)}">Registrar ${verboF}</button></div>` : ""}</td>`;
       }
       t += `</tr>`;
+      if(abiertoF && v){
+        const c = cF;
+        let d = `<div class="det-list"><div class="h">${tipoSel==="emitida"?"Cobros":"Pagos"} registrados</div>`;
+        d += c.abs.length ? c.abs.map(a=>`<div><span>${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}</span><strong>${money.format(+a.monto||0)}</strong>${a.nota?`<span class="fsub">${esc(a.nota)}</span>`:""}${canWrite?`<button class="linkbtn" data-editab="${esc(a.id)}">Editar</button> <button class="linkbtn" data-delab="${esc(a.id)}">Quitar</button>`:""}</div>`).join("") : `<div class="fsub">Ninguno todavía.${canWrite && c.saldo>0.5 ? ` <button class="linkbtn" data-abonar="${esc(f.id)}">Registrar ${verboF}</button>` : ""}</div>`;
+        d += `<div class="h">Vencimiento</div><div><span>${c.vence?`${fechaCorta(c.vence)} ${String(c.vence).slice(0,4)}`:"—"}</span><span class="fsub">${f.metodo==="PPD"?`complementos pagados: ${money.format(c.compPagado||0)}`:"PUE: se paga al facturar"}</span></div></div>`;
+        t += `<tr class="det"><td colspan="9">${d}</td></tr>`;
+      }
     }
     t += `</tbody></table>`;
     $("fsheet").innerHTML = t;
@@ -1789,6 +1832,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         setSaving("Guardado"); }catch(err){ handleWriteError(err); }
       return;
     }
+    const abF = e.target.closest("[data-abonar]"); if(abF){ abrirAbono(abF.dataset.abonar); return; }
+    const edF = e.target.closest("[data-editab]"); if(edF){ const a = abonos.find(x=>x.id===edF.dataset.editab); const fx = a && facturas.find(x=>x.uuid===a.uuid); if(fx) abrirAbono(fx.id, a); return; }
+    const deF = e.target.closest("[data-delab]"); if(deF){ const a = abonos.find(x=>x.id===deF.dataset.delab); if(!a) return; if(!await confirmar(`¿Quitar el registro de ${money.format(+a.monto||0)} del ${fechaCorta(a.fecha)}?`)) return; try{ setSaving("Guardando…"); await db.doc(`empresas/${empresa}/abonos/${a.id}`).delete(); setSaving("Guardado"); }catch(err){ handleWriteError(err); } return; }
+    const apF = e.target.closest("[data-abpol]"); if(apF){ const fx = facturas.find(x=>x.id===apF.dataset.abpol); if(!fx) return; try{ setSaving("Guardando…"); if(await registrarDesdePoliza(fx)) toast("Registrado con la fecha de la póliza."); setSaving("Guardado"); }catch(err){ handleWriteError(err); } return; }
+    const npF = e.target.closest("[data-nopol]"); if(npF){ const fx = facturas.find(x=>x.id===npF.dataset.nopol); if(!fx) return; const ppx = pagoEnPolizas(fx); if(!ppx) return; const lista = [...new Set([...(fx.polPagoNo||[]), ppx.id])]; fx.polPagoNo = lista; try{ await db.doc(`empresas/${empresa}/facturas/${fx.id}`).update({polPagoNo: lista}); }catch(err){ handleWriteError(err); } renderFacturas(); return; }
+    const fr = e.target.closest("tr.frow"); if(fr && !e.target.closest("button, a, select, input, .vtip, .ayuda")){ const id = fr.dataset.frow; fAbiertos.has(id) ? fAbiertos.delete(id) : fAbiertos.add(id); renderFacturas(); return; }
     const pp = e.target.closest("[data-polpick]"); if(pp){ const fx = facturas.find(x=>x.id===pp.dataset.polpick); if(fx) abrirPolPick(fx, pp.dataset.campo); return; }
     const b = e.target.closest(".cell, [data-marca], [data-desmarca]"); if(!b || !canWrite || !db || !b.dataset.f) return;
     const f = facturas.find(x=>x.id===b.dataset.f); if(!f) return;
@@ -3138,7 +3187,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // IVA
     const ePUE = emit.filter(f=>enMes(f) && f.metodo==="PUE"), rPUE = reci.filter(f=>enMes(f) && f.metodo==="PUE");
     const cE = compMes("emitida"), cR = compMes("recibida");
-    // Cobros del mes: primero los cobros registrados en Cuentas (fecha real); si una factura no tiene, sus complementos.
+    // Cobros del mes: primero los cobros registrados en Facturas y cuentas (fecha real); si una factura no tiene, sus complementos.
     if(!memo.__idxC){ const ab = {}, cp = {}; abonos.forEach(a=>{ if(a.tipo==="cobro") (ab[a.uuid] ||= []).push(a); }); complementos.forEach(c=>{ if(c.tipo==="emitida" && vig(c)) (cp[c.doc] ||= []).push(c); }); memo.__idxC = {ab, cp}; }
     const cobrosMes = [];
     emit.filter(f=>f.metodo==="PPD" && +f.total>0).forEach(f=>{
@@ -3148,7 +3197,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     });
     const huerfE = cE.filter(c=>!fac[c.doc]);
     const trasBase = r2(S(ePUE,f=>f.ivaBase) + S(cobrosMes,x=>x.f.ivaBase*x.p) + S(huerfE,c=>c.ivaBase)), tras = r2(S(ePUE,f=>f.iva) + S(cobrosMes,x=>x.f.iva*x.p) + S(huerfE,c=>c.iva));
-    // Pagos a proveedores del mes: primero los pagos registrados en Cuentas (fecha real); si una factura no tiene, sus complementos.
+    // Pagos a proveedores del mes: primero los pagos registrados en Facturas y cuentas (fecha real); si una factura no tiene, sus complementos.
     if(!memo.__idx){ const ab = {}, cp = {}; abonos.forEach(a=>{ if(a.tipo==="pago") (ab[a.uuid] ||= []).push(a); }); complementos.forEach(c=>{ if(c.tipo==="recibida" && vig(c)) (cp[c.doc] ||= []).push(c); }); memo.__idx = {ab, cp}; }
     const {ab: abIdx, cp: cpIdx} = memo.__idx, mk = mesKey(y,m);
     const pagosMes = []; // {f, p}
@@ -4209,12 +4258,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     </div>`;
     h += `<div class="dgrid" style="margin-top:16px">
       ${panel(0, "Ventas contra gastos, por mes", "lo que facturaste (ventas) contra lo que te facturaron tus proveedores, más la nómina, mes por mes.", "facturas emitidas y recibidas vigentes, sin IVA; nómina = percepciones de los recibos.", `el mes con más ventas fue <strong>${MESES[(mI.m||1)-1]}</strong> (${f(+mI.ingFact||0)}) y el de más gasto con proveedores <strong>${MESES[(mG.m||1)-1]}</strong> (${f(+mG.gasFact||0)}). Cuando la barra de gastos más nómina supera a la de ventas, ese mes la operación necesitó fondeo.`)}
-      ${panel(1, "Dinero que entró y salió", "el flujo real del dinero: cobros a clientes y fondeo contra pagos a proveedores, nómina e impuestos.", "cobros y pagos registrados en Cuentas y facturas PUE; fondeo = depósitos del banco que no son cobros ni traspasos.", `en el año entraron <strong>${f(r2(cob + fon))}</strong> (${f(cob)} de clientes y ${f(fon)} de fondeo) y se pagaron <strong>${f(pag)}</strong> a proveedores.`)}
+      ${panel(1, "Dinero que entró y salió", "el flujo real del dinero: cobros a clientes y fondeo contra pagos a proveedores, nómina e impuestos.", "cobros y pagos registrados en Facturas y cuentas y facturas PUE; fondeo = depósitos del banco que no son cobros ni traspasos.", `en el año entraron <strong>${f(r2(cob + fon))}</strong> (${f(cob)} de clientes y ${f(fon)} de fondeo) y se pagaron <strong>${f(pag)}</strong> a proveedores.`)}
       ${panel(2, "IVA del mes: cobrado contra pagado", "el IVA que cobraste en tus ventas contra el IVA que pagaste en tus compras, y el resultado de cada mes.", "IVA trasladado = IVA de lo cobrado en el mes; IVA acreditable = IVA de lo pagado a proveedores con factura; resultado = trasladado − acreditable − retenciones de clientes + retenciones a proveedores.", favor ? `en los meses en que el resultado es negativo hubo <strong>saldo a favor</strong> (en total ${f(r2(favor))}): pagaste más IVA del que cobraste, normalmente porque compras e inviertes más de lo que vendes.` : "cuando el resultado es positivo, ese IVA se entrega al SAT el día 17 del mes siguiente.")}
       ${panel(3, "Impuestos y cuotas por autoridad", "lo que se paga cada mes al SAT (ISR, IVA y retenciones), al SATEG (impuesto sobre nómina y cedulares) y al IMSS (cuotas obrero-patronales).", "declaraciones presentadas (o calculadas si aún no se presentan) y líneas de captura del SIPARE.", `en el año: SAT <strong>${f(S(D.R,"impSAT"))}</strong>, SATEG <strong>${f(S(D.R,"impSATEG"))}</strong> e IMSS <strong>${f(S(D.R,"impIMSS"))}</strong>.`)}
       ${panel(4, "Principales proveedores del año", "a quién le compras más, sin IVA.", "suma de las facturas recibidas vigentes de cada proveedor en el año.", D.prov.length ? `<strong>${esc(D.prov[0][0])}</strong> concentra el ${gas?Math.round(D.prov[0][1]/gas*100):0}% del gasto con proveedores.` : "", 300)}
       ${panel(5, "Principales clientes del año", "quién te compra más, sin IVA.", "suma de las facturas emitidas vigentes a cada cliente en el año.", D.cli.length ? `<strong>${esc(D.cli[0][0])}</strong> representa el ${ing?Math.round(D.cli[0][1]/ing*100):0}% de las ventas: si es más del 30%, hay dependencia de un solo cliente.` : "", 300)}
-      ${panel(7, "Lo que te deben y lo que debes", "al cierre de cada mes, cuánto te deben tus clientes (por cobrar) y cuánto debes a tus proveedores (por pagar).", "saldo de las facturas vigentes emitidas y recibidas hasta el último día de cada mes, menos los cobros y pagos registrados en Cuentas.", (()=>{ const u = D.saldos[D.saldos.length-1]||{}; return `hoy te deben <strong>${f(u.cxc||0)}</strong> y debes <strong>${f(u.cxp||0)}</strong>. Si lo que debes crece más rápido que lo que te deben, la empresa se está financiando con sus proveedores.`; })())}
+      ${panel(7, "Lo que te deben y lo que debes", "al cierre de cada mes, cuánto te deben tus clientes (por cobrar) y cuánto debes a tus proveedores (por pagar).", "saldo de las facturas vigentes emitidas y recibidas hasta el último día de cada mes, menos los cobros y pagos registrados en Facturas y cuentas.", (()=>{ const u = D.saldos[D.saldos.length-1]||{}; return `hoy te deben <strong>${f(u.cxc||0)}</strong> y debes <strong>${f(u.cxp||0)}</strong>. Si lo que debes crece más rápido que lo que te deben, la empresa se está financiando con sus proveedores.`; })())}
       ${D.contable.some(x=>x.res!=null) ? panel(8, "Resultado contable y efectivo", "la utilidad o pérdida acumulada del año según tu contabilidad y el dinero en caja y bancos al cierre de cada mes.", "de tus balanzas de CONTPAQi: ingresos − costos − gastos acumulados (cuentas 4xx a 7xx) y saldo de las cuentas 101 a 103.", (()=>{ const u = [...D.contable].reverse().find(x=>x.res!=null); return u ? `al cierre de ${MESES[u.m-1].toLowerCase()} la empresa lleva una ${u.res>=0?"utilidad":"pérdida"} de <strong>${f(Math.abs(u.res))}</strong> y tiene <strong>${f(u.efectivo)}</strong> en caja y bancos.` : ""; })()) : ""}
       ${panel(6, "Nómina por mes", "cuánto cuesta el equipo cada mes, separado en sueldos (con IMSS) y asimilados.", "percepciones de los recibos de nómina timbrados en el mes.", nom ? `la nómina equivale al <strong>${ing?Math.round(nom/ing*100):0}%</strong> de las ventas del año.` : "")}
     </div>
@@ -4274,8 +4323,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ${bancos.length ? panelExp(off+2, "Bancos del mes", "por cada cuenta: con cuánto empezó, cuánto entró, cuánto salió y con cuánto terminó.", "movimientos de tus estados de cuenta del mes cargados en Bancos.", `en total entraron <strong>${f(r2(bancos.reduce((s,x)=>s+x.dep,0)))}</strong>, salieron <strong>${f(r2(bancos.reduce((s,x)=>s+x.ret,0)))}</strong> y el saldo final de todas las cuentas es <strong>${f(r2(bancos.reduce((s,x)=>s+x.sf,0)))}</strong>.`) : `<div class="bpanel"><h3>Bancos del mes</h3><div class="empty" style="padding:14px">Sube los estados de cuenta de ${MESES[m-1].toLowerCase()} en Bancos para ver esta gráfica.</div></div>`}
       ${panelExp(off+3, "Clientes del mes", "a quién le facturaste más este mes, sin IVA.", "facturas emitidas vigentes del mes, sumadas por cliente.", cliM.length ? `facturaste <strong>${f(r2(cliM.reduce((s,x)=>s+x[1],0)))}</strong>; el principal fue <strong>${esc(cliM[0][0])}</strong>.` : "sin facturas emitidas este mes.", 260)}
       ${panelExp(off+4, "Proveedores del mes", "a quién le compraste más este mes, sin IVA.", "facturas recibidas vigentes del mes, sumadas por proveedor.", prvM.length ? `te facturaron <strong>${f(r2(prvM.reduce((s,x)=>s+x[1],0)))}</strong>; el principal fue <strong>${esc(prvM[0][0])}</strong>.` : "sin facturas recibidas este mes.", 260)}
-      ${panelExp(off+5, "Quién te debe al cierre del mes", "los clientes con más saldo pendiente de cobrar al último día del mes.", "total de sus facturas vigentes menos los cobros registrados en Cuentas.", totCxc ? `te deben <strong>${f(totCxc)}</strong> entre los principales; revisa en Cuentas cuáles ya están vencidas.` : "no hay saldos por cobrar.", 260)}
-      ${panelExp(off+6, "A quién le debes al cierre del mes", "los proveedores con más saldo pendiente de pagar al último día del mes.", "total de sus facturas vigentes menos los pagos registrados en Cuentas.", totCxp ? `debes <strong>${f(totCxp)}</strong> entre los principales. Si una factura ya se pagó y aquí sale, regístrala en Cuentas (o usa "registrar pago con la póliza").` : "no hay saldos por pagar.", 260)}
+      ${panelExp(off+5, "Quién te debe al cierre del mes", "los clientes con más saldo pendiente de cobrar al último día del mes.", "total de sus facturas vigentes menos los cobros registrados en Facturas y cuentas.", totCxc ? `te deben <strong>${f(totCxc)}</strong> entre los principales; revisa en Facturas y cuentas cuáles ya están vencidas.` : "no hay saldos por cobrar.", 260)}
+      ${panelExp(off+6, "A quién le debes al cierre del mes", "los proveedores con más saldo pendiente de pagar al último día del mes.", "total de sus facturas vigentes menos los pagos registrados en Facturas y cuentas.", totCxp ? `debes <strong>${f(totCxp)}</strong> entre los principales. Si una factura ya se pagó y aquí sale, regístrala en Facturas y cuentas (o usa "registrar pago con la póliza").` : "no hay saldos por pagar.", 260)}
     </div>`;
     const cfgs = [
       horiz(imp.map(x=>[x[0], x[1]]), "Importe", imp.map(x=>colAut(x[2]))),
@@ -4686,7 +4735,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const meses = new Set([mes]);
     if(/^Factura/.test(clase)){
       const abs = abonos.filter(a=>a.uuid===x.uuid);
-      if(abs.length){ out.push(`Tiene ${abs.length===1?"un "+(x.tipo==="emitida"?"cobro":"pago")+" registrado":abs.length+" "+(x.tipo==="emitida"?"cobros":"pagos")+" registrados"} en Cuentas por ${f(abs.reduce((s,a)=>s+(+a.monto||0),0))}: ¿era un anticipo o la sustituyó otra factura?`); abs.forEach(a=>meses.add(+String(a.fecha).slice(5,7))); }
+      if(abs.length){ out.push(`Tiene ${abs.length===1?"un "+(x.tipo==="emitida"?"cobro":"pago")+" registrado":abs.length+" "+(x.tipo==="emitida"?"cobros":"pagos")+" registrados"} en Facturas y cuentas por ${f(abs.reduce((s,a)=>s+(+a.monto||0),0))}: ¿era un anticipo o la sustituyó otra factura?`); abs.forEach(a=>meses.add(+String(a.fecha).slice(5,7))); }
       const cps = complementos.filter(c=>c.doc===x.uuid && !/cancel/i.test(c.estadoSAT||""));
       if(cps.length){ out.push(`Tiene ${cps.length===1?"un complemento de pago vigente: habría que cancelarlo también":cps.length+" complementos de pago vigentes: habría que cancelarlos también"}.`); cps.forEach(c=>meses.add(+String(c.fechaPago).slice(5,7))); }
       if(x.prov==="done") out.push("Ya la tenías marcada como provisionada en CONTPAQi: hay que cancelar o revertir la póliza.");
@@ -6076,8 +6125,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const tarde = plazo && plazo < hoyISO ? -diasEntre(hoyISO, plazo) : 0;
         probs.push({t:"falta", txt:`Falta complemento por ${money.format(falta)}`, sub: plazo ? (tarde>0 ? `debía emitirse a más tardar el ${fechaCorta(plazo)} · ${tarde} días de atraso` : `plazo: ${fechaCorta(plazo)}`) : ""});
       }
-      if(compPag - cta.abonado > TOL) probs.push({t:"sinpago", txt:`Complemento por ${money.format(r2(compPag - cta.abonado))} sin ${tipo==="emitida"?"cobro":"pago"} registrado`, sub:"regístralo en Cuentas"});
-      if(saldoComp!=null && Math.abs(saldoComp - cta.saldo) > TOL && Math.abs(cta.abonado - compPag) <= TOL) probs.push({t:"saldo", txt:`Saldo insoluto ${money.format(saldoComp)} vs. saldo en Cuentas ${money.format(cta.saldo)}`});
+      if(compPag - cta.abonado > TOL) probs.push({t:"sinpago", txt:`Complemento por ${money.format(r2(compPag - cta.abonado))} sin ${tipo==="emitida"?"cobro":"pago"} registrado`, sub:"regístralo en Facturas y cuentas"});
+      if(saldoComp!=null && Math.abs(saldoComp - cta.saldo) > TOL && Math.abs(cta.abonado - compPag) <= TOL) probs.push({t:"saldo", txt:`Saldo insoluto ${money.format(saldoComp)} vs. saldo en Facturas y cuentas ${money.format(cta.saldo)}`});
       if(compPag - (+f.total||0) > TOL) probs.push({t:"exceso", txt:`Los complementos suman más que la factura (${money.format(compPag)})`});
       if(cs.some(canc)) probs.push({t:"canc", txt:`${cs.filter(canc).length} complemento(s) cancelado(s)`, leve:true});
       filas.push({f, cta, cs, compPag, saldoComp, probs});
@@ -6096,13 +6145,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     let h = `<div class="kpis" style="margin:0 0 14px">
       <div class="kpi"><span>Facturas PPD</span><b>${R.filas.length}</b><small>${R.filas.length - con.length} cuadran</small></div>
       <div class="kpi"><span>Falta complemento</span><b style="color:${n("falta")?"var(--late-ink)":"inherit"}">${n("falta")}</b><small>${montoFalta?`${f(montoFalta)} pagado sin complemento`:"todo con complemento"}</small></div>
-      <div class="kpi"><span>Complemento sin ${ctSel==="emitida"?"cobro":"pago"} registrado</span><b>${n("sinpago")}</b><small>regístralos en Cuentas</small></div>
+      <div class="kpi"><span>Complemento sin ${ctSel==="emitida"?"cobro":"pago"} registrado</span><b>${n("sinpago")}</b><small>regístralos en Facturas y cuentas</small></div>
       <div class="kpi"><span>Saldo distinto</span><b>${n("saldo")}</b><small>saldo insoluto vs. Cuentas</small></div>
       <div class="kpi"><span>Complementos sin factura</span><b>${R.sinFactura.length}</b><small>${R.deCanceladas.length} de facturas canceladas</small></div></div>
       <div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><label class="check inline" style="margin:0"><input type="checkbox" id="cppdSolo" ${cppdSolo?"checked":""}> Mostrar solo las que tienen diferencias</label>${downloads?`<button class="btn sm" id="cppdXls">Descargar en Excel</button>`:""}</div>`;
     const lista = cppdSolo ? con : R.filas;
     if(!lista.length) h += `<div class="empty">${cppdSolo ? "Todas tus facturas PPD cuadran con sus complementos. 🎉" : "No hay facturas PPD."}</div>`;
-    else h += `<table class="ft ct"><thead><tr><th>Fecha</th><th>${quien}</th><th>Folio</th><th class="num">Total</th><th class="num">${ctSel==="emitida"?"Cobrado":"Pagado"} en Cuentas</th><th class="num">Complementos</th><th class="num">Saldo</th><th>Revisión</th></tr></thead><tbody>
+    else h += `<table class="ft ct"><thead><tr><th>Fecha</th><th>${quien}</th><th>Folio</th><th class="num">Total</th><th class="num">${ctSel==="emitida"?"Cobrado":"Pagado"} en Facturas y cuentas</th><th class="num">Complementos</th><th class="num">Saldo</th><th>Revisión</th></tr></thead><tbody>
       ${lista.map(x=>`<tr><td>${fechaCorta(x.f.fecha)} ${String(x.f.fecha).slice(0,4)}</td><td><div class="fname" title="${esc(x.f.nombre)}">${esc(x.f.nombre||"—")}</div>${x.cs.length?`<div class="fsub" style="max-width:none;white-space:normal">${x.cs.map(c=>`${/cancel/i.test(c.estadoSAT||"")?"<s>":""}P${c.parcialidad||"?"} ${fechaCorta(String(c.fechaPago).slice(0,10))} · ${f(+c.impPagado||0)} · saldo ${f(+c.saldoInsoluto||0)}${/cancel/i.test(c.estadoSAT||"")?"</s> (cancelado)":""}`).join("<br>")}</div>`:""}</td>
         <td>${esc(x.f.folio||"—")}${uuidHTML(x.f.uuid)}${botonesCfdi(x.f.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(x.f.uuid)}</div>`:""}</td><td class="num">${f(+x.f.total||0)}</td><td class="num">${f(x.cta.abonado)}</td><td class="num">${f(x.compPag)}<div class="fsub">${x.cs.length} ${x.cs.length===1?"complemento":"complementos"}</div></td>
         <td class="num">${f(x.cta.saldo)}${x.saldoComp!=null?`<div class="fsub">insoluto ${f(x.saldoComp)}</div>`:""}</td>
@@ -6127,7 +6176,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!e.target.closest("#cppdXls")) return;
     try{ await loadLibs("excel"); const R = conciliacionPPD(ctSel), wb = new ExcelJS.Workbook(), w = wb.addWorksheet("PPD vs complementos"), Mf = '"$"#,##0.00';
       w.columns = [{width:12},{width:38},{width:14},{width:40},{width:14},{width:14},{width:14},{width:14},{width:14},{width:60}];
-      w.addRow(["Fecha", ctSel==="emitida"?"Cliente":"Proveedor", "Folio", "UUID", "Total", "Pagado en Cuentas", "Complementos", "Saldo", "Saldo insoluto", "Revisión"]).font = {bold:true};
+      w.addRow(["Fecha", ctSel==="emitida"?"Cliente":"Proveedor", "Folio", "UUID", "Total", "Pagado en Facturas y cuentas", "Complementos", "Saldo", "Saldo insoluto", "Revisión"]).font = {bold:true};
       R.filas.forEach(x=>{ const r = w.addRow([x.f.fecha, x.f.nombre, x.f.folio||"", x.f.uuid, +x.f.total||0, x.cta.abonado, x.compPag, x.cta.saldo, x.saldoComp, x.probs.map(p=>p.txt+(p.sub?` (${p.sub})`:"")).join(" · ") || "Cuadra"]); [5,6,7,8,9].forEach(i=>r.getCell(i).numFmt = Mf); });
       if(R.sinFactura.length){ const w2 = wb.addWorksheet("Complementos sin factura"); w2.addRow(["Fecha de pago","Nombre","UUID complemento","Factura que paga","Importe"]).font = {bold:true}; R.sinFactura.forEach(c=>w2.addRow([String(c.fechaPago).slice(0,10), c.nombre, c.uuid, c.doc, +c.impPagado||0])); }
       await guardarArchivo(`Conciliacion PPD vs complementos ${ctSel==="emitida"?"clientes":"proveedores"} ${empresaNombre} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
@@ -6174,18 +6223,18 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     [/^provision$/, "Si ya registraste la provisión de esta factura PPD en CONTPAQi. Las PUE no se provisionan (van directo al gasto o ingreso), por eso salen como N/A."],
     [/^cxc\/cxp$|^cxc$|^cxp$/, "Si ya la tienes en tu control de cuentas por cobrar o por pagar."],
     // Cuentas
-    [/^por cobrar en|^por pagar en/, "Suma del saldo pendiente de las facturas vigentes: total de cada factura menos los cobros o pagos que registraste en Cuentas."],
+    [/^por cobrar en|^por pagar en/, "Suma del saldo pendiente de las facturas vigentes: total de cada factura menos los cobros o pagos que registraste en Facturas y cuentas."],
     [/^vencido en/, "Facturas con saldo cuya fecha de vencimiento (15 días hábiles después de la factura) ya pasó."],
     [/sin complemento$/, "Facturas PPD con pago registrado pero sin complemento de pago. Los complementos se revisan solos al subir el reporte de complementos de AdminXML."],
     [/^facturas del mes$/, "Cuántas facturas vigentes se emitieron (por cobrar) o recibieron (por pagar) en el mes, según tus reportes de AdminXML."],
     [/^monto facturado en el mes$/, "Suma del total (con IVA) de las facturas vigentes del mes."],
-    [/^cobrado \/ pagado en el mes$/, "Cobros y pagos que registraste en Cuentas con fecha de este mes. Si una factura se pagó y no lo registraste, no aparece aquí."],
+    [/^cobrado \/ pagado en el mes$/, "Cobros y pagos que registraste en Facturas y cuentas con fecha de este mes. Si una factura se pagó y no lo registraste, no aparece aquí."],
     [/^saldo pendiente al cierre$/, "Lo que se debía el último día del mes: total de cada factura menos lo cobrado o pagado HASTA esa fecha. Por eso cuadra con tu balanza (105 clientes y 201 proveedores)."],
     [/^facturas vencidas al cierre$|^monto vencido al cierre$/, "Facturas con saldo al cierre del mes cuyo vencimiento (15 días hábiles) ya había pasado en esa fecha."],
-    [/^flujo neto del mes/, "Lo cobrado menos lo pagado en el mes, según tus registros en Cuentas."],
+    [/^flujo neto del mes/, "Lo cobrado menos lo pagado en el mes, según tus registros en Facturas y cuentas."],
     [/^(cliente|proveedor)$/, "Toca una fila para ver sus pagos y complementos. En la vista por cliente o proveedor, toca para ver todas sus facturas pagadas y pendientes."],
     [/^facturado \d{4}$/, "Suma de las facturas vigentes del año de este cliente o proveedor."],
-    [/^saldo$/, "Lo que falta por cobrar o pagar: total menos los cobros o pagos registrados en Cuentas."],
+    [/^saldo$/, "Lo que falta por cobrar o pagar: total menos los cobros o pagos registrados en Facturas y cuentas."],
     [/^vence$|^vencimiento$/, "Fecha de la factura más 15 días hábiles."],
     // Bancos
     [/^saldo inicial en estado de cuenta$/, "Saldo con el que empieza el mes según tu estado de cuenta. Si el archivo no lo trae, lo puedes escribir."],
@@ -6983,7 +7032,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       <div class="kpi"><span>Proveedores en ${year}</span><b>${P.filter(x=>x.n).length}</b><small>con facturas recibidas en el año</small></div>
       <div class="kpi"><span>Nos pagan en promedio</span><b>${promG(C)!=null?`${promG(C)} días`:"—"}</b><small>desde la factura hasta el cobro (PPD)</small></div>
       <div class="kpi"><span>Pagamos en promedio</span><b>${promG(P)!=null?`${promG(P)} días`:"—"}</b><small>desde la factura hasta el pago (PPD)</small></div></div>`;
-    let t = `<div class="bpanel" style="margin-top:16px"><h3 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">Por ${quien.toLowerCase()} y por mes<span class="seg" style="margin-left:auto"><button data-resterc="emitida" aria-pressed="${resTer==="emitida"}">Clientes</button><button data-resterc="recibida" aria-pressed="${resTer==="recibida"}">Proveedores</button></span><small style="width:100%">Lo ${verbo} a cada uno en cada mes (con IVA), cuántas facturas, y en cuántos días ${resTer==="emitida"?"nos paga":"le pagamos"} en promedio. Se basa en los ${resTer==="emitida"?"cobros":"pagos"} registrados en Cuentas y en las facturas PUE.</small></h3>`;
+    let t = `<div class="bpanel" style="margin-top:16px"><h3 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">Por ${quien.toLowerCase()} y por mes<span class="seg" style="margin-left:auto"><button data-resterc="emitida" aria-pressed="${resTer==="emitida"}">Clientes</button><button data-resterc="recibida" aria-pressed="${resTer==="recibida"}">Proveedores</button></span><small style="width:100%">Lo ${verbo} a cada uno en cada mes (con IVA), cuántas facturas, y en cuántos días ${resTer==="emitida"?"nos paga":"le pagamos"} en promedio. Se basa en los ${resTer==="emitida"?"cobros":"pagos"} registrados en Facturas y cuentas y en las facturas PUE.</small></h3>`;
     t += L.length ? `<div class="sheet" style="border:none;border-radius:0"><table class="ft" style="min-width:${420+meses.length*100}px"><thead><tr><th>${quien}</th><th class="num">Facturas</th><th class="num">Días promedio</th>${meses.map(m=>`<th class="num">${ABR[m-1]}</th>`).join("")}<th class="num">Total ${verbo}</th><th>Último</th></tr></thead><tbody>
       ${L.map(x=>`<tr><td><div class="fname" title="${esc(x.nombre)}">${esc(x.nombre||"—")}</div><div class="fsub">${esc(x.rfc||"")}</div></td><td class="num">${x.n||""}</td><td class="num">${x.prom!=null?`<strong>${x.prom}</strong> días`:x.pue?'<span class="fsub">PUE</span>':'<span class="fsub">—</span>'}</td>${meses.map(m=>`<td class="num">${x.meses[m-1]?f(x.meses[m-1]):'<span class="fsub">—</span>'}</td>`).join("")}<td class="num"><strong>${f(x.total)}</strong></td><td>${x.ultimo?`${fechaCorta(x.ultimo)}`:"—"}</td></tr>`).join("")}
       <tr style="background:var(--group)"><td><strong>Total</strong></td><td class="num"><strong>${L.reduce((s,x)=>s+x.n,0)}</strong></td><td class="num"><strong>${promG(L)!=null?`${promG(L)} días`:""}</strong></td>${meses.map(m=>`<td class="num"><strong>${f(L.reduce((s,x)=>s+x.meses[m-1],0))}</strong></td>`).join("")}<td class="num"><strong>${f(L.reduce((s,x)=>s+x.total,0))}</strong></td><td></td></tr></tbody></table></div>` : `<div class="empty" style="padding:16px">Sin ${quien.toLowerCase()}s en ${year}.</div>`;
@@ -6995,11 +7044,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const filas = [
       ["Ingresos", null],
       ["Facturado (sin IVA)", "ingFact", "Facturas emitidas vigentes del mes, sin IVA."],
-      ["Cobrado (con IVA)", "ingCob", "Cobros registrados en Cuentas y facturas PUE del mes."],
+      ["Cobrado (con IVA)", "ingCob", "Cobros registrados en Facturas y cuentas y facturas PUE del mes."],
       ["Fondeo y otros depósitos", "fondeo", "Depósitos del banco que no son cobros a clientes ni traspasos entre tus cuentas: aportaciones, préstamos de socios, etc. Toca el mes para ver cuáles."],
       ["Gastos", null],
       ["Facturado por proveedores (sin IVA)", "gasFact", "Facturas recibidas vigentes del mes, sin IVA."],
-      ["Pagado a proveedores (con IVA)", "gasPag", "Pagos registrados en Cuentas y facturas PUE del mes."],
+      ["Pagado a proveedores (con IVA)", "gasPag", "Pagos registrados en Facturas y cuentas y facturas PUE del mes."],
       ["Nómina", null],
       ["Sueldos y salarios", "nomSue", "Total de percepciones de los recibos de nómina con IMSS."],
       ["Asimilados a salarios", "nomAsi", "Total de percepciones de los recibos sin IMSS."],
@@ -7029,7 +7078,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const R = M[resSel-1];
     const d = `<div class="dgrid" style="margin-top:16px">
       <div class="bpanel"><h3>Impuestos de ${MESES[resSel-1].toLowerCase()}<small>Por autoridad. "Estimado" es lo calculado por la app mientras no subes la declaración.</small></h3>${R.impDet.length ? `<table class="decl" style="width:100%"><tbody>${R.impDet.map(x=>`<tr><td><span class="st na" style="font-size:11px">${x.aut}</span> ${esc(x.nombre)}</td><td class="num">${f(x.monto)}</td><td><span class="st ${x.fuente==="pagado"?"pagado":x.fuente==="por pagar"?"vencido":"parcial"}">${x.fuente}</span></td></tr>`).join("")}</tbody></table>` : '<div class="empty" style="padding:14px">Sin impuestos este mes.</div>'}</div>
-      <div class="bpanel"><h3>Fondeo de ${MESES[resSel-1].toLowerCase()}<small>Depósitos que no son cobros a clientes ni traspasos. Revísalos: si alguno es cobro, regístralo en Cuentas.</small></h3>${R.fondeoDet.length ? `<table class="decl" style="width:100%"><tbody>${R.fondeoDet.map(x=>`<tr><td>${fechaCorta(x.fecha)}</td><td>${esc(x.banco)}<div class="fsub">${esc(x.nombre)}</div></td><td class="num">${f(x.monto)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty" style="padding:14px">${R.hayBanco ? "Sin fondeo este mes." : "Sube los estados de cuenta del mes para detectar el fondeo."}</div>`}${R.traspasos?`<div class="fsub" style="padding:8px 14px;max-width:none">Traspasos entre tus cuentas (no cuentan): ${f(R.traspasos)}</div>`:""}</div>
+      <div class="bpanel"><h3>Fondeo de ${MESES[resSel-1].toLowerCase()}<small>Depósitos que no son cobros a clientes ni traspasos. Revísalos: si alguno es cobro, regístralo en Facturas y cuentas.</small></h3>${R.fondeoDet.length ? `<table class="decl" style="width:100%"><tbody>${R.fondeoDet.map(x=>`<tr><td>${fechaCorta(x.fecha)}</td><td>${esc(x.banco)}<div class="fsub">${esc(x.nombre)}</div></td><td class="num">${f(x.monto)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty" style="padding:14px">${R.hayBanco ? "Sin fondeo este mes." : "Sube los estados de cuenta del mes para detectar el fondeo."}</div>`}${R.traspasos?`<div class="fsub" style="padding:8px 14px;max-width:none">Traspasos entre tus cuentas (no cuentan): ${f(R.traspasos)}</div>`:""}</div>
       <div class="bpanel"><h3>En qué se gastó en ${MESES[resSel-1].toLowerCase()}<small>Proveedores con más facturación del mes, sin IVA.</small></h3>${R.topGastos.length ? `<table class="decl" style="width:100%"><tbody>${R.topGastos.map(([n,v])=>`<tr><td>${esc(n)}</td><td class="num">${f(v)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty" style="padding:14px">Sin gastos facturados este mes.</div>'}</div>
     </div>`;
     $("resbody").innerHTML = `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="fsub" style="max-width:none">Toca un mes para ver su detalle abajo. Mes seleccionado: <strong>${MESES[resSel-1]}</strong>.</span></div>` + t + d + htmlTerceros();
@@ -8677,7 +8726,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       documentos:'<path d="M6 3h9l4 4v14H6zM14 3v5h5"/>', resumen:'<path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/>', accesos:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
       finanzas:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>', leyes:'<path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2zM4 17a2 2 0 0 1 2-2h12M9 7h6"/>', prestaciones:'<path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/><circle cx="16" cy="16" r="2"/>', calendario:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>', nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
     };
-    const GRUPOS = [["Cierre", ["tablero","calendario","notas","expediente"]], ["Operación", ["facturas","cuentas","bancos","ventas","nominas","prestaciones","directorio"]], ["Impuestos", ["impuestos"]],
+    const GRUPOS = [["Cierre", ["tablero","calendario","notas","expediente"]], ["Operación", ["facturas","bancos","ventas","nominas","prestaciones","directorio"]], ["Impuestos", ["impuestos"]],
       ["Contabilidad", ["conta","balanza","estados","finanzas","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","leyes","accesos"]]];
     const vistas = document.querySelector(".views"); if(!vistas) return;
     const nav = document.createElement("aside"); nav.id = "sideNav"; nav.setAttribute("aria-label", "Secciones");
@@ -8688,6 +8737,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const t = document.createElement("div"); t.className = "grupo"; t.textContent = g; nav.appendChild(t);
       bs.forEach(b=>{ usados.add(b); b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${I[b.dataset.view]||'<circle cx="12" cy="12" r="7"/>'}</svg><span>${b.textContent.trim()}</span>`; nav.appendChild(b); });
     }
+    const cuentasBtn = vistas.querySelector('[data-view="cuentas"]'); if(cuentasBtn){ usados.add(cuentasBtn); cuentasBtn.style.display = "none"; nav.appendChild(cuentasBtn); }
     [...vistas.querySelectorAll(".view")].filter(b=>!usados.has(b)).forEach(b=>{ b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg><span>${b.textContent.trim()}</span>`; nav.appendChild(b); });
     const pie = document.createElement("div"); pie.className = "pie";
     pie.innerHTML = `<div class="tema-t">Apariencia</div><div class="tema" role="group" aria-label="Apariencia"><button data-tema="light">Claro</button><button data-tema="dark">Oscuro</button><button data-tema="auto">Auto</button></div>`;
