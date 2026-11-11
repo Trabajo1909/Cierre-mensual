@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 66 · Qué toma la app para el cálculo</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 67 · Ajustar el cálculo de impuestos</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1329,6 +1329,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeDirectorio();
     subscribeCalcUsuario();
     subscribeRecargos();
+    subscribeAjustesImp();
     subscribeAccesos();
     subscribePresupuesto();
     subscribePreReglas();
@@ -3178,11 +3179,16 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const cfg = cfgAnio(y), enMes = f => f.anio===y && f.mes===m;
     const fac = Object.fromEntries(facturas.map(f=>[f.uuid,f]));
     const vig = x => !/cancel/i.test(x.estadoSAT||"") && !x.canceladaManual;
+    const AJ = (typeof ajustesImp!=="undefined" && ajustesImp[mesKey(y,m)]) || {}, EXC = new Set(AJ.excluir||[]), excDe = mm => new Set(((typeof ajustesImp!=="undefined" && ajustesImp[mesKey(y,mm)]) || {}).excluir || []);
     const emit = facturas.filter(f=>f.tipo==="emitida" && vig(f)), reci = facturas.filter(f=>f.tipo==="recibida" && vig(f));
+    const extrasF = (AJ.extras||[]).filter(x=>x.tipo==="factura").map(x=>({...x, f: facturas.find(ff=>ff.uuid===x.uuid)})).filter(x=>x.f), extrasM = (AJ.extras||[]).filter(x=>x.tipo!=="factura");
+    const exM = t => r2(extrasM.filter(x=>x.tipo===t).reduce((s,x)=>s+(+x.monto||0),0)), exB = t => r2(extrasM.filter(x=>x.tipo===t).reduce((s,x)=>s+(+x.base||0),0));
     const compMes = tipo => complementos.filter(c=>c.tipo===tipo && vig(c) && String(c.fechaPago).slice(0,7)===mesKey(y,m));
     const S = (xs,f) => r2(xs.reduce((s,x)=>s+(+f(x)||0),0));
     // ISR personas morales
-    const ingresosDe = mm => S(emit.filter(f=>f.anio===y && f.mes===mm), f=>f.subtotal);
+    const ingresosDe = mm => { const ex = mm===m ? EXC : excDe(mm), aj = (typeof ajustesImp!=="undefined" && ajustesImp[mesKey(y,mm)]) || {};
+      const extra = (aj.extras||[]).reduce((s,x)=>{ if(x.tipo==="ingreso") return s + (+x.monto||0); if(x.tipo==="factura"){ const ff = facturas.find(z=>z.uuid===x.uuid); if(ff && ff.tipo==="emitida") return s + (+ff.subtotal||0); } return s; }, 0);
+      return r2(S(emit.filter(f=>f.anio===y && f.mes===mm && !ex.has(f.uuid)), f=>f.subtotal) + extra); };
     const ingMes = ingresosDe(m);
     let ingAnt = 0; for(let k=1;k<m;k++) ingAnt += ingresosDe(k); ingAnt = r2(ingAnt);
     const ingAcum = r2(ingMes + ingAnt), utilidad = r2(ingAcum * (+cfg.coeficiente||0)), isrCausado = r2(utilidad*0.30);
@@ -3194,7 +3200,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const nom = {sueldos: S(sue,n=>n.percepciones), sueldosEx: S(sue,n=>n.exento), isrSueldos: S(sue,n=>n.isr),
       asim: S(asi,n=>n.percepciones), asimEx: S(asi,n=>n.exento), isrAsim: S(asi,n=>n.isr), recibos: nm.length};
     // IVA
-    const ePUE = emit.filter(f=>enMes(f) && f.metodo==="PUE"), rPUE = reci.filter(f=>enMes(f) && f.metodo==="PUE");
+    const ePUE = [...emit.filter(f=>enMes(f) && f.metodo==="PUE" && !EXC.has(f.uuid)), ...extrasF.filter(x=>x.f.tipo==="emitida").map(x=>x.f)], rPUE = [...reci.filter(f=>enMes(f) && f.metodo==="PUE" && !EXC.has(f.uuid)), ...extrasF.filter(x=>x.f.tipo==="recibida").map(x=>x.f)];
     const cE = compMes("emitida"), cR = compMes("recibida");
     // Cobros del mes: primero los cobros registrados en Facturas y cuentas (fecha real); si una factura no tiene, sus complementos.
     if(!memo.__idxC){ const ab = {}, cp = {}; abonos.forEach(a=>{ if(a.tipo==="cobro") (ab[a.uuid] ||= []).push(a); }); complementos.forEach(c=>{ if(c.tipo==="emitida" && vig(c)) (cp[c.doc] ||= []).push(c); }); memo.__idxC = {ab, cp}; }
@@ -3204,8 +3210,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(abs && abs.length) abs.filter(a=>String(a.fecha).slice(0,7)===mesKey(y,m)).forEach(a=>cobrosMes.push({f, p:(+a.monto||0)/f.total}));
       else (memo.__idxC.cp[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mesKey(y,m)).forEach(c=>cobrosMes.push({f, p:(+c.impPagado||0)/f.total}));
     });
-    const huerfE = cE.filter(c=>!fac[c.doc]);
-    const trasBase = r2(S(ePUE,f=>f.ivaBase) + S(cobrosMes,x=>x.f.ivaBase*x.p) + S(huerfE,c=>c.ivaBase)), tras = r2(S(ePUE,f=>f.iva) + S(cobrosMes,x=>x.f.iva*x.p) + S(huerfE,c=>c.iva));
+    for(let i=cobrosMes.length-1;i>=0;i--) if(EXC.has(cobrosMes[i].f.uuid)) cobrosMes.splice(i,1);
+    const huerfE = cE.filter(c=>!fac[c.doc] && !EXC.has(c.uuid));
+    const trasBase = r2(S(ePUE,f=>f.ivaBase) + S(cobrosMes,x=>x.f.ivaBase*x.p) + S(huerfE,c=>c.ivaBase) + exB("ivaTras")), tras = r2(S(ePUE,f=>f.iva) + S(cobrosMes,x=>x.f.iva*x.p) + S(huerfE,c=>c.iva) + exM("ivaTras"));
     // Pagos a proveedores del mes: primero los pagos registrados en Facturas y cuentas (fecha real); si una factura no tiene, sus complementos.
     if(!memo.__idx){ const ab = {}, cp = {}; abonos.forEach(a=>{ if(a.tipo==="pago") (ab[a.uuid] ||= []).push(a); }); complementos.forEach(c=>{ if(c.tipo==="recibida" && vig(c)) (cp[c.doc] ||= []).push(c); }); memo.__idx = {ab, cp}; }
     const {ab: abIdx, cp: cpIdx} = memo.__idx, mk = mesKey(y,m);
@@ -3215,9 +3222,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(abs && abs.length) abs.filter(a=>String(a.fecha).slice(0,7)===mk).forEach(a=>pagosMes.push({f, p:(+a.monto||0)/f.total}));
       else (cpIdx[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mk).forEach(c=>pagosMes.push({f, p:(+c.impPagado||0)/f.total}));
     });
-    const huerfanos = cR.filter(c=>!fac[c.doc]);
+    for(let i=pagosMes.length-1;i>=0;i--) if(EXC.has(pagosMes[i].f.uuid)) pagosMes.splice(i,1);
+    const huerfanos = cR.filter(c=>!fac[c.doc] && !EXC.has(c.uuid));
     const manD = ((typeof diotManual!=="undefined" && diotManual[mesKey(y,m)]) || {}).rows || [], manAcr = manD.filter(x=>x.acreditable!==false);
-    const acrBase = r2(S(rPUE,f=>f.noDed?0:f.ivaBase) + S(pagosMes,x=>x.f.noDed?0:x.f.ivaBase*x.p) + S(huerfanos,c=>c.ivaBase) + S(manAcr,x=>+x.b16||0)), acr = r2(S(rPUE,f=>f.noDed?0:f.iva) + S(pagosMes,x=>x.f.noDed?0:x.f.iva*x.p) + S(huerfanos,c=>c.iva) + S(manAcr,x=>+x.iva||0));
+    const acrBase = r2(S(rPUE,f=>f.noDed?0:f.ivaBase) + S(pagosMes,x=>x.f.noDed?0:x.f.ivaBase*x.p) + S(huerfanos,c=>c.ivaBase) + S(manAcr,x=>+x.b16||0) + exB("ivaAcr")), acr = r2(S(rPUE,f=>f.noDed?0:f.iva) + S(pagosMes,x=>x.f.noDed?0:x.f.iva*x.p) + S(huerfanos,c=>c.iva) + S(manAcr,x=>+x.iva||0) + exM("ivaAcr"));
     const ivaRetCli = r2(S(ePUE,f=>f.ivaRet) + S(cobrosMes,x=>(+x.f.ivaRet||0)*x.p));
     // Retenciones a terceros (recibidas PUE + complementos proporcionales)
     const ret = {isrPF:0, isrRES:0, iva:0, cedPF:0, cedRES:0};
@@ -3226,6 +3234,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     rPUE.forEach(f=>sumar(f,1));
     pagosMes.forEach(x=>sumar(x.f, x.p));
     huerfanos.forEach(c=>{ if(c.isrRet) ret[String(c.regimen).startsWith("626")?"isrRES":"isrPF"] += +c.isrRet; });
+    ret.iva += exM("retIva"); ret.isrPF += exM("retIsr");
     // DIOT por proveedor
     const dg = {};
     const addD = (f, p) => { const rfc = String(f.rfc||"").toUpperCase() || ("SIN-RFC " + f.nombre); const g = dg[rfc] ||= {rfc, nombre:f.nombre, regimen:f.regimen, b16:0, iva:0, b0:0, ex:0, ret:0};
@@ -3248,28 +3257,29 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const totSATEG = r2(OBLIG.filter(o=>o.aut==="SATEG").reduce((s,o)=>s+montos[o.clave],0));
     const out = {diot, y, m, cfg, ingMes, ingAnt, ingAcum, utilidad, isrCausado, pagosAnt, isrPM, nom, trasBase, tras, acrBase, acr, ivaRetCli, ret, ivaNeto, isn, montos, totSAT, totSATEG,
       hayDatos: emit.some(f=>f.anio===y&&f.mes===m) || reci.some(f=>f.anio===y&&f.mes===m) || nm.length>0};
-    out.fuentes = {ingresos: emit.filter(f=>f.anio===y && f.mes===m), ePUE, cobrosMes, huerfE, rPUE, pagosMes, huerfanos, manAcr, nm};
+    out.fuentes = {ingresos: [...emit.filter(f=>f.anio===y && f.mes===m && !EXC.has(f.uuid)), ...extrasF.filter(x=>x.f.tipo==="emitida").map(x=>x.f)], ePUE, cobrosMes, huerfE, rPUE, pagosMes, huerfanos, manAcr, nm, excluidas: [...EXC].map(u=>facturas.find(f=>f.uuid===u) || complementos.find(c=>c.uuid===u) || {uuid:u, nombre:"(no encontrada)"}), extrasF, extrasM};
     memo[key] = out; return out;
   }
   // Qué facturas, cobros, pagos, complementos y nóminas toma la app para el cálculo del mes
   function htmlFuentesCalculo(k){
     const F = k.fuentes; if(!F) return "";
-    const f = money.format, u8 = u => String(u||"").slice(0,8);
+    const f = money.format, u8 = u => String(u||"").slice(0,8), agreg = new Set((F.extrasF||[]).map(x=>x.uuid));
+    const qx = u => !canWrite ? "" : agreg.has(u) ? ` <span class="st parcial" style="font-size:10px">agregada por ti</span>` : ` <button class="linkbtn" data-calcx="${esc(u)}" style="font-size:11px">quitar</button>`;
     const tabla = (cols, filas, totales) => `<div class="sheet" style="border:none;border-radius:0;margin:4px 0 10px"><table class="decl" style="width:100%;min-width:640px"><thead><tr>${cols.map(c=>`<th class="${c.n?"num":""}">${c.t}</th>`).join("")}</tr></thead><tbody>${filas.length ? filas.join("") : `<tr><td colspan="${cols.length}" class="fsub">Ninguno este mes.</td></tr>`}${filas.length && totales ? `<tr style="background:var(--group)">${totales}</tr>` : ""}</tbody></table></div>`;
     const S = (xs, fn) => r2(xs.reduce((s,x)=>s+(+fn(x)||0),0)), pct = p => `${Math.round(p*1000)/10}%`;
     const bloque = (titulo, resumen, cuerpo) => `<details style="padding:2px 14px 6px;border-bottom:1px solid var(--line)"><summary style="cursor:pointer;padding:8px 0;font-weight:600">${titulo} <span class="fsub" style="font-weight:400">${resumen}</span></summary>${cuerpo}</details>`;
     // Ingresos (ISR)
     const ing = F.ingresos.slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
     let h = bloque("Ingresos para el ISR", `${ing.length} facturas emitidas del mes · ${f(S(ing,x=>x.subtotal))}`, `<div class="fsub" style="max-width:none">Todas las facturas emitidas vigentes con fecha del mes (PUE y PPD), sin IVA: el ISR de personas morales se calcula sobre ingresos facturados.</div>` +
-      tabla([{t:"Fecha"},{t:"Cliente"},{t:"Folio / UUID"},{t:"Método"},{t:"Subtotal",n:1}], ing.map(x=>`<tr><td>${fechaCorta(x.fecha)}</td><td>${esc(x.nombre)}</td><td>${esc(x.folio||"")} <span class="uuid">${u8(x.uuid)}…</span></td><td>${x.metodo}</td><td class="num">${f(+x.subtotal||0)}</td></tr>`), `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(S(ing,x=>x.subtotal))}</strong></td>`));
+      tabla([{t:"Fecha"},{t:"Cliente"},{t:"Folio / UUID"},{t:"Método"},{t:"Subtotal",n:1}], ing.map(x=>`<tr><td>${fechaCorta(x.fecha)}${qx(x.uuid)}</td><td>${esc(x.nombre)}</td><td>${esc(x.folio||"")} <span class="uuid">${u8(x.uuid)}…</span></td><td>${x.metodo}</td><td class="num">${f(+x.subtotal||0)}</td></tr>`), `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(S(ing,x=>x.subtotal))}</strong></td>`));
     // IVA trasladado
     const tr = [...F.ePUE.map(x=>({f:x, p:1, o:"PUE del mes"})), ...F.cobrosMes.map(x=>({...x, o:"Cobro de PPD"})), ...F.huerfE.map(c=>({c, o:"Complemento sin factura"}))];
     h += bloque("IVA trasladado (cobrado)", `${tr.length} movimientos · ${f(k.tras)}`, `<div class="fsub" style="max-width:none">Facturas PUE emitidas en el mes y la parte cobrada de las PPD (por tus cobros registrados o, si no hay, por sus complementos del mes).</div>` +
-      tabla([{t:"De dónde sale"},{t:"Cliente"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], tr.map(x=>x.c ? `<tr><td>${x.o}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(r2((+x.f.iva||0)*x.p))}</td></tr>`), `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.trasBase)}</strong></td><td class="num"><strong>${f(k.tras)}</strong></td>`));
+      tabla([{t:"De dónde sale"},{t:"Cliente"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], tr.map(x=>x.c ? `<tr><td>${x.o}${qx(x.c.uuid)}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${qx(x.f.uuid)}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(r2((+x.f.iva||0)*x.p))}</td></tr>`), `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.trasBase)}</strong></td><td class="num"><strong>${f(k.tras)}</strong></td>`));
     // IVA acreditable
     const ac = [...F.rPUE.map(x=>({f:x, p:1, o:"PUE del mes"})), ...F.pagosMes.map(x=>({...x, o:"Pago de PPD"})), ...F.huerfanos.map(c=>({c, o:"Complemento sin factura"}))];
     h += bloque("IVA acreditable (pagado)", `${ac.length + F.manAcr.length} movimientos · ${f(k.acr)}`, `<div class="fsub" style="max-width:none">Facturas PUE recibidas en el mes y la parte pagada de las PPD (por tus pagos registrados o, si no hay, por sus complementos del mes), más los proveedores sin factura de la DIOT. Las marcadas como no deducibles no suman IVA.</div>` +
-      tabla([{t:"De dónde sale"},{t:"Proveedor"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], [...ac.map(x=>x.c ? `<tr><td>${x.o}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${x.f.noDed?' <span class="st parcial" style="font-size:10px">No deducible: no suma</span>':""}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.iva||0)*x.p))}</td></tr>`), ...F.manAcr.map(x=>`<tr><td>DIOT sin factura</td><td>${esc(x.nombre||x.rfc||"")}</td><td></td><td class="num">—</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td></tr>`)], `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.acrBase)}</strong></td><td class="num"><strong>${f(k.acr)}</strong></td>`));
+      tabla([{t:"De dónde sale"},{t:"Proveedor"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], [...ac.map(x=>x.c ? `<tr><td>${x.o}${qx(x.c.uuid)}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${x.f.noDed?' <span class="st parcial" style="font-size:10px">No deducible: no suma</span>':""}${qx(x.f.uuid)}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.iva||0)*x.p))}</td></tr>`), ...F.manAcr.map(x=>`<tr><td>DIOT sin factura</td><td>${esc(x.nombre||x.rfc||"")}</td><td></td><td class="num">—</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td></tr>`)], `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.acrBase)}</strong></td><td class="num"><strong>${f(k.acr)}</strong></td>`));
     // Retenciones a terceros
     const rt = [...F.rPUE.map(x=>({f:x, p:1})), ...F.pagosMes].filter(x=>(+x.f.isrRet||0)+(+x.f.ivaRet||0)+(+x.f.impLoc||0) > 0);
     h += bloque("Retenciones que hiciste a terceros", `${rt.length} facturas · IVA ${f(k.ret.iva)} · ISR ${f(r2(k.ret.isrPF + k.ret.isrRES))}`, `<div class="fsub" style="max-width:none">Honorarios, arrendamiento y RESICO a los que les retuviste, por el pago del mes (proporcional si fue parcial).</div>` +
@@ -3278,8 +3288,39 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const nm = F.nm.slice().sort((a,b)=>String(a.fechaPago).localeCompare(String(b.fechaPago)) || String(a.nombre).localeCompare(String(b.nombre)));
     h += bloque("Recibos de nómina", `${nm.length} recibos · percepciones ${f(S(nm,x=>x.percepciones))} · ISR ${f(S(nm,x=>x.isr))}`, `<div class="fsub" style="max-width:none">Recibos vigentes con fecha de pago del mes. Con IMSS cuentan como sueldos; sin IMSS, como asimilados.</div>` +
       tabla([{t:"Fecha de pago"},{t:"Empleado"},{t:"Tipo"},{t:"Percepciones",n:1},{t:"ISR",n:1},{t:"IMSS",n:1}], nm.map(x=>`<tr><td>${fechaCorta(x.fechaPago)}</td><td>${esc(x.nombre)}</td><td>${+x.imss>0?"Sueldos":"Asimilados"}</td><td class="num">${f(+x.percepciones||0)}</td><td class="num">${f(+x.isr||0)}</td><td class="num">${+x.imss?f(+x.imss):""}</td></tr>`), `<td colspan="3"><strong>Total</strong></td><td class="num"><strong>${f(S(nm,x=>x.percepciones))}</strong></td><td class="num"><strong>${f(S(nm,x=>x.isr))}</strong></td><td class="num"><strong>${f(S(nm,x=>x.imss))}</strong></td>`));
+    const tiposM = {ingreso:"Ingreso para el ISR", ivaTras:"IVA trasladado", ivaAcr:"IVA acreditable", retIva:"Retención de IVA a terceros", retIsr:"Retención de ISR a terceros"};
+    h += bloque("Ajustes que hiciste a mano", `${(F.excluidas||[]).length} quitadas · ${(F.extrasF||[]).length + (F.extrasM||[]).length} agregadas`,
+      `${(F.excluidas||[]).length ? `<div style="font-weight:600;margin:6px 0">Quitadas del cálculo de este mes</div>${F.excluidas.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${esc(x.nombre||"")} · ${esc(x.folio||"")} <span class="uuid">${u8(x.uuid)}…</span> · ${f(+x.total||+x.impPagado||0)}</span>${canWrite?`<button class="linkbtn" data-calcin="${esc(x.uuid)}">regresar</button>`:""}</div>`).join("")}` : ""}
+      ${[...(F.extrasF||[]).map(x=>({id:x.id, t:`Factura agregada: ${x.f.nombre} ${x.f.folio||""}`, v: `${f(+x.f.subtotal||0)} + IVA ${f(+x.f.iva||0)}`})), ...(F.extrasM||[]).map(x=>({id:x.id, t:`${tiposM[x.tipo]||x.tipo}: ${x.concepto||""}`, v: x.base ? `base ${f(+x.base)} · ${f(+x.monto||0)}` : f(+x.monto||0)}))].map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${esc(x.t)} · ${x.v}</span>${canWrite?`<button class="linkbtn" data-calcdel="${esc(x.id)}">quitar</button>`:""}</div>`).join("")}
+      ${canWrite ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0;align-items:end">
+        <div><label style="margin:0 0 2px">Agregar</label><select id="cxTipo"><option value="factura">Una factura de otro mes</option>${Object.entries(tiposM).map(([k,t])=>`<option value="${k}">${t}</option>`).join("")}</select></div>
+        <div id="cxFacBox" style="grid-column:span 2"><label style="margin:0 0 2px">Factura (UUID, folio o nombre)</label><input id="cxFac" list="cxFacList" autocomplete="off" placeholder="Escribe para buscar"><datalist id="cxFacList">${facturas.filter(x=>vigente(x) && x.anio===k.y && !(x.mes===k.m)).slice(0,600).map(x=>`<option value="${esc(x.uuid)}">${esc(`${x.tipo==="emitida"?"Emitida":"Recibida"} · ${x.nombre} · ${x.folio||""} · ${fechaCorta(x.fecha)} · ${money.format(+x.total||0)}`)}</option>`).join("")}</datalist></div>
+        <div class="cxMan" hidden><label style="margin:0 0 2px">Concepto</label><input id="cxConc" autocomplete="off"></div>
+        <div class="cxMan" hidden><label style="margin:0 0 2px">Base (opcional)</label><input id="cxBase" type="number" step="0.01"></div>
+        <div class="cxMan" hidden><label style="margin:0 0 2px">Monto</label><input id="cxMonto" type="number" step="0.01"></div>
+        <div><button class="btn sm primary" id="cxAgregar">Agregar al cálculo</button></div></div>
+        <div class="fsub" style="max-width:none;white-space:normal">Los ajustes solo cambian el cálculo de este mes en la app (no tus facturas). Para IVA, si pones la base, el monto se propone al 16%.</div>` : ""}`);
     return `<div class="bpanel" style="margin-top:16px"><h3>¿Qué toma la app para este cálculo?<small>Abre cada bloque para ver las facturas, cobros, pagos, complementos y nóminas que suman en ${MESES[k.m-1].toLowerCase()}. Los totales coinciden con el cálculo de arriba.</small></h3>${h}</div>`;
   }
+  let ajustesImp = {}, unsubAJ = null;
+  function subscribeAjustesImp(){ if(unsubAJ) unsubAJ(); ajustesImp = {}; if(!db || !empresa) return;
+    unsubAJ = db.doc(`empresas/${empresa}/config/ajustesImp`).onSnapshot(s => { ajustesImp = s.exists ? (s.data().meses||{}) : {}; if(vista==="impuestos") renderImpuestos(); }, () => {}); }
+  async function guardarAjuste(mk, fn){ const cur = {...(ajustesImp[mk]||{excluir:[], extras:[]})}; fn(cur); ajustesImp = {...ajustesImp, [mk]: cur};
+    try{ await db.doc(`empresas/${empresa}/config/ajustesImp`).set({meses: ajustesImp}); }catch(err){ handleWriteError(err); } renderImpuestos(); }
+  document.addEventListener("change", e => { if(e.target.id==="cxTipo"){ const fac = e.target.value==="factura"; $("cxFacBox").hidden = !fac; document.querySelectorAll(".cxMan").forEach(x=>x.hidden = fac); } });
+  document.addEventListener("input", e => { if(e.target.id==="cxBase" && /iva/.test($("cxTipo").value) && $("cxTipo").value!=="retIva"){ $("cxMonto").value = r2(+e.target.value*0.16) || ""; } });
+  document.addEventListener("click", async e => {
+    if(vista!=="impuestos") return; const mk = mesKey(year, iMes);
+    const qx = e.target.closest("[data-calcx]"); if(qx){ if(!await confirmar("¿Quitar esta factura del cálculo de este mes? Puedes regresarla después.")) return; await guardarAjuste(mk, a=>{ a.excluir = [...new Set([...(a.excluir||[]), qx.dataset.calcx])]; }); return; }
+    const qi = e.target.closest("[data-calcin]"); if(qi){ await guardarAjuste(mk, a=>{ a.excluir = (a.excluir||[]).filter(u=>u!==qi.dataset.calcin); }); return; }
+    const qd = e.target.closest("[data-calcdel]"); if(qd){ await guardarAjuste(mk, a=>{ a.extras = (a.extras||[]).filter(x=>x.id!==qd.dataset.calcdel); }); return; }
+    if(e.target.closest("#cxAgregar")){ const t = $("cxTipo").value, id = `aj${Date.now().toString(36)}`;
+      if(t==="factura"){ const v = $("cxFac").value.trim().toUpperCase(), fx = facturas.find(x=>x.uuid===v) || facturas.find(x=>vigente(x) && normTxt(`${x.uuid} ${x.folio} ${x.nombre}`).includes(normTxt(v)));
+        if(!fx){ toast("No encontré esa factura. Escribe su UUID, folio o nombre y elígela de la lista."); return; }
+        await guardarAjuste(mk, a=>{ a.extras = [...(a.extras||[]), {id, tipo:"factura", uuid: fx.uuid}]; a.excluir = (a.excluir||[]).filter(u=>u!==fx.uuid); }); toast(`Agregada: ${fx.nombre}.`); return; }
+      const monto = r2(+$("cxMonto").value||0); if(!monto){ $("cxMonto").focus(); return; }
+      await guardarAjuste(mk, a=>{ a.extras = [...(a.extras||[]), {id, tipo:t, concepto: $("cxConc").value.trim(), base: r2(+$("cxBase").value||0), monto}]; }); toast("Ajuste agregado al cálculo."); }
+  });
   function estadoOblig(o, k){
     const d = declDe(k.y, k.m, o.clave);
     const calc = k.montos[o.clave];
