@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 68 · Corregir el importe de una línea de captura</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 69 · Lee fotos y escaneos</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -422,7 +422,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
     </div>
     <div class="actions">
       <span class="saving" id="saving" aria-live="polite"></span>
-      <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf,.txt,.xml,.zip" multiple hidden><input type="file" id="attachFile" accept="application/pdf,image/*,.heic,.heif" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
+      <button class="btn" id="importBtn" hidden>Subir reporte de AdminXML</button><input type="file" id="importFile" accept=".xlsx,.xls,.pdf,.txt,.xml,.zip,image/*,.heic,.heif" multiple hidden><input type="file" id="attachFile" accept="application/pdf,image/*,.heic,.heif" hidden><input type="file" id="acuseFile" accept=".pdf,image/*" hidden>
       <button class="btn" id="editBtn" aria-pressed="false">Editar lista</button>
       <button class="btn" id="addBtn">Agregar actividad</button>
       <button class="btn" id="verXlsBtn" title="Ver el Excel sin descargarlo">Ver Excel</button>
@@ -1466,6 +1466,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     zip: ["https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"],
     pdfjs: ["https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js","https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"],
     xlsx: ["https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"],
+    ocr: ["https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"],
     excel: ["https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"],
     pdf: ["https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js","https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"]
   };
@@ -1912,7 +1913,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           if(res) txtRes.push(res);
           continue;
         }
-        if(/\.pdf$/i.test(file.name) || file.type==="application/pdf"){
+        if(/\.pdf$/i.test(file.name) || file.type==="application/pdf" || /^image\//.test(file.type||"") || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)){
           const L = await leerPdf(file); if(!L) continue;
           if(/Balanza de comprobaci/i.test(L.todo)){ balPdfs.push({L, file}); continue; }
           if(/(acuse|solicitud|estatus|fecha y hora|fecha)\s+de\s+(la\s+)?cancelaci[oó]n/i.test(L.todo) && !/Estado de cuenta|Movimientos|Saldo inicial/i.test(L.todo) && /[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/i.test(L.todo) && !/IMPUESTOS FEDERALES|OPERACIONES CON TERCEROS/i.test(L.todo)){ acusesCan.push({L, file}); continue; }
@@ -3062,7 +3063,30 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     });
   }
   const numMx = s => +String(s).replace(/,/g,"");
+  // ---------- Lectura de fotos y escaneos (OCR) ----------
+  let ocrWorker = null;
+  async function ocrCanvases(canvases, nombre){
+    await loadLibs("ocr");
+    if(!ocrWorker){ setSaving("Preparando la lectura de fotos (solo la primera vez)…");
+      ocrWorker = await Tesseract.createWorker("spa", 1, {workerPath:"https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js", corePath:"https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1", langPath:"https://cdn.jsdelivr.net/npm/@tesseract.js-data/spa@1.0.0/4.0.0_best_int"}); }
+    const lineas = [];
+    for(let p=0; p<canvases.length; p++){
+      setSaving(`Leyendo ${nombre}${canvases.length>1?` (página ${p+1} de ${canvases.length})`:""}…`);
+      const {data} = await ocrWorker.recognize(canvases[p]);
+      (data.lines||[]).forEach(l=>{ const items = (l.words||[]).map(w=>({x:w.bbox.x0, r:w.bbox.x1, s:w.text})); const texto = String(l.text||"").replace(/\s+/g," ").trim(); if(texto) lineas.push({y: -l.bbox.y0, items, texto, p: p+1}); });
+    }
+    setSaving("");
+    window.__ultimoOCR = lineas.map(l=>l.texto).join("\n");
+    return {lineas, todo: window.__ultimoOCR, ocr: true};
+  }
+  async function leerImagen(file){
+    try{ const bmp = await createImageBitmap(file); const esc = Math.min(1, 3000/Math.max(bmp.width, bmp.height)), cv = document.createElement("canvas");
+      cv.width = Math.round(bmp.width*esc); cv.height = Math.round(bmp.height*esc); cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+      return await ocrCanvases([cv], file.name); }
+    catch(e){ toast(`${file.name}: no pude abrir la imagen${/heic|heif/i.test(file.name)?" (las fotos HEIC del iPhone ábrelas en Safari o conviértelas a JPG)":""}.`); return null; }
+  }
   async function leerPdf(file){
+    if(/^image\//.test(file.type||"") || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)) return leerImagen(file);
     await loadLibs("pdfjs");
     const task = pdfjsLib.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported:false});
     let cancelado = false;
@@ -3083,6 +3107,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         f.items.push({x, r:x+it.width, s:it.str});
       }
       filas.sort((a,b)=>b.y-a.y).forEach(f=>{ f.items.sort((a,b)=>a.x-b.x); f.texto = f.items.map(i=>i.s).join(" ").replace(/\s+/g," ").trim(); f.p = p; lineas.push(f); });
+    }
+    // Sin texto: es una foto o un escaneo. Se convierte cada página en imagen y se lee con OCR
+    if(lineas.map(l=>l.texto).join("").replace(/\s/g,"").length < 40){
+      try{ const cvs = []; for(let p=1; p<=Math.min(pdf.numPages, 6); p++){ const pg = await pdf.getPage(p), v1 = pg.getViewport({scale:1}), sc = Math.min(3, 2400/Math.max(v1.width, v1.height)), vp = pg.getViewport({scale: Math.max(sc, 1)});
+          const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await pg.render({canvasContext: cv.getContext("2d"), viewport: vp}).promise; cvs.push(cv); }
+        const R = await ocrCanvases(cvs, file.name); if(R && R.todo.length > 40){ toast(`${file.name} es una foto o escaneo: lo leí con reconocimiento de texto. Revisa los montos.`); return R; } }
+      catch(e){ console.error(e); toast(`${file.name} es una foto o escaneo y no pude leerlo. Captura los montos a mano o sube el PDF original.`); }
     }
     return {lineas, todo: lineas.map(l=>l.texto).join("\n")};
   }
@@ -3391,28 +3422,34 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(/FORMATO PARA PAGO DE CUOTAS/.test(T)){
         tipoDoc = "linea";
         const tras = T.split(/PERIODO QUE COMPRENDE/)[1] || T;
-        const pm = tras.match(/\b(0[1-9]|1[0-2])-(20\d{2})\b/); if(!pm) return null; mes = +pm[1]; anio = +pm[2];
+        const pm = tras.match(/\b(0[1-9]|1[0-2])\s?-\s?(20\d{2})\b/);
+        if(pm){ mes = +pm[1]; anio = +pm[2]; }
+        else if(window.__ocrMesSugerido){ mes = window.__ocrMesSugerido.mes; anio = window.__ocrMesSugerido.anio; var periodoSupuesto = true; }
+        else return null;
       } else {
         tipoDoc = /RESUMEN DE LIQUIDACION/.test(T) ? "resumen" : "cedula";
         const pm = T.match(/(?:MES|PERIODO) DE PROCESO:?\s*([A-Z]+)-(\d{4})/); if(!pm || !MES_NOMBRE[pm[1]]) return null; mes = MES_NOMBRE[pm[1]]; anio = +pm[2];
       }
-      const tp = T.match(/T ?O ?T ?A ?L\s+A\s+P ?A ?G ?A ?R:?([^\n]*)/), nums = tp ? (tp[1].match(/[\d,]+\.\d{2}/g)||[]) : [];
+      const tp = T.match(/T\s?O\s?T\s?A\s?L\s?A\s?P\s?A\s?G\s?A\s?R:?([^\n]*)/), nums = tp ? (tp[1].match(/[\d,]+\.\d{2}/g)||[]) : [];
       const totLinea = nums.length ? (tipoDoc==="linea" ? [nums[nums.length-1]] : [nums[0]]) : null;
       const lc = T.match(/LINEA DE CAPTURA SIPARE[\s\S]{0,250}?([0-9A-Z]{6,}(?:-[0-9A-Z]+){5,})/);
       let imssDet = null;
       if(tipoDoc==="linea"){
-        const L = T.split("\n"), primero = s => { const x = String(s||"").match(/[\d,]+\.\d{2}/); return x ? num(x[0]) : 0; };
+        // En fotos o escaneos (OCR) los renglones traen basura al inicio: se recorta hasta la palabra clave
+        const L = T.split("\n").map(l=>{ const m = l.match(/(SUB ?TOTAL|RECARGOS|ACTUALIZACION|TOTAL\s?A\s?PAGAR)/); return m && m.index < 14 ? l.slice(m.index) : l; }), primero = s => { const x = String(s||"").match(/[\d,]+\.\d{2}/); return x ? num(x[0]) : 0; };
         const subs = L.filter(l=>/^\s*SUB ?TOTAL\s+\$/.test(l)).map(primero);
         const segundo = s => { const x = String(s||"").match(/[\d,]+\.\d{2}/g)||[]; return x.length>=3 ? num(x[1]) : 0; };
         const subsOb = L.filter(l=>/^\s*SUB ?TOTAL\s+\$/.test(l)).map(segundo);
         const rec = L.filter(l=>/^\s*RECARGOS\b/.test(l)).map(primero);
         const act = L.filter(l=>/^\s*ACTUALIZACION\b/.test(l)).map(primero);
-        const tl = (L.find(l=>/^\s*TOTAL A PAGAR/.test(l))||"").match(/[\d,]+\.\d{2}/g)||[];
+        let tl = (L.find(l=>/^\s*TOTAL\s?A\s?PAGAR/.test(l))||"").match(/[\d,]+\.\d{2}/g)||[];
+        if(tl.length===2) tl = [String(r2(num(tl[1]) - num(tl[0]))), tl[0], tl[1]];
         imssDet = {imss: subs[0]||0, rcv: subs[1]||0, inf: subs[2]||0, recargos: r2(rec.reduce((s,x)=>s+x,0)), actualizacion: r2(act.reduce((s,x)=>s+x,0)),
           recImss: rec[0]||0, recRcv: rec[1]||0, recInf: rec[2]||0, obImss: subsOb[0]||0, obRcv: subsOb[1]||0, obInf: subsOb[2]||0,
           patronal: tl[0] ? num(tl[0]) : 0, obrera: tl[1] ? num(tl[1]) : 0};
+        if(!imssDet.obImss && imssDet.obrera && !imssDet.rcv && !imssDet.inf) imssDet.obImss = imssDet.obrera;
       }
-      return [{clave:"imss", anio, mes, tipoDoc, presentada:true, imssDet, aPagar: totLinea ? num(totLinea[totLinea.length-1]) : null,
+      return [{clave:"imss", anio, mes, tipoDoc, presentada:true, imssDet, periodoSupuesto: typeof periodoSupuesto!=="undefined" ? true : undefined, aPagar: totLinea ? num(totLinea[totLinea.length-1]) : null,
         folioSUA: (T.match(/FOLIO SUA:?[\s\S]{0,80}?\b(\d{6})\b/)||[])[1]||"",
         linea: tipoDoc==="linea" ? {referencia: lc ? lc[1] : "", fechaLimite: fechaDMY((T.match(/FECHA LIMITE DE PAGO:?[\s\S]{0,120}?(\d{2}\/\d{2}\/\d{4})/)||[])[1])} : null}];
     }
@@ -3458,8 +3495,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     let n = 0; const entradas = [];
     // 1. Leer todos los PDF y guardar los archivos
     for(const {L, file} of lista){
-      const items = parsePdfImpuesto(L.todo);
+      window.__ocrMesSugerido = L.ocr ? {anio: year, mes: iMes || (now.getMonth()+1)} : null;
+      const items = parsePdfImpuesto(L.todo); window.__ocrMesSugerido = null;
       if(!items){ toast(`${file.name}: no reconocí este documento de impuestos.`); continue; }
+      if(items.some(x=>x.periodoSupuesto) && !await confirmar(`No pude leer el periodo en la foto ${file.name}. ¿Es de ${MESES[(iMes||now.getMonth()+1)-1].toLowerCase()} ${year}? (Si no, cancela, elige el mes correcto en Impuestos y vuelve a subirla.)`)) continue;
+      items.forEach(x=>{ delete x.periodoSupuesto; if(L.ocr) x.leidoPorOCR = true; });
       if(items[0].clave==="imss" && items[0].tipoDoc==="cedula"){ const tr = parseCedulaSUA(L); if(tr.length) items[0].trabajadores = tr; }
       let archivo = null;
       if(assets){
