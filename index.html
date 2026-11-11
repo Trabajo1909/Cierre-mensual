@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 64 · Facturas y cuentas en una sola sección</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 66 · Qué toma la app para el cálculo</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -672,6 +672,15 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="ndDlg" style="width:min(520px,94vw)">
+  <h2>Mandar a no deducible</h2>
+  <div class="fsub" id="ndInfo" style="max-width:none;margin-bottom:8px"></div>
+  <p style="font-size:14px;margin:0 0 8px">Toda la factura (subtotal + IVA) se registra en la cuenta que elijas y su IVA <strong>no</strong> se toma como acreditable, ni en tus pólizas ni en el cálculo de impuestos.</p>
+  <label for="ndCta">Cuenta de gastos no deducibles</label><select id="ndCta"></select>
+  <label class="check"><input type="checkbox" id="ndSiempre" checked><span>Usar esta cuenta por default para los no deducibles</span></label>
+  <div class="dlg-actions"><button class="btn" id="ndCancel">Cancelar</button><button class="btn primary" id="ndOk">Guardar</button></div>
 </dialog>
 
 <dialog id="polPickDlg" style="width:min(560px,94vw)">
@@ -1773,7 +1782,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const f of rows){
       const v = vigente(f), abiertoF = fAbiertos.has(f.id);
       t += `<tr class="${v?"":"canc"} frow" data-frow="${esc(f.id)}" style="cursor:pointer"><td>${abiertoF?"▾":"▸"} ${fechaCorta(f.fecha)}${f.anio!==year?` <span class="fsub">${f.anio}</span>`:""}</td>
-        <td><div class="fname" title="${esc(f.nombre)}">${esc(f.nombre||"—")}</div><div class="fsub" title="${esc(f.conceptos||"")}">${v?esc(f.conceptos||""):f.canceladaManual?"Marcada como cancelada por ti":"Cancelada en el SAT"}</div>${botonesCfdi(f.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(f.uuid)}</div>` : ""}${!v && f.canceladaManual && canWrite && !f.acuseCancel ? `<button class="btn sm" data-descancelar="${esc(f.id)}" style="margin-top:4px;opacity:1">Fue un error: volver a vigente</button>` : ""}${!v ? (f.acuseCancel ? `<div class="fsub" style="max-width:none;opacity:1"><span class="st pagado">Acuse de cancelación</span> <button class="linkbtn" data-acusedl="${esc(f.id)}">${esc(f.acuseCancel.nombre)}</button>${f.acuseCancel.fecha?` · cancelada el ${fechaCorta(f.acuseCancel.fecha)} ${f.acuseCancel.fecha.slice(0,4)}`:""}</div>` : `<div class="fsub" style="max-width:none;opacity:1"><span class="st parcial">Falta acuse de cancelación</span>${canWrite?` <button class="linkbtn" data-acuseup="${esc(f.id)}">Subir acuse</button>`:""}</div>`) : ""}${v && canWrite ? `<button class="linkbtn" data-cancelar="${esc(f.id)}" style="font-size:11px">Marcar como cancelada</button>` : ""}</td>
+        <td><div class="fname" title="${esc(f.nombre)}">${esc(f.nombre||"—")}${f.noDed?' <span class="st parcial" style="font-size:10px" title="Se registra como no deducible y su IVA no se acredita">No deducible</span>':""}</div><div class="fsub" title="${esc(f.conceptos||"")}">${v?esc(f.conceptos||""):f.canceladaManual?"Marcada como cancelada por ti":"Cancelada en el SAT"}</div>${botonesCfdi(f.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(f.uuid)}</div>` : ""}${!v && f.canceladaManual && canWrite && !f.acuseCancel ? `<button class="btn sm" data-descancelar="${esc(f.id)}" style="margin-top:4px;opacity:1">Fue un error: volver a vigente</button>` : ""}${!v ? (f.acuseCancel ? `<div class="fsub" style="max-width:none;opacity:1"><span class="st pagado">Acuse de cancelación</span> <button class="linkbtn" data-acusedl="${esc(f.id)}">${esc(f.acuseCancel.nombre)}</button>${f.acuseCancel.fecha?` · cancelada el ${fechaCorta(f.acuseCancel.fecha)} ${f.acuseCancel.fecha.slice(0,4)}`:""}</div>` : `<div class="fsub" style="max-width:none;opacity:1"><span class="st parcial">Falta acuse de cancelación</span>${canWrite?` <button class="linkbtn" data-acuseup="${esc(f.id)}">Subir acuse</button>`:""}</div>`) : ""}${v && canWrite ? `<button class="linkbtn" data-cancelar="${esc(f.id)}" style="font-size:11px">Marcar como cancelada</button>` : ""}</td>
         <td style="min-width:150px">${f.folio?`<div>${esc(f.folio)}</div>`:""}${uuidHTML(f.uuid)}${f.metodo==="PPD"?complementosHTML(f):""}</td>
         <td><span class="mp ${f.metodo==="PPD"?"ppd":""}">${esc(f.metodo||"—")}</span></td>
         <td class="num">${money.format(+f.total||0)}</td>`;
@@ -3208,7 +3217,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     });
     const huerfanos = cR.filter(c=>!fac[c.doc]);
     const manD = ((typeof diotManual!=="undefined" && diotManual[mesKey(y,m)]) || {}).rows || [], manAcr = manD.filter(x=>x.acreditable!==false);
-    const acrBase = r2(S(rPUE,f=>f.ivaBase) + S(pagosMes,x=>x.f.ivaBase*x.p) + S(huerfanos,c=>c.ivaBase) + S(manAcr,x=>+x.b16||0)), acr = r2(S(rPUE,f=>f.iva) + S(pagosMes,x=>x.f.iva*x.p) + S(huerfanos,c=>c.iva) + S(manAcr,x=>+x.iva||0));
+    const acrBase = r2(S(rPUE,f=>f.noDed?0:f.ivaBase) + S(pagosMes,x=>x.f.noDed?0:x.f.ivaBase*x.p) + S(huerfanos,c=>c.ivaBase) + S(manAcr,x=>+x.b16||0)), acr = r2(S(rPUE,f=>f.noDed?0:f.iva) + S(pagosMes,x=>x.f.noDed?0:x.f.iva*x.p) + S(huerfanos,c=>c.iva) + S(manAcr,x=>+x.iva||0));
     const ivaRetCli = r2(S(ePUE,f=>f.ivaRet) + S(cobrosMes,x=>(+x.f.ivaRet||0)*x.p));
     // Retenciones a terceros (recibidas PUE + complementos proporcionales)
     const ret = {isrPF:0, isrRES:0, iva:0, cedPF:0, cedRES:0};
@@ -3239,7 +3248,37 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const totSATEG = r2(OBLIG.filter(o=>o.aut==="SATEG").reduce((s,o)=>s+montos[o.clave],0));
     const out = {diot, y, m, cfg, ingMes, ingAnt, ingAcum, utilidad, isrCausado, pagosAnt, isrPM, nom, trasBase, tras, acrBase, acr, ivaRetCli, ret, ivaNeto, isn, montos, totSAT, totSATEG,
       hayDatos: emit.some(f=>f.anio===y&&f.mes===m) || reci.some(f=>f.anio===y&&f.mes===m) || nm.length>0};
+    out.fuentes = {ingresos: emit.filter(f=>f.anio===y && f.mes===m), ePUE, cobrosMes, huerfE, rPUE, pagosMes, huerfanos, manAcr, nm};
     memo[key] = out; return out;
+  }
+  // Qué facturas, cobros, pagos, complementos y nóminas toma la app para el cálculo del mes
+  function htmlFuentesCalculo(k){
+    const F = k.fuentes; if(!F) return "";
+    const f = money.format, u8 = u => String(u||"").slice(0,8);
+    const tabla = (cols, filas, totales) => `<div class="sheet" style="border:none;border-radius:0;margin:4px 0 10px"><table class="decl" style="width:100%;min-width:640px"><thead><tr>${cols.map(c=>`<th class="${c.n?"num":""}">${c.t}</th>`).join("")}</tr></thead><tbody>${filas.length ? filas.join("") : `<tr><td colspan="${cols.length}" class="fsub">Ninguno este mes.</td></tr>`}${filas.length && totales ? `<tr style="background:var(--group)">${totales}</tr>` : ""}</tbody></table></div>`;
+    const S = (xs, fn) => r2(xs.reduce((s,x)=>s+(+fn(x)||0),0)), pct = p => `${Math.round(p*1000)/10}%`;
+    const bloque = (titulo, resumen, cuerpo) => `<details style="padding:2px 14px 6px;border-bottom:1px solid var(--line)"><summary style="cursor:pointer;padding:8px 0;font-weight:600">${titulo} <span class="fsub" style="font-weight:400">${resumen}</span></summary>${cuerpo}</details>`;
+    // Ingresos (ISR)
+    const ing = F.ingresos.slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+    let h = bloque("Ingresos para el ISR", `${ing.length} facturas emitidas del mes · ${f(S(ing,x=>x.subtotal))}`, `<div class="fsub" style="max-width:none">Todas las facturas emitidas vigentes con fecha del mes (PUE y PPD), sin IVA: el ISR de personas morales se calcula sobre ingresos facturados.</div>` +
+      tabla([{t:"Fecha"},{t:"Cliente"},{t:"Folio / UUID"},{t:"Método"},{t:"Subtotal",n:1}], ing.map(x=>`<tr><td>${fechaCorta(x.fecha)}</td><td>${esc(x.nombre)}</td><td>${esc(x.folio||"")} <span class="uuid">${u8(x.uuid)}…</span></td><td>${x.metodo}</td><td class="num">${f(+x.subtotal||0)}</td></tr>`), `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(S(ing,x=>x.subtotal))}</strong></td>`));
+    // IVA trasladado
+    const tr = [...F.ePUE.map(x=>({f:x, p:1, o:"PUE del mes"})), ...F.cobrosMes.map(x=>({...x, o:"Cobro de PPD"})), ...F.huerfE.map(c=>({c, o:"Complemento sin factura"}))];
+    h += bloque("IVA trasladado (cobrado)", `${tr.length} movimientos · ${f(k.tras)}`, `<div class="fsub" style="max-width:none">Facturas PUE emitidas en el mes y la parte cobrada de las PPD (por tus cobros registrados o, si no hay, por sus complementos del mes).</div>` +
+      tabla([{t:"De dónde sale"},{t:"Cliente"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], tr.map(x=>x.c ? `<tr><td>${x.o}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(r2((+x.f.iva||0)*x.p))}</td></tr>`), `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.trasBase)}</strong></td><td class="num"><strong>${f(k.tras)}</strong></td>`));
+    // IVA acreditable
+    const ac = [...F.rPUE.map(x=>({f:x, p:1, o:"PUE del mes"})), ...F.pagosMes.map(x=>({...x, o:"Pago de PPD"})), ...F.huerfanos.map(c=>({c, o:"Complemento sin factura"}))];
+    h += bloque("IVA acreditable (pagado)", `${ac.length + F.manAcr.length} movimientos · ${f(k.acr)}`, `<div class="fsub" style="max-width:none">Facturas PUE recibidas en el mes y la parte pagada de las PPD (por tus pagos registrados o, si no hay, por sus complementos del mes), más los proveedores sin factura de la DIOT. Las marcadas como no deducibles no suman IVA.</div>` +
+      tabla([{t:"De dónde sale"},{t:"Proveedor"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], [...ac.map(x=>x.c ? `<tr><td>${x.o}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${x.f.noDed?' <span class="st parcial" style="font-size:10px">No deducible: no suma</span>':""}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.iva||0)*x.p))}</td></tr>`), ...F.manAcr.map(x=>`<tr><td>DIOT sin factura</td><td>${esc(x.nombre||x.rfc||"")}</td><td></td><td class="num">—</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td></tr>`)], `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.acrBase)}</strong></td><td class="num"><strong>${f(k.acr)}</strong></td>`));
+    // Retenciones a terceros
+    const rt = [...F.rPUE.map(x=>({f:x, p:1})), ...F.pagosMes].filter(x=>(+x.f.isrRet||0)+(+x.f.ivaRet||0)+(+x.f.impLoc||0) > 0);
+    h += bloque("Retenciones que hiciste a terceros", `${rt.length} facturas · IVA ${f(k.ret.iva)} · ISR ${f(r2(k.ret.isrPF + k.ret.isrRES))}`, `<div class="fsub" style="max-width:none">Honorarios, arrendamiento y RESICO a los que les retuviste, por el pago del mes (proporcional si fue parcial).</div>` +
+      tabla([{t:"Proveedor"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"ISR retenido",n:1},{t:"IVA retenido",n:1},{t:"Cedular",n:1}], rt.map(x=>`<tr><td>${esc(x.f.nombre)}${String(x.f.regimen||"").startsWith("626")?' <span class="fsub">RESICO</span>':""}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(r2((+x.f.isrRet||0)*x.p))}</td><td class="num">${f(r2((+x.f.ivaRet||0)*x.p))}</td><td class="num">${f(r2((+x.f.impLoc||0)*x.p))}</td></tr>`)));
+    // Nóminas
+    const nm = F.nm.slice().sort((a,b)=>String(a.fechaPago).localeCompare(String(b.fechaPago)) || String(a.nombre).localeCompare(String(b.nombre)));
+    h += bloque("Recibos de nómina", `${nm.length} recibos · percepciones ${f(S(nm,x=>x.percepciones))} · ISR ${f(S(nm,x=>x.isr))}`, `<div class="fsub" style="max-width:none">Recibos vigentes con fecha de pago del mes. Con IMSS cuentan como sueldos; sin IMSS, como asimilados.</div>` +
+      tabla([{t:"Fecha de pago"},{t:"Empleado"},{t:"Tipo"},{t:"Percepciones",n:1},{t:"ISR",n:1},{t:"IMSS",n:1}], nm.map(x=>`<tr><td>${fechaCorta(x.fechaPago)}</td><td>${esc(x.nombre)}</td><td>${+x.imss>0?"Sueldos":"Asimilados"}</td><td class="num">${f(+x.percepciones||0)}</td><td class="num">${f(+x.isr||0)}</td><td class="num">${+x.imss?f(+x.imss):""}</td></tr>`), `<td colspan="3"><strong>Total</strong></td><td class="num"><strong>${f(S(nm,x=>x.percepciones))}</strong></td><td class="num"><strong>${f(S(nm,x=>x.isr))}</strong></td><td class="num"><strong>${f(S(nm,x=>x.imss))}</strong></td>`));
+    return `<div class="bpanel" style="margin-top:16px"><h3>¿Qué toma la app para este cálculo?<small>Abre cada bloque para ver las facturas, cobros, pagos, complementos y nóminas que suman en ${MESES[k.m-1].toLowerCase()}. Los totales coinciden con el cálculo de arriba.</small></h3>${h}</div>`;
   }
   function estadoOblig(o, k){
     const d = declDe(k.y, k.m, o.clave);
@@ -3596,7 +3635,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(m%3===0){ filasIng += `<tr style="background:var(--group)"><td><strong>Trimestre ${m/3}</strong></td><td class="num"><strong>${f(trim)}</strong></td><td></td><td></td></tr>`; trim = 0; }
     }
     const tablaIng = `<div class="bpanel"><h3>Ingresos nominales ${year}<small>Facturas emitidas vigentes, por mes, acumulado y por trimestre, comparadas con la cuenta 401 de tu balanza.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Mes</th><th class="num">Ingresos del mes</th><th class="num">Acumulado</th><th class="num">Balanza (401)</th></tr></thead><tbody>${filasIng}<tr><td><strong>Total del año</strong></td><td class="num"><strong>${f(acum)}</strong></td><td></td><td></td></tr></tbody></table></div></div>`;
-    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}${htmlIMSSEmpleados()}`;
+    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlFuentesCalculo(k)}${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}${htmlIMSSEmpleados()}`;
   }
 
   $("imonths").addEventListener("click", e => { const b = e.target.closest("[data-imes]"); if(b){ iMes = +b.dataset.imes; renderImpuestos(); } });
@@ -5491,9 +5530,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   let catalogo = [], terceros = {}, contaCfg = {}, unsubCat = null, unsubTer = null, unsubCC = null, coTab = "provProv", coMes = null;
   const CO_TABS = [["provProv","Provisión proveedores"],["provCli","Provisión clientes"],["egresos","Egresos"],["ingresos","Ingresos"],["plat","Ventas en plataformas"],["manual","Pólizas a mano"],["cq","Tus pólizas en CONTPAQi"]];
   const CTA_DEF = {iva119:"119-01-000", iva118:"118-01-000", iva209:"209-01-000", iva208:"208-01-000", ingresos:"401-01-000",
-    retIsrResico:"216-12-004", retIvaResico:"216-12-006", retCedResico:"216-12-005", retIsrHon:"213-07-004", retIvaHon:"213-07-003", retCedHon:"213-07-005", ivaRetCli:"113-01-000", isrRetCli:"113-02-000", platPuenteML:"", platPuenteTK:"", platComision:"", platEnvio:"", platRet:"", platDevol:"", platRedondeo:""};
+    retIsrResico:"216-12-004", retIvaResico:"216-12-006", retCedResico:"216-12-005", retIsrHon:"213-07-004", retIvaHon:"213-07-003", retCedHon:"213-07-005", ivaRetCli:"113-01-000", isrRetCli:"113-02-000", platPuenteML:"", platPuenteTK:"", platComision:"", platEnvio:"", platRet:"", platDevol:"", platRedondeo:"", noDeducible:""};
   const CTA_NOM = {iva119:"IVA pendiente de pago", iva118:"IVA acreditable pagado", iva209:"IVA trasladado no cobrado", iva208:"IVA trasladado cobrado", ingresos:"Ingresos",
-    retIsrResico:"ISR retenido a RESICO", retIvaResico:"IVA retenido a RESICO", retCedResico:"Cedular retenida a RESICO", retIsrHon:"ISR retenido por honorarios", retIvaHon:"IVA retenido por honorarios", retCedHon:"Cedular retenida por honorarios", ivaRetCli:"IVA que te retienen tus clientes", isrRetCli:"ISR que te retienen tus clientes", platPuenteML:"Mercado Libre por cobrar (cuenta puente)", platPuenteTK:"TikTok Shop por cobrar (cuenta puente)", platComision:"Comisiones de plataformas (gasto)", platEnvio:"Envíos de plataformas (gasto)", platRet:"Impuestos retenidos por plataformas (ISR, IVA)", platDevol:"Devoluciones sobre ventas", platRedondeo:"Diferencias por redondeo en retenciones (gasto)"};
+    retIsrResico:"ISR retenido a RESICO", retIvaResico:"IVA retenido a RESICO", retCedResico:"Cedular retenida a RESICO", retIsrHon:"ISR retenido por honorarios", retIvaHon:"IVA retenido por honorarios", retCedHon:"Cedular retenida por honorarios", ivaRetCli:"IVA que te retienen tus clientes", isrRetCli:"ISR que te retienen tus clientes", platPuenteML:"Mercado Libre por cobrar (cuenta puente)", platPuenteTK:"TikTok Shop por cobrar (cuenta puente)", platComision:"Comisiones de plataformas (gasto)", platEnvio:"Envíos de plataformas (gasto)", platRet:"Impuestos retenidos por plataformas (ISR, IVA)", platDevol:"Devoluciones sobre ventas", platRedondeo:"Diferencias por redondeo en retenciones (gasto)", noDeducible:"Gastos no deducibles (sin IVA acreditable)"};
   function subscribeConta(){
     [unsubCat, unsubTer, unsubCC].forEach(u=>u && u()); catalogo = []; terceros = {}; contaCfg = {};
     if(!db || !empresa) return;
@@ -5629,8 +5668,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const ct = cuentasTercero(f), lin = [], sub = r2(+f.subtotal||0), iva = r2(+f.iva||0), tot = r2(+f.total||0);
         if(tipo==="recibida"){
           const rc = retCtas(f);
-          lin.push({c: ct.gasto, ca: sub, falta: !ct.gasto && "gasto", n: `PROV ${f.nombre}`});
-          if(iva) lin.push({c: ctaCfg("iva119"), ca: iva});
+          const ndC = f.noDed ? (f.ctaNoDed || ctaCfg("noDeducible") || ct.gasto) : null;
+          if(f.noDed) lin.push({c: ndC, ca: r2(sub + iva), falta: !ndC && "gasto", n: `NO DEDUCIBLE ${f.nombre}`});
+          else { lin.push({c: ct.gasto, ca: sub, falta: !ct.gasto && "gasto", n: `PROV ${f.nombre}`}); if(iva) lin.push({c: ctaCfg("iva119"), ca: iva}); }
           if(+f.isrRet) lin.push({c: rc.isr, ab: r2(+f.isrRet)});
           if(+f.ivaRet) lin.push({c: rc.iva, ab: r2(+f.ivaRet)});
           if(+f.impLoc) lin.push({c: rc.ced, ab: r2(+f.impLoc)});
@@ -5654,8 +5694,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const f = x.f, ct = cuentasTercero(f), p = +f.total ? x.monto / f.total : 1, bk = bancoDePago(x.monto, x.fecha), lin = [];
         const iva = r2((+f.iva||0)*p), sub = r2((+f.subtotal||0)*p);
         if(tipo==="recibida"){
-          if(f.metodo==="PPD"){ lin.push({c: ct.prov, ca: x.monto, falta: !ct.prov && "prov"}); lin.push({c: bk.cta, ab: x.monto, falta: !bk.cta && "banco"}); if(iva){ lin.push({c: ctaCfg("iva118"), ca: iva}); lin.push({c: ctaCfg("iva119"), ab: iva}); } }
-          else { const rc = retCtas(f); lin.push({c: ct.gasto, ca: sub, falta: !ct.gasto && "gasto"}); if(iva) lin.push({c: ctaCfg("iva118"), ca: iva});
+          if(f.metodo==="PPD"){ lin.push({c: ct.prov, ca: x.monto, falta: !ct.prov && "prov"}); lin.push({c: bk.cta, ab: x.monto, falta: !bk.cta && "banco"}); if(iva && !f.noDed){ lin.push({c: ctaCfg("iva118"), ca: iva}); lin.push({c: ctaCfg("iva119"), ab: iva}); } }
+          else { const rc = retCtas(f), ndC = f.noDed ? (f.ctaNoDed || ctaCfg("noDeducible") || ct.gasto) : null;
+            if(f.noDed) lin.push({c: ndC, ca: r2(sub + iva), falta: !ndC && "gasto", n: `NO DEDUCIBLE ${f.nombre}`});
+            else { lin.push({c: ct.gasto, ca: sub, falta: !ct.gasto && "gasto"}); if(iva) lin.push({c: ctaCfg("iva118"), ca: iva}); }
             if(+f.isrRet) lin.push({c: rc.isr, ab: r2(+f.isrRet*p)}); if(+f.ivaRet) lin.push({c: rc.iva, ab: r2(+f.ivaRet*p)}); if(+f.impLoc) lin.push({c: rc.ced, ab: r2(+f.impLoc*p)});
             lin.push({c: bk.cta, ab: x.monto, falta: !bk.cta && "banco"}); }
         } else {
@@ -5712,6 +5754,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   $("cobody").addEventListener("input", e => { if(e.target.id==="cqBuscar"){ cqBuscar = e.target.value; const pos = e.target.selectionStart; renderPolizasCQ(); const i = $("cqBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
   $("cobody").addEventListener("click", e => { const b = e.target.closest("[data-cqtipo]"); if(b){ cqTipo = b.dataset.cqtipo; renderPolizasCQ(); } });
+  let ndFactura = null;
+  $("ndCancel").onclick = () => $("ndDlg").close();
+  $("ndOk").onclick = async () => { const f = ndFactura; if(!f) return; const c = $("ndCta").value; f.noDed = true; f.ctaNoDed = c;
+    try{ await db.doc(`empresas/${empresa}/facturas/${f.id}`).update({noDed:true, ctaNoDed:c});
+      if($("ndSiempre").checked) await guardarCfgConta({cuentas: {...(contaCfg.cuentas||{}), noDeducible: c}}); }catch(err){ handleWriteError(err); }
+    $("ndDlg").close(); renderConta(); toast("Listo: se registra como no deducible y su IVA ya no se acredita."); };
   function renderConta(){
     $("yearLabel").textContent = year;
     if(!coMes) coMes = year===now.getFullYear() ? now.getMonth()+1 : 12;
@@ -5742,7 +5790,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     for(const p of ps){
       const inc = !excl.has(p.key) && !p.ya;
       html += `<div class="bpanel" style="margin-bottom:12px;${inc?"":"opacity:.6"}"><h3 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label class="check" style="margin:0"><input type="checkbox" data-coinc="${esc(p.key)}" ${inc?"checked":""}><span>${p.tipo} ${inc&&p.num!=null?p.num:""}</span></label><span style="font-weight:600">${fechaCorta(p.fecha)} · ${esc(p.concepto)}</span>
-        ${p.ya?`<span class="st pagado">Ya está en tus pólizas (${esc(p.ya)})</span>`:""}${p.manual && canWrite?`<button class="linkbtn" data-coman="${esc(p.id)}">Editar</button> <button class="linkbtn" data-codup="${esc(p.id)}">Duplicar</button>`:""}${p.sinPago?`<span class="st parcial">PUE sin pago registrado: se usa la fecha de la factura</span>`:""}${p.bk && p.bk.supuesto?`<span class="st parcial">Banco supuesto: ${esc(p.bk.nombre)}</span>`:""}<small>Ref. ${esc(p.ref)}</small></h3>
+        ${p.ya?`<span class="st pagado">Ya está en tus pólizas (${esc(p.ya)})</span>`:""}${p.f && p.f.tipo==="recibida" && canWrite ? (p.f.noDed ? `<span class="st parcial">No deducible</span> <button class="linkbtn" data-nodedu="${esc(p.f.id)}" data-quitar="1">quitar</button>` : `<button class="linkbtn" data-nodedu="${esc(p.f.id)}">Mandar a no deducible</button>`) : ""}${p.manual && canWrite?`<button class="linkbtn" data-coman="${esc(p.id)}">Editar</button> <button class="linkbtn" data-codup="${esc(p.id)}">Duplicar</button>`:""}${p.sinPago?`<span class="st parcial">PUE sin pago registrado: se usa la fecha de la factura</span>`:""}${p.bk && p.bk.supuesto?`<span class="st parcial">Banco supuesto: ${esc(p.bk.nombre)}</span>`:""}<small>Ref. ${esc(p.ref)}</small></h3>
         <div class="sheet" style="border:none;border-radius:0"><table class="pt" style="min-width:0;width:100%"><thead><tr><th>Cuenta</th><th class="num">Cargo</th><th class="num">Abono</th></tr></thead><tbody>
         ${p.lin.map((l,i)=>{ const ok = l.c && esDetalle(l.c);
           const sel = p.manual ? (ok ? "" : `<span class="falta">${l.c?`${esc(l.c)} no existe en tu catálogo`:"Falta cuenta"}</span>`) : l.falta || !ok ? (l.falta==="gasto" || (!ok && /^(5|6|7)/.test(l.c||"")) ? `<select data-coset="gasto" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["5","6","7","15"], l.c)}</select>` : l.falta==="prov" ? `<select data-coset="prov" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["201","205"], l.c)}</select>` : l.falta==="cli" ? `<select data-coset="cli" data-id="${esc(p.ct.id)}" style="max-width:340px">${opts(["105"], l.c)}</select>` : `<span class="falta">${l.c?`${esc(l.c)} no existe en tu catálogo`:"Falta cuenta"}</span>`) : "";
@@ -5781,6 +5829,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       delete deP[dz.dataset.i]; delMes[dz.dataset.codeshacer] = deP; cambios[mk] = delMes; guardarCfgConta({cambios}); return; }
     if(e.target.closest("#coTxt")) return exportConta("txt");
     if(e.target.closest("#coTodo")) return exportConta("txt", true);
+    const nd = e.target.closest("[data-nodedu]"); if(nd){ const f = facturas.find(x=>x.id===nd.dataset.nodedu); if(!f) return;
+      if(nd.dataset.quitar){ f.noDed = false; f.ctaNoDed = null; try{ await db.doc(`empresas/${empresa}/facturas/${f.id}`).update({noDed:false, ctaNoDed:null}); }catch(err){ handleWriteError(err); } renderConta(); return; }
+      ndFactura = f; const sug = catalogo.filter(k=>esDetalle(k.c) && /no deduc/i.test(sinAcento(k.n)));
+      $("ndCta").innerHTML = [...sug, ...catalogo.filter(k=>esDetalle(k.c) && !sug.includes(k))].map(k=>`<option value="${k.c}" ${(ctaCfg("noDeducible")||(sug[0]||{}).c)===k.c?"selected":""}>${k.c} ${esc(k.n)}</option>`).join("");
+      $("ndInfo").textContent = `${f.nombre} · ${money.format(+f.total||0)} (IVA ${money.format(+f.iva||0)})`; $("ndDlg").showModal(); return; }
     if(e.target.closest("#coNueva")){ abrirPolMan(null); return; }
     const em = e.target.closest("[data-coman]"); if(em){ abrirPolMan(polApp.find(x=>x.id===em.dataset.coman)); return; }
     const du = e.target.closest("[data-codup]"); if(du){ const x = polApp.find(y=>y.id===du.dataset.codup); if(x) abrirPolMan({...x, id:null}); return; }
