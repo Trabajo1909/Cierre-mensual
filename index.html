@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cierre mensual</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -409,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 68 · Corregir el importe de una línea de captura</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 67 · Ajustar el cálculo de impuestos</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -755,8 +756,6 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 
 <dialog id="detDlg" style="width:min(560px,94vw)">
   <h2 id="detTitulo">Detalle del pago</h2>
-  <label for="detImporte">Total a pagar de la línea de captura o declaración</label><input id="detImporte" type="number" step="0.01" min="0">
-  <div class="fsub" id="detImporteNota" style="max-width:none;white-space:normal;margin-top:2px"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
     <div><label for="detRec">Recargos pagados</label><input id="detRec" type="number" step="0.01" min="0"></div>
     <div><label for="detAct">Actualización</label><input id="detAct" type="number" step="0.01" min="0"></div>
@@ -866,6 +865,251 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 
 <div class="toast" id="toast" role="status"></div>
 
+<script>
+window.SUPABASE_URL = "https://qvreueaizyxnlhqofnvf.supabase.co";
+window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2cmV1ZWFpenl4bmxocW9mbnZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMjM4ODksImV4cCI6MjEwODg5OTg4OX0.tSjgOhjv6Jac5fJcsNXhubzFC9VFu0jQggpdi5r6nmI";
+window.GOOGLE_CLIENT_ID = "";
+window.DRIVE_SCRIPT_URL = "";
+window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+// Puente entre la app y Supabase: reemplaza lo que en Claude hacía el visor
+// (base de datos, archivos, descargas e inicio de sesión).
+(function(){
+  if(!window.supabase || !window.SUPABASE_URL || /TU-PROYECTO/.test(window.SUPABASE_URL)){
+    document.addEventListener("DOMContentLoaded", () => { document.body.innerHTML = '<div style="font-family:system-ui;max-width:560px;margin:80px auto;padding:24px;line-height:1.6"><h2>Falta configurar Supabase</h2><p>Abre el archivo <b>config.js</b> y pega la URL y la <i>anon public key</i> de tu proyecto de Supabase. Los pasos están en <b>LEEME.md</b>.</p></div>'; });
+    window.claude = {use: () => new Promise(()=>{})}; return;
+  }
+  const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  window.__sb = sb;
+  let resolver; const sesion = new Promise(r => resolver = r);
+
+  // ---------- Inicio de sesión ----------
+  const css = `#sbLogin{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:var(--bg,#F6F6F4);font-family:"IBM Plex Sans",system-ui,sans-serif}
+  #sbLogin form{background:var(--surface,#fff);border:1px solid var(--line,#E4E4E0);border-radius:14px;padding:26px;width:min(380px,92vw);display:grid;gap:10px;color:var(--ink,#151515)}
+  #sbLogin h2{margin:0 0 4px;font-size:22px} #sbLogin p{margin:0 0 6px;color:var(--muted,#66665F);font-size:14px}
+  #sbLogin input{font:inherit;font-size:15px;padding:10px;border-radius:8px;border:1px solid var(--line-strong,#CACAC5);background:var(--bg,#F6F6F4);color:inherit}
+  #sbLogin button{font:inherit;font-weight:600;padding:10px;border-radius:8px;border:none;background:var(--done,#7A1F3D);color:#fff;cursor:pointer}
+  #sbLogin .err{color:var(--late-ink,#A3283F);font-size:13px;min-height:18px}
+  #sbMenu{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:50;font-family:"IBM Plex Sans",system-ui,sans-serif}
+  #sbMenu>button{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line-strong,#CACAC5);background:var(--surface,#fff);color:var(--ink,#151515);border-radius:999px;padding:7px 12px;cursor:pointer}
+  #sbMenu div{position:absolute;right:0;bottom:40px;background:var(--surface,#fff);border:1px solid var(--line,#E4E4E0);border-radius:10px;padding:6px;display:none;min-width:220px}
+  #sbMenu div button{display:block;width:100%;text-align:left;font:inherit;font-size:14px;border:none;background:none;color:var(--ink,#151515);padding:8px 10px;border-radius:6px;cursor:pointer}
+  #sbMenu div button:hover{background:var(--bg,#F6F6F4)} #sbMenu small{display:block;padding:4px 10px;color:var(--muted,#66665F)}`;
+  function pintarLogin(){
+    const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+    const box = document.createElement("div"); box.id = "sbLogin";
+    box.innerHTML = `<form><h2>Cierre mensual</h2><p>Inicia sesión con tu correo y contraseña.</p>
+      <input type="email" id="sbEmail" placeholder="Correo" autocomplete="username" required>
+      <input type="password" id="sbPass" placeholder="Contraseña" autocomplete="current-password" required>
+      <button type="submit">Entrar</button><div class="err" id="sbErr"></div></form>`;
+    document.body.appendChild(box);
+    box.querySelector("form").onsubmit = async e => {
+      e.preventDefault(); document.getElementById("sbErr").textContent = "";
+      const {data, error} = await sb.auth.signInWithPassword({email: document.getElementById("sbEmail").value.trim(), password: document.getElementById("sbPass").value});
+      if(error){ document.getElementById("sbErr").textContent = "Correo o contraseña incorrectos."; return; }
+      box.remove(); listo(data.session);
+    };
+  }
+  function listo(s){ pintarMenu(s); resolver(s); }
+  function pintarMenu(s){
+    if(document.getElementById("sbMenu")) return;
+    const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+    const m = document.createElement("div"); m.id = "sbMenu";
+    m.innerHTML = `<button type="button" aria-haspopup="true">⋯ Cuenta</button><div><small>${(s.user.email||"").replace(/</g,"")}</small>
+      ${window.GOOGLE_CLIENT_ID || window.DRIVE_SCRIPT_URL ? `<button type="button" data-a="gd">${(()=>{ try{ return localStorage.getItem("gdConectado")==="1"; }catch(_){ return false; } })() ? "Google Drive conectado ✓" : "Conectar Google Drive"}</button><button type="button" data-a="gdoff">Dejar de guardar en Drive</button>` : ""}
+      <button type="button" data-a="imp">Importar respaldo (.zip)</button><button type="button" data-a="out">Cerrar sesión</button></div>
+      <input type="file" accept=".zip" hidden>`;
+    document.body.appendChild(m);
+    const panel = m.querySelector("div"), inp = m.querySelector("input");
+    m.firstElementChild.onclick = () => panel.style.display = panel.style.display==="block" ? "none" : "block";
+    panel.onclick = async e => { const a = e.target.dataset.a; panel.style.display = "none";
+      if(a==="out"){ await sb.auth.signOut(); location.reload(); }
+      if(a==="imp") inp.click();
+      if(a==="gd"){ if(window.DRIVE_SCRIPT_URL){ try{ localStorage.setItem("gdConectado","1"); }catch(_){} gdAviso("Google Drive activado: tus descargas se guardarán también ahí."); } else gdConectar(); }
+      if(a==="gdoff"){ try{ localStorage.removeItem("gdConectado"); }catch(_){} GD.token = null; gdAviso("Listo: ya no se guardará en Drive."); } };
+    inp.onchange = () => { const f = inp.files[0]; inp.value = ""; if(f) importarRespaldo(f); };
+  }
+  document.addEventListener("DOMContentLoaded", async () => {
+    const {data:{session}} = await sb.auth.getSession();
+    if(session) listo(session); else pintarLogin();
+  });
+
+  // ---------- Base de datos (misma forma que usaba la app en Claude) ----------
+  const padre = p => p.split("/").slice(0,-1).join("/"), ultimo = p => p.split("/").pop();
+  const error = e => Object.assign(new Error(e.message || "Error"), {code: /permission|policy|42501|JWT/i.test((e.message||"")+(e.code||"")) ? "invalid_argument" : "unavailable"});
+  const subsDoc = new Map(), subsCol = new Map();
+  const agregar = (m, k, f) => { if(!m.has(k)) m.set(k, new Set()); m.get(k).add(f); return () => m.get(k).delete(f); };
+  const avisar = path => { (subsDoc.get(path)||[]).forEach(f=>f()); (subsCol.get(padre(path))||[]).forEach(f=>f()); };
+  const conPausa = fn => { let t = null; return () => { clearTimeout(t); t = setTimeout(fn, 120); }; };
+  async function leerDoc(path){ const {data, error:e} = await sb.from("docs").select("data").eq("path", path).maybeSingle(); if(e) throw error(e); return data; }
+  async function leerCol(path){ const out = []; for(let de = 0;; de += 1000){ const {data, error:e} = await sb.from("docs").select("id,data").eq("parent", path).range(de, de+999); if(e) throw error(e); out.push(...data); if(data.length < 1000) break; } return out; }
+  let canal = null;
+  function tiempoReal(){ if(canal) return; canal = sb.channel("docs").on("postgres_changes", {event:"*", schema:"public", table:"docs"}, p => { const path = (p.new && p.new.path) || (p.old && p.old.path); if(path) avisar(path); }).subscribe(); }
+  function doc(path){
+    return {
+      id: ultimo(path), path,
+      async get(){ const r = await leerDoc(path); return {id: ultimo(path), exists: !!r, data: () => r ? r.data : undefined}; },
+      async set(data){ const {error:e} = await sb.from("docs").upsert({path, parent: padre(path), id: ultimo(path), data, updated_at: new Date().toISOString()}); if(e) throw error(e); avisar(path); return {version: 1}; },
+      async update(patch){ const {error:e} = await sb.rpc("merge_doc", {p_path: path, p_parent: padre(path), p_id: ultimo(path), p_patch: patch}); if(e) throw error(e); avisar(path); return {version: 1}; },
+      async delete(){ const {error:e} = await sb.from("docs").delete().eq("path", path); if(e) throw error(e); avisar(path); },
+      onSnapshot(cb, onErr){ const correr = conPausa(async () => { try{ const r = await leerDoc(path); cb({id: ultimo(path), exists: !!r, data: () => r ? r.data : undefined, metadata:{}}); }catch(e){ onErr && onErr(e); } });
+        const quitar = agregar(subsDoc, path, correr); tiempoReal(); correr(); return quitar; },
+      collection: sub => coleccion(`${path}/${sub}`)
+    };
+  }
+  function coleccion(path){
+    return {
+      path, doc: id => doc(`${path}/${id}`),
+      onSnapshot(cb, onErr){ const correr = conPausa(async () => { try{ const rows = await leerCol(path); const docs = rows.map(r=>({id: r.id, exists: true, data: () => r.data})); cb({docs, size: docs.length, empty: !docs.length}); }catch(e){ onErr && onErr(e); } });
+        const quitar = agregar(subsCol, path, correr); tiempoReal(); correr(); return quitar; }
+    };
+  }
+  const db = {doc, collection: coleccion};
+
+  // ---------- Archivos (Supabase Storage, carpeta privada "archivos") ----------
+  const nuevoId = () => Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,"0")).join("");
+  const assets = {
+    async upload(file){ const id = nuevoId(); const {error:e} = await sb.storage.from("archivos").upload(id, file, {contentType: file.type || "application/octet-stream", upsert: false}); if(e) throw error(e); return {id, url: "/_blob/" + id, type: file.type, size: file.size}; }
+  };
+  const fetchOriginal = window.fetch.bind(window);
+  window.fetch = async (u, o) => {
+    const url = typeof u === "string" ? u : (u && u.url) || "";
+    const m = url.match(/\/_blob\/([0-9a-f]{32})/);
+    if(m){ const {data, error:e} = await sb.storage.from("archivos").download(m[1]); return e ? new Response(null, {status: 404}) : new Response(data, {status: 200}); }
+    return fetchOriginal(u, o);
+  };
+
+  // ---------- Google Drive: cada descarga se guarda también en tu Drive, acomodada en carpetas ----------
+  const GD = {token:null, vence:0, cliente:null, carpetas:{}, pendiente:[]};
+  const gdActivo = () => !!window.GOOGLE_CLIENT_ID || !!window.DRIVE_SCRIPT_URL;
+  const gdConectado = () => { try{ return localStorage.getItem("gdConectado")==="1"; }catch(_){ return false; } };
+  function gdAviso(texto, boton){
+    let el = document.getElementById("gdAviso");
+    if(!el){ el = document.createElement("div"); el.id = "gdAviso"; el.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink,#151515);color:var(--bg,#fff);padding:10px 14px;border-radius:10px;font:500 14px 'IBM Plex Sans',system-ui,sans-serif;max-width:92vw;display:flex;gap:10px;align-items:center"; document.body.appendChild(el); }
+    el.innerHTML = ""; const t = document.createElement("span"); t.textContent = texto; el.appendChild(t);
+    if(boton){ const b = document.createElement("button"); b.textContent = boton.texto; b.style.cssText = "font:inherit;font-weight:700;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;background:var(--done,#7A1F3D);color:#fff"; b.onclick = boton.accion; el.appendChild(b); }
+    clearTimeout(gdAviso.t); gdAviso.t = setTimeout(()=>el.remove(), boton ? 15000 : 4500);
+  }
+  function gdCargarGis(){ return window.google && google.accounts ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://accounts.google.com/gsi/client"; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+  async function gdPedirToken(conVentana){
+    await gdCargarGis();
+    return new Promise((res, rej) => {
+      GD.cliente = google.accounts.oauth2.initTokenClient({client_id: window.GOOGLE_CLIENT_ID, scope: "https://www.googleapis.com/auth/drive.file",
+        callback: r => { if(r.error){ rej(r); return; } GD.token = r.access_token; GD.vence = Date.now() + (r.expires_in - 60)*1000; try{ localStorage.setItem("gdConectado","1"); }catch(_){} res(GD.token); },
+        error_callback: e => rej(e)});
+      GD.cliente.requestAccessToken({prompt: conVentana ? "consent" : ""});
+    });
+  }
+  async function gdConectar(){
+    try{ await gdPedirToken(true); gdAviso("Google Drive conectado: tus descargas se guardarán también ahí."); const p = GD.pendiente.splice(0); for(const x of p) await gdSubir(x.filename, x.blob); }
+    catch(e){ gdAviso("No se pudo conectar Google Drive."); }
+  }
+  async function gdApi(url, opts={}){
+    const r = await fetchOriginal(url, {...opts, headers: {...(opts.headers||{}), Authorization: `Bearer ${GD.token}`}});
+    if(r.status===401){ GD.token = null; throw Object.assign(new Error("token"), {token:true}); }
+    if(!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+  async function gdCarpeta(nombre, padre){
+    const clave = `${padre||"root"}/${nombre}`; if(GD.carpetas[clave]) return GD.carpetas[clave];
+    const q = encodeURIComponent(`name='${nombre.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false and '${padre||"root"}' in parents`);
+    const lst = await gdApi(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&spaces=drive`);
+    const id = lst.files && lst.files[0] ? lst.files[0].id : (await gdApi("https://www.googleapis.com/drive/v3/files?fields=id", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({name: nombre, mimeType:"application/vnd.google-apps.folder", parents:[padre||"root"]})})).id;
+    GD.carpetas[clave] = id; return id;
+  }
+  const MESES_GD = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  function gdRuta(filename){
+    const n = filename.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\.(?=[A-Z]{3,4}$)/,"·").replace(/[^A-Z0-9·-]/g," ").replace("·",".");
+    const empresa = ((document.getElementById("companyLabel")||{}).textContent||"").split("·")[0].trim() || "Empresa";
+    let anio = (n.match(/\b(20\d{2})\b/)||[])[1] || String(new Date().getFullYear()), mes = null;
+    const mm = n.match(/^(\d{2}) /); if(mm && +mm[1]>=1 && +mm[1]<=12) mes = +mm[1];
+    if(!mes) MESES_GD.forEach((m,i)=>{ const u = m.toUpperCase(); if(!mes && (new RegExp(`\\b${u}\\b`).test(n) || new RegExp(`\\b${u.slice(0,3)}\\b`).test(n))) mes = i+1; });
+    const iso = n.match(/\b(20\d{2})-(\d{2})-\d{2}\b/); if(!mes && iso){ anio = iso[1]; mes = +iso[2]; }
+    const cat = /RESPALDO/.test(n) ? "Respaldos" : /CONCILIACI|BANCO/.test(n) ? "Bancos" : /DIOT|IMPUESTO|IMSS|\bSUA\b|ACUSE|LINEA|\bISN\b|\bIVA\b/.test(n) ? "Impuestos" : /FACTURA|CANCELACI/.test(n) ? "Facturas" : /CXC|CXP|CUENTAS/.test(n) ? "Cuentas" :
+      /BALANZA/.test(n) ? "Balanza" : /DASHBOARD/.test(n) ? "Dashboards" : /ACTIVO/.test(n) ? "Activo fijo" : /RESPALDO/.test(n) ? "Respaldos" : /CIERRE/.test(n) ? "Tablero" : /\.ZIP$/.test(n) ? "Carpeta del mes" : "Otros";
+    if(cat==="Respaldos") return ["Cierre mensual", empresa, "Respaldos"];
+    if(/COMPARATIVO/.test(n) || cat==="Tablero") return ["Cierre mensual", empresa, anio, cat];
+    return ["Cierre mensual", empresa, anio, mes ? `${String(mes).padStart(2,"0")} ${MESES_GD[mes-1]}` : "Sin mes", cat];
+  }
+  async function gdSubirScript(filename, blob){
+    try{
+      const ruta = gdRuta(filename);
+      const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
+      const r = await fetchOriginal(window.DRIVE_SCRIPT_URL, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({token: window.DRIVE_SCRIPT_TOKEN, ruta, nombre: filename, tipo: blob.type || "application/octet-stream", datos: b64})});
+      const j = await r.json().catch(()=>({ok:false, error:"Respuesta inesperada de Google"}));
+      if(!j.ok) throw new Error(j.error || "Error");
+      gdAviso(`Guardado en Drive: ${ruta.join(" / ")}`);
+    }catch(e){ gdAviso("No se pudo guardar en Drive: " + String(e.message||e).slice(0,120)); }
+  }
+  async function gdSubir(filename, blob){
+    if(window.DRIVE_SCRIPT_URL) return gdSubirScript(filename, blob);
+    if(!GD.token || Date.now() > GD.vence){
+      try{ await gdPedirToken(false); }catch(_){ GD.pendiente.push({filename, blob}); gdAviso("Para guardar en tu Drive, vuelve a conectar Google Drive.", {texto:"Conectar", accion: gdConectar}); return; }
+    }
+    try{
+      const ruta = gdRuta(filename); let padre = null; for(const c of ruta) padre = await gdCarpeta(c, padre);
+      const q = encodeURIComponent(`name='${filename.replace(/'/g,"\\'")}' and '${padre}' in parents and trashed=false`);
+      const ex = await gdApi(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&spaces=drive`);
+      if(ex.files && ex.files[0]){
+        await fetchOriginal(`https://www.googleapis.com/upload/drive/v3/files/${ex.files[0].id}?uploadType=media`, {method:"PATCH", headers:{Authorization:`Bearer ${GD.token}`, "Content-Type": blob.type || "application/octet-stream"}, body: blob});
+      } else {
+        const form = new FormData();
+        form.append("metadata", new Blob([JSON.stringify({name: filename, parents:[padre]})], {type:"application/json"}));
+        form.append("file", blob);
+        const r = await fetchOriginal("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {method:"POST", headers:{Authorization:`Bearer ${GD.token}`}, body: form});
+        if(!r.ok) throw new Error(await r.text());
+      }
+      gdAviso(`Guardado en Drive: ${ruta.join(" / ")}`);
+    }catch(e){
+      if(e.token){ GD.pendiente.push({filename, blob}); gdAviso("Tu sesión de Google Drive venció.", {texto:"Reconectar", accion: gdConectar}); }
+      else gdAviso("No se pudo guardar en Drive: " + String(e.message||e).slice(0,120));
+    }
+  }
+
+  // ---------- Descargas ----------
+  const downloads = {
+    async save({filename, data}){ const blob = data instanceof Blob ? data : new Blob([data]); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+      if(gdActivo() && gdConectado()) gdSubir(filename, blob);
+      return {status: "saved"}; }
+  };
+
+  window.claude = {
+    async use(nombre){
+      const s = await sesion;
+      if(nombre==="db") return db;
+      if(nombre==="assets") return assets;
+      if(nombre==="downloads") return downloads;
+      if(nombre==="user") return {id: s.user.id, email: s.user.email, can: async () => true};
+      return null;
+    }
+  };
+
+  // ---------- Importar el respaldo que descargaste en Claude ----------
+  async function importarRespaldo(file){
+    const aviso = document.createElement("div");
+    aviso.style.cssText = "position:fixed;inset:0;z-index:9998;display:grid;place-items:center;background:rgba(10,20,14,.45);font-family:system-ui";
+    aviso.innerHTML = '<div style="background:#fff;color:#151515;border-radius:12px;padding:22px 26px;min-width:300px"><b>Importando respaldo…</b><div id="sbProg" style="margin-top:8px;color:#66665F">Leyendo el archivo</div></div>';
+    document.body.appendChild(aviso);
+    const prog = t => { const el = document.getElementById("sbProg"); if(el) el.textContent = t; };
+    try{
+      if(!window.JSZip) await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+      const zip = await JSZip.loadAsync(file);
+      const r = JSON.parse(await zip.file("respaldo.json").async("string"));
+      if(r.app !== "cierre-mensual") throw new Error("No es un respaldo de la app.");
+      const filas = r.docs.map(d=>({path: d.path, parent: padre(d.path), id: ultimo(d.path), data: d.data, updated_at: new Date().toISOString()}));
+      for(let i=0; i<filas.length; i+=200){ prog(`Registros ${Math.min(i+200, filas.length)} de ${filas.length}`); const {error:e} = await sb.from("docs").upsert(filas.slice(i, i+200)); if(e) throw e; }
+      const archivos = Object.keys(zip.files).filter(n=>n.startsWith("archivos/") && !zip.files[n].dir);
+      let n = 0;
+      for(const nombre of archivos){ n++; prog(`Archivos ${n} de ${archivos.length}`); const blob = await zip.file(nombre).async("blob"); const {error:e} = await sb.storage.from("archivos").upload(nombre.slice(9), blob, {upsert: true}); if(e && !/exists/i.test(e.message)) throw e; }
+      prog(`Listo: ${filas.length} registros y ${archivos.length} archivos. Recargando…`);
+      setTimeout(()=>location.reload(), 1500);
+    }catch(e){ prog("No se pudo importar: " + (e.message || e)); setTimeout(()=>aviso.remove(), 6000); }
+  }
+})();
+
+</script>
 <script>
 (function(){
   const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -5303,7 +5547,6 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   function abrirDetalle(cl){
     const d = declDe(year, iMes, cl) || {}; detDe = cl;
     $("detTitulo").textContent = `${(OBLIG.find(o=>o.clave===cl)||{}).nombre||cl} · ${MESES[iMes-1]} ${year}`;
-    $("detImporte").value = d.aPagar ?? ""; $("detImporteNota").textContent = d.aPagarLeido!=null && d.aPagarLeido!==d.aPagar ? `Lo corregiste a mano. La app había leído ${money.format(+d.aPagarLeido||0)} del documento (déjalo vacío para regresar a ese monto).` : "Lo lee la app del documento que subiste. Si no coincide con tu línea de captura, escribe aquí el monto correcto.";
     $("detRec").value = d.recargos ?? ""; $("detAct").value = d.actualizacion ?? ""; $("detReal").value = d.pagadoReal ?? ""; $("detNota").value = d.nota || ""; $("detOk").checked = !!d.revisadaOk;
     detComps = (d.compensaciones||[]).map(c=>({...c})); pintarDetComps(); $("detDlg").showModal();
   }
@@ -5316,9 +5559,6 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
     const cl = detDe, id = declId(year, iMes, cl), prev = declDe(year, iMes, cl) || {anio:year, mes:iMes, clave:cl};
     const d = {...prev}; delete d.id;
     const num = v => v==="" || v==null ? null : r2(+v);
-    const imp = num($("detImporte").value);
-    if(imp==null && d.aPagarLeido!=null){ d.aPagar = d.aPagarLeido; delete d.aPagarLeido; }
-    else if(imp!=null && imp!==r2(+prev.aPagar||0)){ if(d.aPagarLeido==null) d.aPagarLeido = prev.aPagar ?? null; d.aPagar = imp; if(!d.presentada){ d.presentada = true; d.tipoDoc = d.tipoDoc || "manual"; } }
     d.recargos = num($("detRec").value); d.actualizacion = num($("detAct").value); d.pagadoReal = num($("detReal").value);
     d.nota = $("detNota").value.trim(); d.revisadaOk = $("detOk").checked;
     d.compensaciones = detComps.filter(c=>c.origen && +c.monto>0).map(c=>({origen:c.origen, monto:r2(+c.monto)}));
