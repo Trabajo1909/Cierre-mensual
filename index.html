@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 73 · Sueldos con y sin detalle</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 75 · Línea de captura no marca pagado</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -3912,6 +3912,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const file = e.target.files[0]; e.target.value = ""; if(!file || !adjuntarA) return;
     if(!assets){ toast("No se pueden guardar archivos en esta vista."); return; }
     const {id, d} = adjuntarA; adjuntarA = null;
+    // Si lo que subieron es una línea de captura (no un comprobante de pago), no se marca como pagada
+    try{ if(/\.pdf$/i.test(file.name) || /^image\//.test(file.type||"")){ const L = await leerPdf(file); const its = L ? parsePdfImpuesto(L.todo) : null;
+        const esLinea = its && its.some(x=>x.tipoDoc==="linea" || x.tipoDoc==="cedula" || x.tipoDoc==="resumen") || (L && /LINEA DE CAPTURA|FORMATO PARA PAGO|FECHA LIMITE DE PAGO/i.test(sinAcento(L.todo)) && !/COMPROBANTE|OPERACION EXITOSA|PAGO REALIZADO|NUMERO DE AUTORIZACION|FOLIO DE OPERACION/i.test(sinAcento(L.todo)));
+        if(esLinea){ toast("Ese archivo es una línea de captura, no un comprobante de pago: lo subo como línea y no lo marco como pagado."); await guardarPdfsImpuesto([{L, file}]); return; } } }catch(_){}
+    if(!await confirmar(`¿${file.name} es el comprobante de pago? Se marcará como pagada.`)) return;
     try{
       setSaving("Subiendo…"); const up = await assets.upload(file);
       const grupo = d.presentada && +d.aPagar>0 ? grupoPago({...d, id}) : [];
@@ -7158,7 +7163,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       topGastos: Object.entries(re.reduce((o,f)=>{ o[f.nombre] = (o[f.nombre]||0) + (+f.subtotal||0); return o; },{})).sort((a,b)=>b[1]-a[1]).slice(0,8)
     };
     r.nom = r2(r.nomSue + r.nomAsi); r.imp = r2(r.impSAT + r.impSATEG + r.impIMSS);
-    r.salidas = r2(r.gasPag + r.nomNeto + r.imp); r.entradas = r2(r.ingCob + r.fondeo); r.flujo = r2(r.entradas - r.salidas);
+    // En el flujo solo cuentan los impuestos ya pagados (una línea de captura sin pagar no es salida de dinero)
+    r.impPag = r2(det.filter(x=>x.fuente==="pagado").reduce((s,x)=>s+x.monto,0)); r.impPend = r2(r.imp - r.impPag);
+    r.salidas = r2(r.gasPag + r.nomNeto + r.impPag); r.entradas = r2(r.ingCob + r.fondeo); r.flujo = r2(r.entradas - r.salidas);
     return r;
   }
   // --- Clientes y proveedores: cuántos, cuánto se cobra/paga cada mes y en cuántos días en promedio ---
@@ -7215,7 +7222,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ["Total impuestos", "imp"],
       ["Flujo", null],
       ["Entradas (cobrado + fondeo)", "entradas"],
-      ["Salidas (proveedores + nómina neta + impuestos)", "salidas"],
+      ["Impuestos pagados", "impPag", "Solo los marcados como pagados (con comprobante o con el botón Pagada). Las líneas de captura sin pagar no cuentan como salida."],
+      ["Impuestos por pagar", "impPend", "Declarados o con línea de captura, pero todavía sin pagar."],
+      ["Salidas (proveedores + nómina neta + impuestos pagados)", "salidas"],
       ["Flujo neto", "flujo"]
     ];
     const meses = Array.from({length:12},(_,i)=>i+1).filter(m=>m<=Math.max(ult,1));
