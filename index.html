@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 72 · Revisión de IVA y sueldos en Balanza</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 73 · Sueldos con y sin detalle</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -4133,11 +4133,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const sue = ["601-01-000","601-09-000"].map(get).filter(Boolean);
     if(sue.length){
       // Si los recibos traen el detalle por concepto (XML o reporte completo), se compara solo sueldo y días festivos; el resto de percepciones va en otras cuentas
-      const nomsS = nominas.filter(n=>n.anio===y && n.mes===m && vigente(n) && +n.imss>0), otras = {}; let sueldoDet = 0, conDetalle = nomsS.length && nomsS.every(n=>n.conceptos && Object.keys(n.conceptos.perc||{}).length && !Object.keys(n.conceptos.perc).some(kk=>/sin detalle/i.test(kk)));
-      if(conDetalle) nomsS.forEach(n=>Object.entries(n.conceptos.perc).forEach(([kk,v])=>{ if(/sueldo|salario|festiv|jornal/i.test(kk)) sueldoDet += +v||0; else otras[kk] = r2((otras[kk]||0) + (+v||0)); }));
-      const otrasTxt = Object.entries(otras).map(([kk,v])=>`${kk} ${money.format(v)}`).join(", ");
-      add("Movimientos del mes", "Sueldos y salarios (incluye días festivos)", r2(sue.reduce((s,c)=>s+c.cargos,0)), conDetalle ? r2(sueldoDet) : k.nom.sueldos,
-        conDetalle ? `Solo el concepto de sueldos de tus recibos con IMSS${otrasTxt?`; las demás percepciones (${otrasTxt}) van en otras cuentas`:""}.` : "Total de percepciones de los recibos con IMSS. Incluye otras percepciones (prima vacacional, bonos, horas extra…) que en tu balanza van en otras cuentas: sube los XML de nómina para comparar solo el sueldo.");
+      // Con detalle (XML): solo sueldo y festivos. Sin detalle: todas sus percepciones
+      const nomsS = nominas.filter(n=>n.anio===y && n.mes===m && vigente(n) && +n.imss>0), otras = {};
+      const tieneDet = n => n.conceptos && Object.keys(n.conceptos.perc||{}).length && !Object.keys(n.conceptos.perc).some(kk=>/sin detalle/i.test(kk));
+      const conD = nomsS.filter(tieneDet), sinD = nomsS.filter(n=>!tieneDet(n)); let sueldoDet = 0;
+      conD.forEach(n=>Object.entries(n.conceptos.perc).forEach(([kk,v])=>{ if(/sueldo|salario|festiv|jornal/i.test(kk)) sueldoDet += +v||0; else otras[kk] = r2((otras[kk]||0) + (+v||0)); }));
+      const valApp = r2(sueldoDet + sinD.reduce((s,n)=>s+(+n.percepciones||0),0)), otrasTxt = Object.entries(otras).map(([kk,v])=>`${kk} ${money.format(v)}`).join(", ");
+      add("Movimientos del mes", "Sueldos y salarios (incluye días festivos)", r2(sue.reduce((s,c)=>s+c.cargos,0)), valApp,
+        `${conD.length ? `Sueldo de ${conD.length} ${conD.length===1?"recibo":"recibos"} con detalle por concepto${otrasTxt?` (sin ${otrasTxt}, que van en otras cuentas)`:""}` : ""}${conD.length && sinD.length ? " + " : ""}${sinD.length ? `todas las percepciones de ${sinD.length} ${sinD.length===1?"recibo":"recibos"} sin detalle (${sinD.map(n=>n.nombre).slice(0,4).join(", ")}${sinD.length>4?"…":""}): sube sus XML para separar el sueldo` : ""}.`);
     }
     const asi = get("601-31-000"); if(asi) add("Movimientos del mes", "Asimilados a salarios", r2(asi.cargos), k.nom.asim, "Nóminas sin IMSS");
     const isn = get("213-04-000"); if(isn) add("Movimientos del mes", "Provisión de ISN", r2(isn.abonos), k.isn, "Cálculo de impuestos");
