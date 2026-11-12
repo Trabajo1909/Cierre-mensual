@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 80 · Logo, firmas y PDF personalizable</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 82 · Vista previa editable del PDF</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -674,6 +674,18 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
 </dialog>
 
+<dialog id="pdfEdDlg" style="width:96vw;max-width:1100px;height:94vh;padding:0">
+  <div style="position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+    <strong style="margin-right:6px">Vista previa editable</strong>
+    <span class="fsub" style="max-width:none">Toca cualquier texto para cambiarlo · ↑ ↓ para mover secciones · × para quitar renglones</span>
+    <span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-left:auto">
+      <span class="fsub">Logo:</span><label class="check inline" style="margin:0"><input type="radio" name="peLogo" value="derecha"> derecha</label><label class="check inline" style="margin:0"><input type="radio" name="peLogo" value="izquierda"> izquierda</label><label class="check inline" style="margin:0"><input type="radio" name="peLogo" value="ninguno"> sin logo</label>
+      <span class="fsub">Hoja:</span><label class="check inline" style="margin:0"><input type="radio" name="peOrient" value="portrait"> vertical</label><label class="check inline" style="margin:0"><input type="radio" name="peOrient" value="landscape"> horizontal</label>
+      <button class="btn sm" id="peCancel">Cancelar</button><button class="btn sm primary" id="peOk">Generar PDF</button></span>
+  </div>
+  <div id="peHojas" style="padding:20px;background:#e9e9e6;min-height:calc(94vh - 60px);overflow:auto"></div>
+</dialog>
+
 <dialog id="docCfgDlg" style="width:min(560px,94vw)">
   <h2>Logo y formato de tus PDF</h2>
   <label>Logo de la empresa</label>
@@ -693,6 +705,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <label style="margin-top:4px">Acomodo</label>
   <label class="check"><input type="radio" name="pcEstilo" value="secciones" checked><span>Por secciones: carátula en una página, depósitos en otra y retiros en otra</span></label>
   <label class="check"><input type="radio" name="pcEstilo" value="junto"><span>Todo junto: carátula, partidas y movimientos conciliados seguidos</span></label>
+  <label class="check"><input type="radio" name="pcEstilo" value="editar"><span><strong>Ver y editar antes de generar:</strong> una vista previa donde cambias textos, mueves secciones y quitas renglones</span></label>
   <label style="margin-top:8px">Orientación</label>
   <label class="check"><input type="radio" name="pcOrient" value="portrait" checked><span>Vertical</span></label>
   <label class="check"><input type="radio" name="pcOrient" value="landscape"><span>Horizontal (más espacio para conceptos)</span></label>
@@ -3081,6 +3094,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const op = await elegirFormatoPdfConc(); if(!op){ modoVer = false; return; }
         await loadLibs("pdf"); window.__pdfNota = op.nota || ""; if(op.titulo) titulo = op.titulo;
         const { jsPDF } = window.jspdf; const doc = new jsPDF({orientation: op.orient, unit:"pt", format:"letter"});
+        if(op.estilo==="editar"){ const M = await abrirEditorPdf({cta, car, pend, pares, E, k, c, op}); if(!M){ modoVer = false; return; }
+          const doc2 = new (window.jspdf.jsPDF)({orientation: M.orient, unit:"pt", format:"letter"}); pdfDesdeModelo(doc2); await guardarArchivo(`${nombreArchivo}.pdf`, doc2.output("blob")); return; }
         if(op.estilo==="secciones"){ pdfConcSecciones(doc, {titulo, cta, car, pend, pares, E, k, c, op}); await guardarArchivo(`${nombreArchivo}.pdf`, doc.output("blob")); return; }
         doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.text(titulo, 40, 44);
         doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(100);
@@ -3109,24 +3124,123 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const dlg = $("pdfConcDlg"), fin = v => { dlg.close(); $("pcOk").onclick = $("pcCancel").onclick = null; res(v); };
     $("pcOk").onclick = () => { const v = {estilo: (document.querySelector('[name="pcEstilo"]:checked')||{}).value || "secciones", orient: (document.querySelector('[name="pcOrient"]:checked')||{}).value || "portrait", part: $("pcPart").checked, dep: $("pcDep").checked, ret: $("pcRet").checked, pol: $("pcPol").checked}; try{ localStorage.setItem("pdfConcFmt", JSON.stringify(v)); }catch(_){} fin({...v, nota: $("pcNota").value.trim(), titulo: $("pcTitulo").value.trim()}); };
     $("pcCancel").onclick = () => fin(null); dlg.showModal(); }); }
+  // ---------- Editor visual del PDF de conciliación (vista previa editable) ----------
+  let pdfModelo = null;
+  function modeloConc({cta, car, pend, pares, E, k, c, op}){
+    const polDe = {}; pares.forEach(p=>{ polDe[p.b.id] = `${p.a.tipo} ${p.a.num}`; }); (E.grupos||[]).forEach(g=>g.bs.forEach(b=>{ polDe[b.id] = g.as.map(a=>`${a.tipo} ${a.num}`).join(" + ") + " (grupo)"; }));
+    const banco = (c.banco||[]).slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+    const clave = i => [4,9,10,11].includes(i), f = money.format;
+    const mov = (tipo, nombre) => { const xs = banco.filter(b=>b.tipo===tipo), tot = r2(xs.reduce((s,b)=>s+(+b.monto||0),0)), conc = xs.filter(b=>polDe[b.id]).length;
+      return {id: tipo, titulo: nombre, resumen: `${xs.length} ${xs.length===1?"movimiento":"movimientos"} · total ${f(tot)} · ${conc} conciliados con póliza${xs.length-conc?` · ${xs.length-conc} en conciliación`:""}`, nueva: true, visible: true,
+        head: ["Fecha","Beneficiario / remitente","Concepto","Monto","Póliza"], der: [3], filas: [...xs.map(b=>({cells:[b.fecha, b.nombre||"", String(b.concepto||"").slice(0,70), f(+b.monto||0), polDe[b.id] || "En conciliación"], rojo: !polDe[b.id]})), {cells:[`Total de ${nombre.toLowerCase()}`, "", "", f(tot), ""], bold: true}]}; };
+    return {
+      empresa: empresaNombre, titulo: op.titulo || `Conciliación bancaria · ${cta.nombre}`,
+      datos: `Periodo: ${MESES[bMes-1]} ${year}${cta.cuentaContable?`    Cuenta contable: ${cta.cuentaContable}`:""}    Generado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`,
+      logo: "derecha", orient: op.orient || "portrait", nota: op.nota || "",
+      secciones: [
+        {id:"car", titulo:"Carátula", resumen:`Saldo según banco ${f(k.sfBanco)} · saldo en contabilidad ${f(k.sfAux)} · diferencia ${f(k.dif)}`, nueva:true, visible:true, head:["Concepto","Importe"], der:[1], filas: car.map(([l,v],i)=>({cells:[l.replace("−","-"), f(v)], bold: clave(i), fondo: clave(i), rojo: i===11 && Math.abs(v)>0.5}))},
+        {id:"part", titulo:"Partidas en conciliación", resumen:"", nueva:false, visible: op.part!==false, head:["Partida","Fecha","Descripción","Monto"], der:[3], filas: pend.length ? pend.map(x=>({cells:[x[0], x[1], x[2], f(x[3])]})) : [{cells:["Sin partidas en conciliación","","",""]}]},
+        {...mov("dep","Depósitos"), visible: op.dep!==false}, {...mov("ret","Retiros"), visible: op.ret!==false}
+      ].map(s=>op.pol===false && s.head.includes("Póliza") ? {...s, head: s.head.slice(0,4), filas: s.filas.map(r=>({...r, cells: r.cells.slice(0,4)}))} : s)
+    };
+  }
+  function pintarEditorPdf(){
+    const M = pdfModelo, e = empActual(), logoHtml = e.logo && M.logo!=="ninguno" ? `<img src="${e.logo}" alt="" style="max-height:40px;max-width:150px">` : "";
+    const ancho = M.orient==="landscape" ? 792 : 612;
+    const enc = (s) => `<div class="pe-enc" style="display:flex;justify-content:space-between;gap:12px;flex-direction:${M.logo==="izquierda"?"row-reverse":"row"}">
+        <div style="flex:1"><div contenteditable="true" data-pe="empresa" style="font-size:20px;font-weight:700">${esc(M.empresa)}</div><div contenteditable="true" data-pe="titulo" style="font-size:14px;color:#555;margin-top:2px">${esc(M.titulo)}</div><div contenteditable="true" data-pe="datos" style="font-size:11px;color:#777;margin-top:8px;white-space:pre-wrap">${esc(M.datos)}</div></div>
+        <div>${logoHtml}</div></div><div style="border-top:2px solid #7A1F3D;margin:10px 0 14px"></div>`;
+    const tabla = (s, si) => `<div class="pe-sec" style="margin-bottom:14px;${s.visible?"":"opacity:.35"}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div contenteditable="true" data-pes="${si}" data-campo="titulo" style="font-size:16px;font-weight:700;color:#7A1F3D">${esc(s.titulo)}</div>
+          <span class="pe-tools" style="display:flex;gap:4px;flex-wrap:wrap;font-size:11px"><button class="btn sm" data-pemov="${si}" data-dir="-1">↑</button><button class="btn sm" data-pemov="${si}" data-dir="1">↓</button><button class="btn sm" data-pevis="${si}">${s.visible?"Ocultar":"Mostrar"}</button>${si?`<label class="check inline" style="margin:0;font-size:11px"><input type="checkbox" data-penueva="${si}" ${s.nueva?"checked":""}> hoja nueva</label>`:""}</span></div>
+        <div contenteditable="true" data-pes="${si}" data-campo="resumen" style="font-size:11px;color:#777;margin:2px 0 6px">${esc(s.resumen||"")}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${s.head.map((hh,ci)=>`<th contenteditable="true" data-peh="${si}" data-ci="${ci}" style="background:#7A1F3D;color:#fff;text-align:${s.der.includes(ci)?"right":"left"};padding:5px 6px">${esc(hh)}</th>`).join("")}<th style="width:18px"></th></tr></thead>
+        <tbody>${s.filas.map((r,ri)=>`<tr style="background:${r.fondo?"#f5eef1":"#fff"}">${r.cells.map((cv,ci)=>`<td contenteditable="true" data-pec="${si}" data-ri="${ri}" data-ci="${ci}" style="border:1px solid #ddd;padding:4px 6px;text-align:${s.der.includes(ci)?"right":"left"};${r.bold?"font-weight:700;":""}${r.rojo&&ci===s.cells?"":""}${r.rojo && s.der.includes(ci)?"color:#A3283F;":""}">${esc(cv)}</td>`).join("")}<td><button class="linkbtn" data-pedel="${si}" data-ri="${ri}" title="Quitar renglón" style="font-size:13px">×</button></td></tr>`).join("")}</tbody></table>
+        <button class="linkbtn" data-peadd="${si}" style="font-size:12px;margin-top:4px">+ agregar renglón</button></div>`;
+    // Arma las hojas como quedarían
+    const hojas = []; M.secciones.forEach((s,si)=>{ if(!hojas.length || (s.nueva && s.visible)) hojas.push([]); hojas[hojas.length-1].push([s,si]); });
+    $("peHojas").innerHTML = hojas.map((h,hi)=>`<div class="pe-hoja" style="width:${ancho}px;max-width:100%;min-height:${ancho===612?792:612}px;background:#fff;color:#151515;box-shadow:0 2px 10px rgba(0,0,0,.15);margin:0 auto 18px;padding:36px 40px;box-sizing:border-box;position:relative">
+        ${enc()}${h.map(([s,si])=>tabla(s,si)).join("")}${hi===hojas.length-1?`<div style="margin-top:10px"><div style="font-weight:700;font-size:12px">Notas</div><div contenteditable="true" data-pe="nota" style="min-height:30px;border:1px dashed #ccc;padding:6px;font-size:11px">${esc(M.nota)}</div></div>`:""}
+        <div style="position:absolute;bottom:14px;right:40px;font-size:9px;color:#999">Hoja ${hi+1} de ${hojas.length}</div></div>`).join("");
+    document.querySelectorAll('[name="peLogo"]').forEach(x=>x.checked = x.value===M.logo); document.querySelectorAll('[name="peOrient"]').forEach(x=>x.checked = x.value===M.orient);
+  }
+  function leerEditorPdf(){
+    const M = pdfModelo; document.querySelectorAll("#peHojas [data-pe]").forEach(x=>{ M[x.dataset.pe] = x.innerText.trim(); });
+    document.querySelectorAll("#peHojas [data-pes]").forEach(x=>{ M.secciones[+x.dataset.pes][x.dataset.campo] = x.innerText.trim(); });
+    document.querySelectorAll("#peHojas [data-peh]").forEach(x=>{ M.secciones[+x.dataset.peh].head[+x.dataset.ci] = x.innerText.trim(); });
+    document.querySelectorAll("#peHojas [data-pec]").forEach(x=>{ const r = M.secciones[+x.dataset.pec].filas[+x.dataset.ri]; if(r) r.cells[+x.dataset.ci] = x.innerText.trim(); });
+  }
+  function pdfDesdeModelo(doc){
+    const M = pdfModelo, W = doc.internal.pageSize.getWidth(), Mg = 40, VINO = [122,31,61], e = empActual();
+    const est = {theme:"grid", margin:{left:Mg,right:Mg}, styles:{fontSize:8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:VINO,textColor:[255,255,255]}};
+    const izq = M.logo==="izquierda" && e.logo, xT = izq ? Mg + 160 : Mg;
+    const enc = () => { doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(M.empresa, xT, 46); doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(M.titulo, xT, 64); doc.setFontSize(8.5); doc.setTextColor(110); doc.text(doc.splitTextToSize(M.datos, W - xT - Mg - (izq?0:160)), xT, 82); doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(Mg, 96, W - Mg, 96); doc.setLineWidth(.5); doc.setTextColor(20); };
+    let y = 0, primera = true;
+    for(const s of M.secciones){ if(!s.visible) continue;
+      if(primera || s.nueva){ if(!primera) doc.addPage(); enc(); y = 120; primera = false; } else y += 18;
+      doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.setTextColor(...VINO); doc.text(s.titulo, Mg, y);
+      if(s.resumen){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(110); doc.text(doc.splitTextToSize(s.resumen, W-2*Mg), Mg, y+16); y += 16; }
+      doc.setTextColor(20);
+      doc.autoTable({...est, startY: y + 12, head: [s.head.map((hh,ci)=>({content:hh, styles:{halign: s.der.includes(ci)?"right":"left"}}))],
+        body: s.filas.map(r=>r.cells.map((cv,ci)=>({content: cv, styles:{halign: s.der.includes(ci)?"right":"left", fontStyle: r.bold?"bold":"normal", fillColor: r.fondo?[245,238,241]:[255,255,255], textColor: r.rojo && s.der.includes(ci) ? [163,40,63] : [20,20,20]}}))),
+        didDrawPage: () => {} });
+      y = doc.lastAutoTable.finalY;
+    }
+    const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${i} de ${n}`, W - Mg, doc.internal.pageSize.getHeight() - 20, {align:"right"}); }
+    window.__pdfNota = M.nota || ""; window.__pdfLogoPos = M.logo;
+  }
+  function abrirEditorPdf(datos){ return new Promise(res=>{
+    pdfModelo = modeloConc(datos); pintarEditorPdf(); const dlg = $("pdfEdDlg");
+    const fin = v => { dlg.close(); $("peOk").onclick = $("peCancel").onclick = null; res(v); };
+    $("peOk").onclick = () => { leerEditorPdf(); fin(pdfModelo); }; $("peCancel").onclick = () => fin(null); dlg.showModal(); }); }
+  $("pdfEdDlg").addEventListener("click", e => {
+    const t = e.target; if(!pdfModelo) return; const S = pdfModelo.secciones;
+    const mv = t.closest("[data-pemov]"); if(mv){ leerEditorPdf(); const i = +mv.dataset.pemov, j = i + (+mv.dataset.dir); if(j<0||j>=S.length) return; [S[i],S[j]] = [S[j],S[i]]; pintarEditorPdf(); return; }
+    const vi = t.closest("[data-pevis]"); if(vi){ leerEditorPdf(); const s = S[+vi.dataset.pevis]; s.visible = !s.visible; pintarEditorPdf(); return; }
+    const de = t.closest("[data-pedel]"); if(de){ leerEditorPdf(); S[+de.dataset.pedel].filas.splice(+de.dataset.ri, 1); pintarEditorPdf(); return; }
+    const ad = t.closest("[data-peadd]"); if(ad){ leerEditorPdf(); const s = S[+ad.dataset.peadd]; s.filas.push({cells: s.head.map(()=>"")}); pintarEditorPdf(); return; }
+  });
+  // Los datos del encabezado se repiten en cada hoja: al escribir en uno se copia a los demás
+  $("pdfEdDlg").addEventListener("input", e => { const k = e.target.dataset && e.target.dataset.pe; if(!k || !pdfModelo) return; pdfModelo[k] = e.target.innerText.trim(); document.querySelectorAll(`#peHojas [data-pe="${k}"]`).forEach(x=>{ if(x!==e.target) x.innerText = e.target.innerText; }); });
+  $("pdfEdDlg").addEventListener("change", e => {
+    const t = e.target; if(!pdfModelo) return;
+    if(t.dataset.penueva){ leerEditorPdf(); pdfModelo.secciones[+t.dataset.penueva].nueva = t.checked; pintarEditorPdf(); }
+    if(t.name==="peLogo"){ leerEditorPdf(); pdfModelo.logo = t.value; pintarEditorPdf(); }
+    if(t.name==="peOrient"){ leerEditorPdf(); pdfModelo.orient = t.value; pintarEditorPdf(); }
+  });
+
   function pdfConcSecciones(doc, {titulo, cta, car, pend, pares, E, k, c, op}){
     op = op || {};
     const W = doc.internal.pageSize.getWidth(), M = 40, hoyTxt = now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"});
     const est = {theme:"grid", margin:{left:M,right:M}, styles:{fontSize:8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:[122,31,61],textColor:[255,255,255]}};
-    const encabezado = (sub) => { doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(20); doc.text(titulo, M, 44); doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(110); doc.text(`${sub}${cta.cuentaContable?` · Cuenta contable ${cta.cuentaContable}`:""} · Generado el ${hoyTxt}`, M, 60); doc.setTextColor(20); };
+    // Encabezado ordenado: empresa, título, datos en una línea, separador y título de la sección con su resumen
+    const VINO = [122,31,61], Y0 = 150;
+    const encabezado = (seccion, resumen) => {
+      doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(empresaNombre, M, 46);
+      doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(op.titulo || `Conciliación bancaria · ${cta.nombre}`, M, 64);
+      doc.setFontSize(8.5); doc.setTextColor(120);
+      const datos = [["Periodo", `${MESES[bMes-1]} ${year}`], ...(cta.cuentaContable ? [["Cuenta contable", cta.cuentaContable]] : []), ["Generado", hoyTxt]];
+      let x = M; datos.forEach(([l,v])=>{ doc.setFont("helvetica","normal"); doc.text(`${l}:`, x, 82); const wl = doc.getTextWidth(`${l}: `); doc.setFont("helvetica","bold"); doc.setTextColor(60); doc.text(v, x + wl, 82); x += wl + doc.getTextWidth(v) + 22; doc.setTextColor(120); });
+      doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(M, 96, W - M, 96); doc.setLineWidth(.5);
+      doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.setTextColor(...VINO); doc.text(seccion, M, 120);
+      if(resumen){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(110); doc.text(resumen, M, 136); }
+      doc.setTextColor(20); doc.setFont("helvetica","normal");
+    };
     // Póliza de cada movimiento del banco
     const polDe = {}; pares.forEach(p=>{ polDe[p.b.id] = `${p.a.tipo} ${p.a.num} · ${p.a.concepto}`; }); (E.grupos||[]).forEach(g=>g.bs.forEach(b=>{ polDe[b.id] = g.as.map(a=>`${a.tipo} ${a.num}`).join(" + ") + " (grupo)"; }));
     const banco = (c.banco||[]).slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
     // Página 1: carátula
-    encabezado("Carátula");
-    doc.autoTable({...est, startY:76, head:[["Carátula","Importe"]], body: car.map(([l,v],i)=>[{content:l.replace("−","-"),styles:{fontStyle:[4,9,10,11].includes(i)?"bold":"normal"}},{content:money.format(v),styles:{halign:"right",fontStyle:[4,9,10,11].includes(i)?"bold":"normal"}}])});
+    encabezado("Carátula", `Saldo según banco ${money.format(k.sfBanco)} · saldo en contabilidad ${money.format(k.sfAux)} · diferencia ${money.format(k.dif)}`);
+    const clave = i => [4,9,10,11].includes(i), fondo = i => clave(i) ? [245,238,241] : [255,255,255];
+    doc.autoTable({...est, startY:Y0, head:[["Concepto",{content:"Importe",styles:{halign:"right"}}]], columnStyles:{1:{cellWidth:120}}, styles:{...est.styles, fontSize:9, cellPadding:5},
+      body: car.map(([l,v],i)=>[{content:l.replace("−","-"),styles:{fontStyle:clave(i)?"bold":"normal", fillColor:fondo(i)}},{content:money.format(v),styles:{halign:"right",fontStyle:clave(i)?"bold":"normal", fillColor:fondo(i), textColor: i===11 && Math.abs(v)>0.5 ? [163,40,63] : [20,20,20]}}])});
     if(op.part!==false) doc.autoTable({...est, startY: doc.lastAutoTable.finalY+16, head:[["Partidas en conciliación","Fecha","Descripción","Monto"]], body: pend.length ? pend.map(x=>[x[0],x[1],x[2],{content:money.format(x[3]),styles:{halign:"right"}}]) : [[{content:"Sin partidas en conciliación",colSpan:4}]], styles:{...est.styles, fontSize:8}});
     // Página 2: depósitos — Página 3: retiros
     for(const [tipo, nombre] of [["dep","Depósitos"],["ret","Retiros"]].filter(([t])=>t==="dep" ? op.dep!==false : op.ret!==false)){
       const xs = banco.filter(b=>b.tipo===tipo), tot = r2(xs.reduce((s,b)=>s+(+b.monto||0),0)), conc = xs.filter(b=>polDe[b.id]);
-      doc.addPage(); encabezado(`${nombre}: ${xs.length} movimientos · ${money.format(tot)} · ${conc.length} conciliados`);
+      doc.addPage(); encabezado(nombre, `${xs.length} ${xs.length===1?"movimiento":"movimientos"} · total ${money.format(tot)} · ${conc.length} conciliados con póliza${xs.length-conc.length?` · ${xs.length-conc.length} en conciliación`:""}`);
       const conPol = op.pol!==false;
-      doc.autoTable({...est, startY:76, head:[["Fecha","Beneficiario / remitente","Concepto","Monto", ...(conPol?["Póliza"]:[])]],
+      doc.autoTable({...est, startY:Y0, head:[["Fecha","Beneficiario / remitente","Concepto","Monto", ...(conPol?["Póliza"]:[])]],
         body: xs.length ? [...xs.map(b=>[b.fecha, b.nombre||"", String(b.concepto||"").slice(0,70), {content:money.format(+b.monto||0),styles:{halign:"right"}}, ...(conPol?[polDe[b.id] || {content:"En conciliación",styles:{textColor:[163,40,63]}}]:[])]),
           [{content:`Total de ${nombre.toLowerCase()}`,colSpan:3,styles:{fontStyle:"bold"}},{content:money.format(tot),styles:{halign:"right",fontStyle:"bold"}}, ...(conPol?[""]:[])]] : [[{content:`Sin ${nombre.toLowerCase()} en el mes`,colSpan:conPol?5:4}]],
         styles:{...est.styles, fontSize:7.5, cellPadding:3.5}, columnStyles:{0:{cellWidth:58},3:{cellWidth:70}}});
@@ -9119,9 +9233,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         F.forEach((fi,i)=>{ const x0 = M + i*ancho + 12, x1 = M + (i+1)*ancho - 12; doc.setDrawColor(120); doc.line(x0, y, x1, y); doc.setFontSize(9); doc.setTextColor(20); doc.text(fi.nombre || "", (x0+x1)/2, y + 12, {align:"center"}); doc.setTextColor(110); doc.text(fi.rol || "", (x0+x1)/2, y + 24, {align:"center"}); }); }
     }
     const total = doc.getNumberOfPages();
+    setTimeout(()=>{ window.__pdfLogoPos = null; }, 0);
     for(let p=1; p<=total; p++){
       doc.setPage(p);
-      if(e.logo && c.logoPdf !== false){ try{ const pr = doc.getImageProperties(e.logo), h = 32, w = Math.min(140, pr.width * h / pr.height); doc.addImage(e.logo, "PNG", W - M - w, 14, w, h); }catch(_){} }
+      const pos = window.__pdfLogoPos || "derecha";
+      if(e.logo && c.logoPdf !== false && pos!=="ninguno"){ try{ const pr = doc.getImageProperties(e.logo), h = 40, w = Math.min(150, pr.width * h / pr.height), hh = w < pr.width * h / pr.height ? pr.height * w / pr.width : h; doc.addImage(e.logo, "PNG", pos==="izquierda" ? M : W - M - w, 30, w, hh); }catch(_){} }
       if(c.pie){ doc.setFontSize(7.5); doc.setTextColor(140); doc.text(doc.splitTextToSize(c.pie, W - 2*M - 90), M, H - 20); }
     }
   }
