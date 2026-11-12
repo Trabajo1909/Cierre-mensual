@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 75 · Línea de captura no marca pagado</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 76 · Explicación de diferencias en Balanza</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -4206,6 +4206,40 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   let bTab = "bal";
   document.querySelectorAll("[data-btab]").forEach(b=>b.onclick = () => { bTab = b.dataset.btab; document.querySelectorAll("[data-btab]").forEach(x=>x.setAttribute("aria-pressed", x===b)); renderBalanza(); });
+  // ---------- Explicación de diferencias en la revisión de la balanza ----------
+  let blAbiertos = new Set();
+  function detalleDiferencia(concepto, y, m, b){
+    const f = money.format, fin = new Date(Date.UTC(y, m, 0)).toISOString().slice(0,10), idx = indices(), cs = b.cuentas;
+    const porTercero = (pref3, tipo, signo) => {
+      const hojas = cs.filter(c=>c.cuenta.startsWith(pref3+"-") && !/-000$/.test(c.cuenta) && Math.abs(+c.sf||0)>0.004);
+      const facs = facturas.filter(x=>x.tipo===tipo && vigente(x) && x.fecha<=fin).map(x=>({x, s: cuentaDe(x, idx, fin).saldo})).filter(z=>z.s>0.5);
+      const grupos = {}; facs.forEach(z=>{ const k = z.x.rfc && !/^X[AE]XX/.test(z.x.rfc) ? z.x.rfc : z.x.nombre; (grupos[k] ||= {nombre:z.x.nombre, rfc:z.x.rfc, facs:[], app:0}); grupos[k].facs.push(z); grupos[k].app = r2(grupos[k].app + z.s); });
+      const G = Object.values(grupos), usadas = new Set(), filas = [];
+      for(const g of G){ const tk = tokens(g.nombre), h = hojas.filter(c=>!usadas.has(c.cuenta)).map(c=>({c, sc: inter(tk, tokens(c.nombre))})).sort((a,b)=>b.sc-a.sc)[0];
+        const c = h && h.sc>=1 ? h.c : null; if(c) usadas.add(c.cuenta); filas.push({nombre:g.nombre, cuenta:c, bal: c ? r2(signo*(+c.sf||0)) : 0, app:g.app, facs:g.facs}); }
+      hojas.filter(c=>!usadas.has(c.cuenta)).forEach(c=>filas.push({nombre:c.nombre, cuenta:c, bal:r2(signo*(+c.sf||0)), app:0, facs:[]}));
+      const conDif = filas.filter(r=>Math.abs(r.bal - r.app) > 1).sort((a,b)=>Math.abs(b.bal-b.app)-Math.abs(a.bal-a.app));
+      const verbo = tipo==="emitida" ? "cobro" : "pago";
+      return `<div style="font-size:13px;line-height:1.5"><strong>Diferencias por ${tipo==="emitida"?"cliente":"proveedor"}</strong> (${conDif.length} de ${filas.length}). <span class="fsub">Balanza = saldo de su subcuenta; App = facturas vigentes hasta el ${fechaCorta(fin)} menos ${verbo}s registrados.</span>
+        ${conDif.length ? `<table class="decl" style="width:100%;margin-top:6px"><thead><tr><th>${tipo==="emitida"?"Cliente":"Proveedor"}</th><th class="num">Balanza</th><th class="num">App</th><th class="num">Diferencia</th><th>Qué puede ser</th></tr></thead><tbody>${conDif.map(r=>{ const d = r2(r.bal - r.app);
+          const porque = !r.cuenta ? `No encontré su subcuenta en la balanza: falta registrar la provisión en CONTPAQi o tiene otro nombre.` : !r.facs.length ? `En la app no tiene facturas con saldo: ¿falta subir una factura, o en CONTPAQi falta registrar un ${verbo}?` : d < 0 ? `La app tiene más saldo: ¿ya se hizo el ${verbo} y falta registrarlo en la app? Toca la factura para registrarlo.` : `La balanza tiene más saldo: ¿falta registrar el ${verbo} en CONTPAQi, o hay una factura que no está en la app?`;
+          return `<tr><td>${esc(r.nombre)}${r.cuenta?`<div class="fsub">${esc(r.cuenta.cuenta)}</div>`:""}${r.facs.length?`<div style="margin-top:3px">${r.facs.map(z=>`<div class="fsub" style="max-width:none">${fechaCorta(z.x.fecha)} ${z.x.folio?`folio ${esc(z.x.folio)} `:""}saldo ${f(z.s)}${canWrite?` <button class="linkbtn" data-blab="${esc(z.x.id)}" style="font-size:11px">registrar ${verbo}</button>`:""}</div>`).join("")}</div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num late">${f(d)}</td><td style="white-space:normal;font-size:12px">${porque}</td></tr>`; }).join("")}</tbody></table>` : `<div class="fsub">Por tercero cuadra; la diferencia viene de cuentas sin subcuenta por tercero o de redondeos.</div>`}</div>`;
+    };
+    const ivaPendiente = (tipo, codigo) => {
+      const facs = facturas.filter(x=>x.tipo===tipo && vigente(x) && x.metodo==="PPD" && x.fecha<=fin && +x.total>0).map(x=>{ const s = cuentaDe(x, idx, fin).saldo; return {x, s, iva: s>0 ? r2((+x.iva||0)*s/x.total) : 0}; }).filter(z=>z.iva>0.004).sort((a,b)=>b.iva-a.iva);
+      const verbo = tipo==="emitida" ? "cobro" : "pago";
+      return `<div style="font-size:13px;line-height:1.5"><strong>Facturas PPD que forman la cifra de la app</strong> <span class="fsub">(IVA de la parte aún no ${tipo==="emitida"?"cobrada":"pagada"} al ${fechaCorta(fin)}). En la balanza, la ${codigo} debe bajar cuando registras el ${verbo} en CONTPAQi.</span>
+        <table class="decl" style="width:100%;margin-top:6px"><thead><tr><th>${tipo==="emitida"?"Cliente":"Proveedor"}</th><th>Fecha · folio</th><th class="num">Saldo de la factura</th><th class="num">IVA pendiente</th><th></th></tr></thead><tbody>${facs.map(z=>`<tr><td>${esc(z.x.nombre)}</td><td>${fechaCorta(z.x.fecha)} ${String(z.x.fecha).slice(0,4)} ${esc(z.x.folio||"")}</td><td class="num">${f(z.s)}</td><td class="num">${f(z.iva)}</td><td>${canWrite?`<button class="linkbtn" data-blab="${esc(z.x.id)}" style="font-size:12px">registrar ${verbo}</button>`:""}</td></tr>`).join("") || `<tr><td colspan="5" class="fsub">Ninguna.</td></tr>`}</tbody></table>
+        <div class="fsub" style="max-width:none;white-space:normal;margin-top:4px">Si una de estas ya está ${tipo==="emitida"?"cobrada":"pagada"}, regístralo aquí y la diferencia baja. Si la balanza tiene menos, revisa en CONTPAQi si al registrar el ${verbo} pasaste el IVA de ${codigo} a ${tipo==="emitida"?"208 (cobrado)":"118 (acreditable)"} por un monto mayor.</div></div>`;
+    };
+    if(concepto==="Proveedores") return porTercero("201", "recibida", -1);
+    if(concepto==="Clientes") return porTercero("105", "emitida", 1);
+    if(concepto==="IVA pendiente de pago (119)") return ivaPendiente("recibida", "119");
+    if(concepto==="IVA trasladado no cobrado (209)") return ivaPendiente("emitida", "209");
+    if(/^Banco /.test(concepto)) return `<div style="font-size:13px">La cifra de la app es el saldo final del <strong>auxiliar</strong> que subiste en la conciliación. Si no coincide con la balanza, vuelve a exportar el auxiliar de CONTPAQi después de registrar las últimas pólizas del mes y súbelo de nuevo en Bancos.</div>`;
+    return "";
+  }
+
   function renderBalanza(){
     $("yearLabel").textContent = year;
     if(bTab==="xml"){ renderXmlPolizas(); return; }
@@ -4225,7 +4259,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(r.grupo!==grupo){ grupo = r.grupo; t += `<tr class="grp"><td colspan="5" style="background:var(--group);font-weight:700;color:var(--muted);font-size:13px">${grupo}</td></tr>`; }
       const rev = revDe(nmDe(year, blMes).balRev||{}, r.concepto);
       const st = r.dif==null ? `<span class="st na">Sin dato</span>` : Math.abs(r.dif)<=1 ? `<span class="st pagado">Cuadra</span>` : rev ? `<span class="st pagado">Revisado</span>${canWrite?`<div><button class="linkbtn" data-balrev="${esc(r.concepto)}" style="font-size:12px">Quitar</button></div>`:""}` : `<span class="st vencido">Revisar</span>${canWrite?`<div><button class="linkbtn" data-balrev="${esc(r.concepto)}" style="font-size:12px">Marcar revisado</button></div>`:""}`;
-      t += `<tr><td><strong>${esc(r.concepto)}</strong>${r.nota?`<div class="fsub" style="white-space:normal;max-width:none">${esc(r.nota)}</div>`:""}${rev && rev.nota?`<div class="fsub" style="white-space:normal;max-width:none">Tu nota: ${esc(rev.nota)}</div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num">${r.dif==null?"—":Math.abs(r.dif)<=1?"":f(r.dif)}</td><td>${st}</td></tr>`;
+      const det = r.dif!=null && Math.abs(r.dif)>1 ? detalleDiferencia(r.concepto, year, blMes, x.b) : "", abierto = blAbiertos.has(r.concepto);
+      t += `<tr><td><strong>${esc(r.concepto)}</strong>${r.nota?`<div class="fsub" style="white-space:normal;max-width:none">${esc(r.nota)}</div>`:""}${rev && rev.nota?`<div class="fsub" style="white-space:normal;max-width:none">Tu nota: ${esc(rev.nota)}</div>`:""}${det?`<div><button class="linkbtn" data-bldet="${esc(r.concepto)}" style="font-size:12px">${abierto?"Ocultar explicación":"Ver de dónde sale la diferencia"}</button></div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num">${r.dif==null?"—":Math.abs(r.dif)<=1?"":f(r.dif)}</td><td>${st}</td></tr>`;
+      if(det && abierto) t += `<tr><td colspan="5" style="background:var(--surface);padding:10px 14px">${det}</td></tr>`;
     }
     t += `</tbody></table></div>`;
     const okA = nmDe(year, blMes).avisosOk || {}, avP = x.r.avisos.filter(a=>!okA[claveAviso(a)]), avR = x.r.avisos.filter(a=>okA[claveAviso(a)]);
@@ -4240,6 +4276,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("blmonths").addEventListener("click", e => { const b = e.target.closest("[data-blmes]"); if(b){ blMes = +b.dataset.blmes; renderBalanza(); } });
   $("blbody").addEventListener("change", e => { if(e.target.id==="balNota") guardarNM(year, blMes, {balanza: e.target.value}); });
   $("blbody").addEventListener("click", e => {
+    const bd = e.target.closest("[data-bldet]"); if(bd){ blAbiertos.has(bd.dataset.bldet) ? blAbiertos.delete(bd.dataset.bldet) : blAbiertos.add(bd.dataset.bldet); renderBalanza(); return; }
+    const ba = e.target.closest("[data-blab]"); if(ba){ abrirAbono(ba.dataset.blab); return; }
     const br = e.target.closest("[data-balrev]");
     if(br){ const rev = {...(nmDe(year, blMes).balRev||{})}, c = br.dataset.balrev;
       if(revDe(rev, c)){ delete rev[c]; for(const [re, viejo] of ALIAS_BAL) if(re.test(c)) delete rev[c.replace(re, viejo)]; } else rev[c] = {fecha: hoyISO}; guardarNM(year, blMes, {balRev: rev}).then(renderBalanza); return; }
