@@ -409,8 +409,8 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas y cuentas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="finanzas" aria-selected="false">Finanzas</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="leyes" aria-selected="false">Leyes</button><button class="view" data-view="prestaciones" aria-selected="false">Nómina: calculadora y prestaciones</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
-      <p class="company" id="companyLabel">Control de cierre contable</p>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 78 · Tipo correcto de cada documento de impuestos</p>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 80 · Logo, firmas y PDF personalizable</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -672,6 +672,39 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="docCfgDlg" style="width:min(560px,94vw)">
+  <h2>Logo y formato de tus PDF</h2>
+  <label>Logo de la empresa</label>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div id="dcPrev" style="min-height:40px;display:flex;align-items:center"></div><button class="btn sm" type="button" onclick="document.getElementById('dcLogoFile').click()">Subir logo (PNG o JPG)</button><button class="linkbtn" id="dcQuitar" type="button">quitar</button><input type="file" id="dcLogoFile" accept="image/png,image/jpeg,image/webp" hidden></div>
+  <label class="check"><input type="checkbox" id="dcLogoApp" checked><span>Mostrar el logo en la app</span></label>
+  <label class="check"><input type="checkbox" id="dcLogoPdf" checked><span>Poner el logo en todos los PDF (arriba a la derecha)</span></label>
+  <label for="dcPie">Pie de página de los PDF (opcional)</label><input id="dcPie" autocomplete="off" placeholder="Ej.: Plataforma Estratégica de Negocios Digitales · RFC PEN250903PU0 · Documento interno">
+  <label>Firmas</label>
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:6px"><input data-dcrol="0" placeholder="Elaboró"><input data-dcnom="0" placeholder="Nombre"><input data-dcrol="1" placeholder="Revisó"><input data-dcnom="1" placeholder="Nombre"><input data-dcrol="2" placeholder="Autorizó"><input data-dcnom="2" placeholder="Nombre"></div>
+  <label class="check"><input type="checkbox" id="dcFirmas"><span>Agregar las firmas al final de los PDF</span></label>
+  <div class="fsub" style="max-width:none">Se guarda para esta empresa.</div>
+  <div class="dlg-actions"><button class="btn" id="dcCancel">Cancelar</button><button class="btn primary" id="dcOk">Guardar</button></div>
+</dialog>
+
+<dialog id="pdfConcDlg" style="width:min(460px,94vw)">
+  <h2>¿Cómo quieres el PDF?</h2>
+  <label style="margin-top:4px">Acomodo</label>
+  <label class="check"><input type="radio" name="pcEstilo" value="secciones" checked><span>Por secciones: carátula en una página, depósitos en otra y retiros en otra</span></label>
+  <label class="check"><input type="radio" name="pcEstilo" value="junto"><span>Todo junto: carátula, partidas y movimientos conciliados seguidos</span></label>
+  <label style="margin-top:8px">Orientación</label>
+  <label class="check"><input type="radio" name="pcOrient" value="portrait" checked><span>Vertical</span></label>
+  <label class="check"><input type="radio" name="pcOrient" value="landscape"><span>Horizontal (más espacio para conceptos)</span></label>
+  <label style="margin-top:8px">Qué incluir (por secciones)</label>
+  <label class="check"><input type="checkbox" id="pcPart" checked><span>Partidas en conciliación (en la carátula)</span></label>
+  <label class="check"><input type="checkbox" id="pcDep" checked><span>Página de depósitos</span></label>
+  <label class="check"><input type="checkbox" id="pcRet" checked><span>Página de retiros</span></label>
+  <label class="check"><input type="checkbox" id="pcPol" checked><span>Columna de póliza en depósitos y retiros</span></label>
+  <label for="pcNota" style="margin-top:8px">Título (opcional)</label><input id="pcTitulo" autocomplete="off" placeholder="Déjalo vacío para el título normal">
+  <label for="pcNota">Nota para este PDF (opcional)</label><textarea id="pcNota" rows="2" placeholder="Ej.: Partida de $1,200 aclarada con el banco el 5 de agosto."></textarea>
+  <div class="fsub" style="max-width:none;margin-top:6px">La app recuerda tu acomodo para la próxima vez. El logo, el pie y las firmas se configuran en "Logo y formato de PDF".</div>
+  <div class="dlg-actions"><button class="btn" id="pcCancel">Cancelar</button><button class="btn primary" id="pcOk">Generar PDF</button></div>
 </dialog>
 
 <dialog id="tipoArchDlg" style="width:min(440px,94vw)">
@@ -1304,7 +1337,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => setSaving("Sin conexión"));
   }
 
-  function renderTabs(){
+  function renderTabs(){ try{ pintarLogo(); }catch(_){}
     const t = $("tabs");
     t.innerHTML = empresas.map(e => `<button class="tab" role="tab" aria-selected="${e.id===empresa}" data-emp="${esc(e.id)}">${esc(e.nombre)}</button>`).join("")
       + (canWrite ? '<button class="tab add" id="addEmp">+ Agregar empresa</button>' : '');
@@ -1316,7 +1349,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     empresa = id; empresaNombre = e.nombre;
     try{ localStorage.setItem("cierre-empresa", id); }catch(_){}
     loadedEmpresa = false; actividades = []; grupos = []; editMode = false; $("editBtn").setAttribute("aria-pressed","false");
-    $("companyLabel").textContent = `${empresaNombre} · Control de cierre contable`;
+    $("companyLabel").textContent = `${empresaNombre} · Control de cierre contable`; setTimeout(pintarLogo, 0);
     document.title = `Cierre mensual · ${empresaNombre}`;
     renderTabs(); render();
     if(unsubEmp) unsubEmp();
@@ -1488,7 +1521,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
   const loaded = {};
   function loadScript(src){ return loaded[src] ||= new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>{delete loaded[src]; rej(new Error("load"));}; document.head.appendChild(s); }); }
-  async function loadLibs(k){ for(const s of LIBS[k]) await loadScript(s); }
+  async function loadLibs(k){ for(const s of LIBS[k]) await loadScript(s); if(k==="pdf") parcharJsPDF(); }
 
   const TXT = {done:"Listo", wip:"Por registrar", na:"N/A", "":""};
   function filas(){
@@ -3012,7 +3045,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const c = cuentaSel && concDe(cuentaSel, year, bMes);
     if(!c){ toast("No hay conciliación de este mes para descargar."); return; }
     const cta = cuentasB.find(x=>x.id===cuentaSel), k = caratula(c), E = k.e;
-    const titulo = `${empresaNombre} · Conciliación bancaria ${cta.nombre} · ${MESES[bMes-1]} ${year}`;
+    let titulo = `${empresaNombre} · Conciliación bancaria ${cta.nombre} · ${MESES[bMes-1]} ${year}`;
     const nombreArchivo = `Conciliacion ${cta.nombre} ${empresaNombre} ${ABR[bMes-1]} ${year}`;
     const car = [["Saldo inicial en estado de cuenta",k.siBanco],["Depósitos del estado de cuenta",k.depB],["Retiros del estado de cuenta",k.retB],["Comisiones del estado de cuenta",k.comB],["Saldo final en estado de cuenta",k.sfBanco],["(+) Depósitos no considerados en estado de cuenta",k.depNoEdo],["(−) Retiros no considerados en estado de cuenta",k.retNoEdo],["(−) Depósitos no considerados en contabilidad",k.depNoCont],["(+) Retiros no considerados en contabilidad",k.retNoCont],["Saldo conciliado",k.conciliado],["Saldo en contabilidad (auxiliar)",k.sfAux],["Diferencia",k.dif]];
     const pares = E.pairs.slice().sort((x,y)=>x.b.fecha.localeCompare(y.b.fecha));
@@ -3045,8 +3078,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const buf = await wb.xlsx.writeBuffer();
         await guardarArchivo(`${nombreArchivo}.xlsx`, new Blob([buf]));
       } else {
-        await loadLibs("pdf");
-        const { jsPDF } = window.jspdf; const doc = new jsPDF({orientation:"portrait", unit:"pt", format:"letter"});
+        const op = await elegirFormatoPdfConc(); if(!op){ modoVer = false; return; }
+        await loadLibs("pdf"); window.__pdfNota = op.nota || ""; if(op.titulo) titulo = op.titulo;
+        const { jsPDF } = window.jspdf; const doc = new jsPDF({orientation: op.orient, unit:"pt", format:"letter"});
+        if(op.estilo==="secciones"){ pdfConcSecciones(doc, {titulo, cta, car, pend, pares, E, k, c, op}); await guardarArchivo(`${nombreArchivo}.pdf`, doc.output("blob")); return; }
         doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.text(titulo, 40, 44);
         doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(100);
         doc.text(`${cta.cuentaContable?`Cuenta contable ${cta.cuentaContable} · `:""}Generado el ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`, 40, 60);
@@ -3063,6 +3098,40 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       }
     }catch(e){ toast("No se pudo preparar el archivo. Inténtalo de nuevo."); }
     finally{ btn.disabled = false; }
+  }
+
+  // ---------- Formato del PDF de la conciliación ----------
+  function elegirFormatoPdfConc(){ return new Promise(res=>{
+    let pref = {estilo:"secciones", orient:"portrait"}; try{ pref = {...pref, ...JSON.parse(localStorage.getItem("pdfConcFmt")||"{}")}; }catch(_){}
+    if(captura){ res(pref); return; } // al armar el .zip del mes se usa tu última elección, sin preguntar
+    document.querySelectorAll('[name="pcEstilo"]').forEach(x=>x.checked = x.value===pref.estilo); document.querySelectorAll('[name="pcOrient"]').forEach(x=>x.checked = x.value===pref.orient);
+    $("pcPart").checked = pref.part!==false; $("pcDep").checked = pref.dep!==false; $("pcRet").checked = pref.ret!==false; $("pcPol").checked = pref.pol!==false; $("pcNota").value = ""; $("pcTitulo").value = "";
+    const dlg = $("pdfConcDlg"), fin = v => { dlg.close(); $("pcOk").onclick = $("pcCancel").onclick = null; res(v); };
+    $("pcOk").onclick = () => { const v = {estilo: (document.querySelector('[name="pcEstilo"]:checked')||{}).value || "secciones", orient: (document.querySelector('[name="pcOrient"]:checked')||{}).value || "portrait", part: $("pcPart").checked, dep: $("pcDep").checked, ret: $("pcRet").checked, pol: $("pcPol").checked}; try{ localStorage.setItem("pdfConcFmt", JSON.stringify(v)); }catch(_){} fin({...v, nota: $("pcNota").value.trim(), titulo: $("pcTitulo").value.trim()}); };
+    $("pcCancel").onclick = () => fin(null); dlg.showModal(); }); }
+  function pdfConcSecciones(doc, {titulo, cta, car, pend, pares, E, k, c, op}){
+    op = op || {};
+    const W = doc.internal.pageSize.getWidth(), M = 40, hoyTxt = now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"});
+    const est = {theme:"grid", margin:{left:M,right:M}, styles:{fontSize:8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:[122,31,61],textColor:[255,255,255]}};
+    const encabezado = (sub) => { doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(20); doc.text(titulo, M, 44); doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(110); doc.text(`${sub}${cta.cuentaContable?` · Cuenta contable ${cta.cuentaContable}`:""} · Generado el ${hoyTxt}`, M, 60); doc.setTextColor(20); };
+    // Póliza de cada movimiento del banco
+    const polDe = {}; pares.forEach(p=>{ polDe[p.b.id] = `${p.a.tipo} ${p.a.num} · ${p.a.concepto}`; }); (E.grupos||[]).forEach(g=>g.bs.forEach(b=>{ polDe[b.id] = g.as.map(a=>`${a.tipo} ${a.num}`).join(" + ") + " (grupo)"; }));
+    const banco = (c.banco||[]).slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+    // Página 1: carátula
+    encabezado("Carátula");
+    doc.autoTable({...est, startY:76, head:[["Carátula","Importe"]], body: car.map(([l,v],i)=>[{content:l.replace("−","-"),styles:{fontStyle:[4,9,10,11].includes(i)?"bold":"normal"}},{content:money.format(v),styles:{halign:"right",fontStyle:[4,9,10,11].includes(i)?"bold":"normal"}}])});
+    if(op.part!==false) doc.autoTable({...est, startY: doc.lastAutoTable.finalY+16, head:[["Partidas en conciliación","Fecha","Descripción","Monto"]], body: pend.length ? pend.map(x=>[x[0],x[1],x[2],{content:money.format(x[3]),styles:{halign:"right"}}]) : [[{content:"Sin partidas en conciliación",colSpan:4}]], styles:{...est.styles, fontSize:8}});
+    // Página 2: depósitos — Página 3: retiros
+    for(const [tipo, nombre] of [["dep","Depósitos"],["ret","Retiros"]].filter(([t])=>t==="dep" ? op.dep!==false : op.ret!==false)){
+      const xs = banco.filter(b=>b.tipo===tipo), tot = r2(xs.reduce((s,b)=>s+(+b.monto||0),0)), conc = xs.filter(b=>polDe[b.id]);
+      doc.addPage(); encabezado(`${nombre}: ${xs.length} movimientos · ${money.format(tot)} · ${conc.length} conciliados`);
+      const conPol = op.pol!==false;
+      doc.autoTable({...est, startY:76, head:[["Fecha","Beneficiario / remitente","Concepto","Monto", ...(conPol?["Póliza"]:[])]],
+        body: xs.length ? [...xs.map(b=>[b.fecha, b.nombre||"", String(b.concepto||"").slice(0,70), {content:money.format(+b.monto||0),styles:{halign:"right"}}, ...(conPol?[polDe[b.id] || {content:"En conciliación",styles:{textColor:[163,40,63]}}]:[])]),
+          [{content:`Total de ${nombre.toLowerCase()}`,colSpan:3,styles:{fontStyle:"bold"}},{content:money.format(tot),styles:{halign:"right",fontStyle:"bold"}}, ...(conPol?[""]:[])]] : [[{content:`Sin ${nombre.toLowerCase()} en el mes`,colSpan:conPol?5:4}]],
+        styles:{...est.styles, fontSize:7.5, cellPadding:3.5}, columnStyles:{0:{cellWidth:58},3:{cellWidth:70}}});
+    }
+    const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${i} de ${n}`, W - M, doc.internal.pageSize.getHeight() - 20, {align:"right"}); }
   }
 
   // --- estados de cuenta en PDF (BBVA) ---
@@ -8996,6 +9065,68 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     pie.addEventListener("click", e => { const b = e.target.closest("[data-tema]"); if(!b) return; aplicar(b.dataset.tema); try{ localStorage.setItem("tema", b.dataset.tema); }catch(_){} if(typeof charts!=="undefined" && vista==="dashboard") renderDashboard(); });
   })();
 
+  // ---------- Logo de la empresa y formato de los PDF ----------
+  const empActual = () => empresas.find(x=>x.id===empresa) || {};
+  function pintarLogo(){
+    const e = empActual(), img = $("empLogo"); if(!img) return;
+    const ver = !!(e.logo && (e.docCfg||{}).logoApp !== false);
+    img.hidden = !ver; if(ver) img.src = e.logo;
+    document.querySelectorAll("[data-tablogo]").forEach(x=>{ const em = empresas.find(z=>z.id===x.dataset.tablogo) || {}; x.hidden = !(em.logo && (em.docCfg||{}).logoApp !== false); if(!x.hidden) x.src = em.logo; });
+  }
+  async function reducirImagen(file, maxW=420, maxH=160){
+    const bmp = await createImageBitmap(file), esc = Math.min(1, maxW/bmp.width, maxH/bmp.height), cv = document.createElement("canvas");
+    cv.width = Math.round(bmp.width*esc); cv.height = Math.round(bmp.height*esc); cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+    return cv.toDataURL("image/png");
+  }
+  let logoTemp;
+  function abrirDocCfg(){
+    const e = empActual(), c = e.docCfg || {}; logoTemp = e.logo || null;
+    $("dcPrev").innerHTML = logoTemp ? `<img src="${logoTemp}" alt="Logo" style="max-height:70px;max-width:100%">` : '<span class="fsub">Sin logo</span>';
+    $("dcLogoApp").checked = c.logoApp !== false; $("dcLogoPdf").checked = c.logoPdf !== false; $("dcPie").value = c.pie || "";
+    const F = c.firmas || [{rol:"Elaboró",nombre:""},{rol:"Revisó",nombre:""},{rol:"Autorizó",nombre:""}];
+    document.querySelectorAll("[data-dcrol]").forEach((x,i)=>{ x.value = (F[i]||{}).rol || ""; }); document.querySelectorAll("[data-dcnom]").forEach((x,i)=>{ x.value = (F[i]||{}).nombre || ""; });
+    $("dcFirmas").checked = !!c.firmasPdf; $("docCfgDlg").showModal();
+  }
+  $("dcLogoFile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if(!f) return; try{ logoTemp = await reducirImagen(f); $("dcPrev").innerHTML = `<img src="${logoTemp}" alt="Logo" style="max-height:70px;max-width:100%">`; }catch(_){ toast("No pude abrir esa imagen. Usa PNG o JPG."); } };
+  $("dcQuitar").onclick = () => { logoTemp = null; $("dcPrev").innerHTML = '<span class="fsub">Sin logo</span>'; };
+  $("dcCancel").onclick = () => $("docCfgDlg").close();
+  $("dcOk").onclick = async () => {
+    const firmas = [...document.querySelectorAll("[data-dcrol]")].map((x,i)=>({rol: x.value.trim(), nombre: (document.querySelectorAll("[data-dcnom]")[i]||{}).value.trim()})).filter(f=>f.rol||f.nombre);
+    const docCfg = {logoApp: $("dcLogoApp").checked, logoPdf: $("dcLogoPdf").checked, pie: $("dcPie").value.trim(), firmas, firmasPdf: $("dcFirmas").checked};
+    const e = empActual(); e.logo = logoTemp; e.docCfg = docCfg;
+    try{ await db.doc(`empresas/${empresa}`).update({logo: logoTemp, docCfg}); }catch(err){ handleWriteError(err); }
+    $("docCfgDlg").close(); pintarLogo(); toast("Listo: logo y formato guardados.");
+  };
+  // Estampa logo, pie de página, nota y firmas en todos los PDF que arma la app
+  function parcharJsPDF(){
+    const J = window.jspdf && window.jspdf.jsPDF; if(!J || J.__estampaOk) return;
+    // Cada documento nuevo envuelve su output() para estampar logo, pie, nota y firmas antes de guardarse
+    const Envuelto = function(...args){ const doc = new J(...args), outOrig = doc.output.bind(doc);
+      doc.output = function(...a){ if(!doc.__estampado){ doc.__estampado = true; try{ estamparPdf(doc); }catch(e){ console.error(e); } } return outOrig(...a); };
+      return doc; };
+    Object.assign(Envuelto, J); Envuelto.API = J.API; Envuelto.prototype = J.prototype; Envuelto.__estampaOk = true;
+    window.jspdf.jsPDF = Envuelto;
+  }
+  function estamparPdf(doc){
+    const e = empActual(), c = e.docCfg || {}, n = doc.getNumberOfPages(), W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 40;
+    const nota = window.__pdfNota || ""; window.__pdfNota = "";
+    // Nota y firmas al final
+    if(nota || (c.firmasPdf && (c.firmas||[]).length)){
+      doc.setPage(n); let y = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : H*0.6) + 24;
+      const alto = (nota ? 60 : 0) + (c.firmasPdf ? 90 : 0); if(y + alto > H - 40){ doc.addPage(); y = 70; }
+      if(nota){ doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(20); doc.text("Notas", M, y); doc.setFont("helvetica","normal"); doc.setFontSize(9); const ls = doc.splitTextToSize(nota, W - 2*M); doc.text(ls, M, y + 14); y += 24 + ls.length*11; }
+      if(c.firmasPdf && (c.firmas||[]).length){ const F = c.firmas, ancho = (W - 2*M) / F.length; y += 40;
+        F.forEach((fi,i)=>{ const x0 = M + i*ancho + 12, x1 = M + (i+1)*ancho - 12; doc.setDrawColor(120); doc.line(x0, y, x1, y); doc.setFontSize(9); doc.setTextColor(20); doc.text(fi.nombre || "", (x0+x1)/2, y + 12, {align:"center"}); doc.setTextColor(110); doc.text(fi.rol || "", (x0+x1)/2, y + 24, {align:"center"}); }); }
+    }
+    const total = doc.getNumberOfPages();
+    for(let p=1; p<=total; p++){
+      doc.setPage(p);
+      if(e.logo && c.logoPdf !== false){ try{ const pr = doc.getImageProperties(e.logo), h = 32, w = Math.min(140, pr.width * h / pr.height); doc.addImage(e.logo, "PNG", W - M - w, 14, w, h); }catch(_){} }
+      if(c.pie){ doc.setFontSize(7.5); doc.setTextColor(140); doc.text(doc.splitTextToSize(c.pie, W - 2*M - 90), M, H - 20); }
+    }
+  }
+
+  $("logoBtn").onclick = () => { if(!canWrite){ toast("Solo puedes ver."); return; } abrirDocCfg(); };
   // ---------- Arranque ----------
 
 
