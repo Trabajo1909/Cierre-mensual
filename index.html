@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 82 · Vista previa editable del PDF</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 83 · Tablas que siguen en otra hoja y espacios</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -681,6 +681,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
     <span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-left:auto">
       <span class="fsub">Logo:</span><label class="check inline" style="margin:0"><input type="radio" name="peLogo" value="derecha"> derecha</label><label class="check inline" style="margin:0"><input type="radio" name="peLogo" value="izquierda"> izquierda</label><label class="check inline" style="margin:0"><input type="radio" name="peLogo" value="ninguno"> sin logo</label>
       <span class="fsub">Hoja:</span><label class="check inline" style="margin:0"><input type="radio" name="peOrient" value="portrait"> vertical</label><label class="check inline" style="margin:0"><input type="radio" name="peOrient" value="landscape"> horizontal</label>
+      <span class="fsub">Letra:</span><select id="peLetra" style="width:auto;padding:3px 6px"><option value="7.5">chica</option><option value="8.5">normal</option><option value="10">grande</option></select>
       <button class="btn sm" id="peCancel">Cancelar</button><button class="btn sm primary" id="peOk">Generar PDF</button></span>
   </div>
   <div id="peHojas" style="padding:20px;background:#e9e9e6;min-height:calc(94vh - 60px);overflow:auto"></div>
@@ -3136,7 +3137,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     return {
       empresa: empresaNombre, titulo: op.titulo || `Conciliación bancaria · ${cta.nombre}`,
       datos: `Periodo: ${MESES[bMes-1]} ${year}${cta.cuentaContable?`    Cuenta contable: ${cta.cuentaContable}`:""}    Generado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`,
-      logo: "derecha", orient: op.orient || "portrait", nota: op.nota || "",
+      logo: "derecha", orient: op.orient || "portrait", nota: op.nota || "", letra: 8.5,
       secciones: [
         {id:"car", titulo:"Carátula", resumen:`Saldo según banco ${f(k.sfBanco)} · saldo en contabilidad ${f(k.sfAux)} · diferencia ${f(k.dif)}`, nueva:true, visible:true, head:["Concepto","Importe"], der:[1], filas: car.map(([l,v],i)=>({cells:[l.replace("−","-"), f(v)], bold: clave(i), fondo: clave(i), rojo: i===11 && Math.abs(v)>0.5}))},
         {id:"part", titulo:"Partidas en conciliación", resumen:"", nueva:false, visible: op.part!==false, head:["Partida","Fecha","Descripción","Monto"], der:[3], filas: pend.length ? pend.map(x=>({cells:[x[0], x[1], x[2], f(x[3])]})) : [{cells:["Sin partidas en conciliación","","",""]}]},
@@ -3150,11 +3151,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const enc = (s) => `<div class="pe-enc" style="display:flex;justify-content:space-between;gap:12px;flex-direction:${M.logo==="izquierda"?"row-reverse":"row"}">
         <div style="flex:1"><div contenteditable="true" data-pe="empresa" style="font-size:20px;font-weight:700">${esc(M.empresa)}</div><div contenteditable="true" data-pe="titulo" style="font-size:14px;color:#555;margin-top:2px">${esc(M.titulo)}</div><div contenteditable="true" data-pe="datos" style="font-size:11px;color:#777;margin-top:8px;white-space:pre-wrap">${esc(M.datos)}</div></div>
         <div>${logoHtml}</div></div><div style="border-top:2px solid #7A1F3D;margin:10px 0 14px"></div>`;
-    const tabla = (s, si) => `<div class="pe-sec" style="margin-bottom:14px;${s.visible?"":"opacity:.35"}">
+    const tabla = (s, si) => `<div class="pe-sec" style="margin-bottom:14px;margin-top:${(+s.espacio||0)}px;${s.visible?"":"opacity:.35"}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div contenteditable="true" data-pes="${si}" data-campo="titulo" style="font-size:16px;font-weight:700;color:#7A1F3D">${esc(s.titulo)}</div>
-          <span class="pe-tools" style="display:flex;gap:4px;flex-wrap:wrap;font-size:11px"><button class="btn sm" data-pemov="${si}" data-dir="-1">↑</button><button class="btn sm" data-pemov="${si}" data-dir="1">↓</button><button class="btn sm" data-pevis="${si}">${s.visible?"Ocultar":"Mostrar"}</button>${si?`<label class="check inline" style="margin:0;font-size:11px"><input type="checkbox" data-penueva="${si}" ${s.nueva?"checked":""}> hoja nueva</label>`:""}</span></div>
+          <span class="pe-tools" style="display:flex;gap:4px;flex-wrap:wrap;font-size:11px"><button class="btn sm" data-pemov="${si}" data-dir="-1">↑</button><button class="btn sm" data-pemov="${si}" data-dir="1">↓</button><button class="btn sm" data-pevis="${si}">${s.visible?"Ocultar":"Mostrar"}</button>${si?`<label class="check inline" style="margin:0;font-size:11px"><input type="checkbox" data-penueva="${si}" ${s.nueva?"checked":""}> hoja nueva</label>`:""}<select data-peesp="${si}" title="Espacio antes de la sección" style="width:auto;padding:2px 4px;font-size:11px">${[0,10,20,40,60,100].map(v=>`<option value="${v}" ${(+s.espacio||0)===v?"selected":""}>espacio ${v}</option>`).join("")}</select></span></div>
         <div contenteditable="true" data-pes="${si}" data-campo="resumen" style="font-size:11px;color:#777;margin:2px 0 6px">${esc(s.resumen||"")}</div>
-        <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${s.head.map((hh,ci)=>`<th contenteditable="true" data-peh="${si}" data-ci="${ci}" style="background:#7A1F3D;color:#fff;text-align:${s.der.includes(ci)?"right":"left"};padding:5px 6px">${esc(hh)}</th>`).join("")}<th style="width:18px"></th></tr></thead>
+        <table style="width:100%;border-collapse:collapse;font-size:${Math.round((M.letra||8.5)*1.3)}px"><thead><tr>${s.head.map((hh,ci)=>`<th contenteditable="true" data-peh="${si}" data-ci="${ci}" style="background:#7A1F3D;color:#fff;text-align:${s.der.includes(ci)?"right":"left"};padding:5px 6px">${esc(hh)}</th>`).join("")}<th style="width:18px"></th></tr></thead>
         <tbody>${s.filas.map((r,ri)=>`<tr style="background:${r.fondo?"#f5eef1":"#fff"}">${r.cells.map((cv,ci)=>`<td contenteditable="true" data-pec="${si}" data-ri="${ri}" data-ci="${ci}" style="border:1px solid #ddd;padding:4px 6px;text-align:${s.der.includes(ci)?"right":"left"};${r.bold?"font-weight:700;":""}${r.rojo&&ci===s.cells?"":""}${r.rojo && s.der.includes(ci)?"color:#A3283F;":""}">${esc(cv)}</td>`).join("")}<td><button class="linkbtn" data-pedel="${si}" data-ri="${ri}" title="Quitar renglón" style="font-size:13px">×</button></td></tr>`).join("")}</tbody></table>
         <button class="linkbtn" data-peadd="${si}" style="font-size:12px;margin-top:4px">+ agregar renglón</button></div>`;
     // Arma las hojas como quedarían
@@ -3162,6 +3163,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("peHojas").innerHTML = hojas.map((h,hi)=>`<div class="pe-hoja" style="width:${ancho}px;max-width:100%;min-height:${ancho===612?792:612}px;background:#fff;color:#151515;box-shadow:0 2px 10px rgba(0,0,0,.15);margin:0 auto 18px;padding:36px 40px;box-sizing:border-box;position:relative">
         ${enc()}${h.map(([s,si])=>tabla(s,si)).join("")}${hi===hojas.length-1?`<div style="margin-top:10px"><div style="font-weight:700;font-size:12px">Notas</div><div contenteditable="true" data-pe="nota" style="min-height:30px;border:1px dashed #ccc;padding:6px;font-size:11px">${esc(M.nota)}</div></div>`:""}
         <div style="position:absolute;bottom:14px;right:40px;font-size:9px;color:#999">Hoja ${hi+1} de ${hojas.length}</div></div>`).join("");
+    $("peLetra").value = String(M.letra||8.5);
     document.querySelectorAll('[name="peLogo"]').forEach(x=>x.checked = x.value===M.logo); document.querySelectorAll('[name="peOrient"]').forEach(x=>x.checked = x.value===M.orient);
   }
   function leerEditorPdf(){
@@ -3172,18 +3174,19 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   function pdfDesdeModelo(doc){
     const M = pdfModelo, W = doc.internal.pageSize.getWidth(), Mg = 40, VINO = [122,31,61], e = empActual();
-    const est = {theme:"grid", margin:{left:Mg,right:Mg}, styles:{fontSize:8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:VINO,textColor:[255,255,255]}};
+    const est = {theme:"grid", margin:{left:Mg,right:Mg,top:124}, styles:{fontSize:M.letra||8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:VINO,textColor:[255,255,255]}};
     const izq = M.logo==="izquierda" && e.logo, xT = izq ? Mg + 160 : Mg;
     const enc = () => { doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(M.empresa, xT, 46); doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(M.titulo, xT, 64); doc.setFontSize(8.5); doc.setTextColor(110); doc.text(doc.splitTextToSize(M.datos, W - xT - Mg - (izq?0:160)), xT, 82); doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(Mg, 96, W - Mg, 96); doc.setLineWidth(.5); doc.setTextColor(20); };
     let y = 0, primera = true;
     for(const s of M.secciones){ if(!s.visible) continue;
       if(primera || s.nueva){ if(!primera) doc.addPage(); enc(); y = 120; primera = false; } else y += 18;
+      y += (+s.espacio||0); if(y > doc.internal.pageSize.getHeight() - 120){ doc.addPage(); enc(); y = 120; }
       doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.setTextColor(...VINO); doc.text(s.titulo, Mg, y);
       if(s.resumen){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(110); doc.text(doc.splitTextToSize(s.resumen, W-2*Mg), Mg, y+16); y += 16; }
       doc.setTextColor(20);
       doc.autoTable({...est, startY: y + 12, head: [s.head.map((hh,ci)=>({content:hh, styles:{halign: s.der.includes(ci)?"right":"left"}}))],
         body: s.filas.map(r=>r.cells.map((cv,ci)=>({content: cv, styles:{halign: s.der.includes(ci)?"right":"left", fontStyle: r.bold?"bold":"normal", fillColor: r.fondo?[245,238,241]:[255,255,255], textColor: r.rojo && s.der.includes(ci) ? [163,40,63] : [20,20,20]}}))),
-        didDrawPage: () => {} });
+        didDrawPage: (() => { const ini = doc.getCurrentPageInfo().pageNumber; return () => { if(doc.getCurrentPageInfo().pageNumber !== ini){ enc(); doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...VINO); doc.text(`${s.titulo} (continuación)`, Mg, 114); doc.setTextColor(20); doc.setFont("helvetica","normal"); } }; })() });
       y = doc.lastAutoTable.finalY;
     }
     const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${i} de ${n}`, W - Mg, doc.internal.pageSize.getHeight() - 20, {align:"right"}); }
@@ -3207,6 +3210,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(t.dataset.penueva){ leerEditorPdf(); pdfModelo.secciones[+t.dataset.penueva].nueva = t.checked; pintarEditorPdf(); }
     if(t.name==="peLogo"){ leerEditorPdf(); pdfModelo.logo = t.value; pintarEditorPdf(); }
     if(t.name==="peOrient"){ leerEditorPdf(); pdfModelo.orient = t.value; pintarEditorPdf(); }
+    if(t.id==="peLetra"){ leerEditorPdf(); pdfModelo.letra = +t.value; pintarEditorPdf(); }
+    if(t.dataset.peesp!=null){ leerEditorPdf(); pdfModelo.secciones[+t.dataset.peesp].espacio = +t.value; pintarEditorPdf(); }
   });
 
   function pdfConcSecciones(doc, {titulo, cta, car, pend, pares, E, k, c, op}){
@@ -3234,13 +3239,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const clave = i => [4,9,10,11].includes(i), fondo = i => clave(i) ? [245,238,241] : [255,255,255];
     doc.autoTable({...est, startY:Y0, head:[["Concepto",{content:"Importe",styles:{halign:"right"}}]], columnStyles:{1:{cellWidth:120}}, styles:{...est.styles, fontSize:9, cellPadding:5},
       body: car.map(([l,v],i)=>[{content:l.replace("−","-"),styles:{fontStyle:clave(i)?"bold":"normal", fillColor:fondo(i)}},{content:money.format(v),styles:{halign:"right",fontStyle:clave(i)?"bold":"normal", fillColor:fondo(i), textColor: i===11 && Math.abs(v)>0.5 ? [163,40,63] : [20,20,20]}}])});
-    if(op.part!==false) doc.autoTable({...est, startY: doc.lastAutoTable.finalY+16, head:[["Partidas en conciliación","Fecha","Descripción","Monto"]], body: pend.length ? pend.map(x=>[x[0],x[1],x[2],{content:money.format(x[3]),styles:{halign:"right"}}]) : [[{content:"Sin partidas en conciliación",colSpan:4}]], styles:{...est.styles, fontSize:8}});
+    const pagCar = doc.getCurrentPageInfo().pageNumber;
+    if(op.part!==false) doc.autoTable({...est, margin:{left:M, right:M, top:Y0}, didDrawPage: () => { if(doc.getCurrentPageInfo().pageNumber !== pagCar) encabezado("Partidas en conciliación (continuación)", ""); }, startY: doc.lastAutoTable.finalY+16, head:[["Partidas en conciliación","Fecha","Descripción","Monto"]], body: pend.length ? pend.map(x=>[x[0],x[1],x[2],{content:money.format(x[3]),styles:{halign:"right"}}]) : [[{content:"Sin partidas en conciliación",colSpan:4}]], styles:{...est.styles, fontSize:8}});
     // Página 2: depósitos — Página 3: retiros
     for(const [tipo, nombre] of [["dep","Depósitos"],["ret","Retiros"]].filter(([t])=>t==="dep" ? op.dep!==false : op.ret!==false)){
       const xs = banco.filter(b=>b.tipo===tipo), tot = r2(xs.reduce((s,b)=>s+(+b.monto||0),0)), conc = xs.filter(b=>polDe[b.id]);
       doc.addPage(); encabezado(nombre, `${xs.length} ${xs.length===1?"movimiento":"movimientos"} · total ${money.format(tot)} · ${conc.length} conciliados con póliza${xs.length-conc.length?` · ${xs.length-conc.length} en conciliación`:""}`);
-      const conPol = op.pol!==false;
-      doc.autoTable({...est, startY:Y0, head:[["Fecha","Beneficiario / remitente","Concepto","Monto", ...(conPol?["Póliza"]:[])]],
+      const conPol = op.pol!==false, pagIni = doc.getCurrentPageInfo().pageNumber;
+      doc.autoTable({...est, margin:{left:M, right:M, top:Y0}, didDrawPage: d => { if(doc.getCurrentPageInfo().pageNumber !== pagIni) encabezado(`${nombre} (continuación)`, ""); }, startY:Y0, head:[["Fecha","Beneficiario / remitente","Concepto","Monto", ...(conPol?["Póliza"]:[])]],
         body: xs.length ? [...xs.map(b=>[b.fecha, b.nombre||"", String(b.concepto||"").slice(0,70), {content:money.format(+b.monto||0),styles:{halign:"right"}}, ...(conPol?[polDe[b.id] || {content:"En conciliación",styles:{textColor:[163,40,63]}}]:[])]),
           [{content:`Total de ${nombre.toLowerCase()}`,colSpan:3,styles:{fontStyle:"bold"}},{content:money.format(tot),styles:{halign:"right",fontStyle:"bold"}}, ...(conPol?[""]:[])]] : [[{content:`Sin ${nombre.toLowerCase()} en el mes`,colSpan:conPol?5:4}]],
         styles:{...est.styles, fontSize:7.5, cellPadding:3.5}, columnStyles:{0:{cellWidth:58},3:{cellWidth:70}}});
@@ -9216,6 +9222,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const J = window.jspdf && window.jspdf.jsPDF; if(!J || J.__estampaOk) return;
     // Cada documento nuevo envuelve su output() para estampar logo, pie, nota y firmas antes de guardarse
     const Envuelto = function(...args){ const doc = new J(...args), outOrig = doc.output.bind(doc);
+      // Si hay logo, las tablas que siguen en otra hoja empiezan debajo de él (no encima)
+      if(typeof doc.autoTable==="function"){ const atOrig = doc.autoTable.bind(doc); doc.autoTable = (o, ...rest) => { const e = empActual(), conLogo = e.logo && (e.docCfg||{}).logoPdf !== false;
+        if(o && typeof o==="object" && conLogo){ const mg = typeof o.margin==="number" ? {left:o.margin, right:o.margin, bottom:o.margin} : (o.margin||{}); if(mg.top==null) o.margin = {...mg, top: 84}; } return atOrig(o, ...rest); }; }
       doc.output = function(...a){ if(!doc.__estampado){ doc.__estampado = true; try{ estamparPdf(doc); }catch(e){ console.error(e); } } return outOrig(...a); };
       return doc; };
     Object.assign(Envuelto, J); Envuelto.API = J.API; Envuelto.prototype = J.prototype; Envuelto.__estampaOk = true;
@@ -9227,12 +9236,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // Nota y firmas al final
     if(nota || (c.firmasPdf && (c.firmas||[]).length)){
       doc.setPage(n); let y = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : H*0.6) + 24;
-      const alto = (nota ? 60 : 0) + (c.firmasPdf ? 90 : 0); if(y + alto > H - 40){ doc.addPage(); y = 70; }
+      const alto = (nota ? 60 : 0) + (c.firmasPdf ? 90 : 0); if(y + alto > H - 40){ doc.addPage(); y = 110; doc.__renumerar = true; }
       if(nota){ doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(20); doc.text("Notas", M, y); doc.setFont("helvetica","normal"); doc.setFontSize(9); const ls = doc.splitTextToSize(nota, W - 2*M); doc.text(ls, M, y + 14); y += 24 + ls.length*11; }
       if(c.firmasPdf && (c.firmas||[]).length){ const F = c.firmas, ancho = (W - 2*M) / F.length; y += 40;
         F.forEach((fi,i)=>{ const x0 = M + i*ancho + 12, x1 = M + (i+1)*ancho - 12; doc.setDrawColor(120); doc.line(x0, y, x1, y); doc.setFontSize(9); doc.setTextColor(20); doc.text(fi.nombre || "", (x0+x1)/2, y + 12, {align:"center"}); doc.setTextColor(110); doc.text(fi.rol || "", (x0+x1)/2, y + 24, {align:"center"}); }); }
     }
     const total = doc.getNumberOfPages();
+    if(doc.__renumerar){ for(let p=1; p<=total; p++){ doc.setPage(p); doc.setFillColor(255,255,255); doc.rect(W - M - 140, H - 32, 140, 18, "F"); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${p} de ${total}`, W - M, H - 20, {align:"right"}); } }
     setTimeout(()=>{ window.__pdfLogoPos = null; }, 0);
     for(let p=1; p<=total; p++){
       doc.setPage(p);
