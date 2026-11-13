@@ -406,11 +406,11 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 <body>
 <div class="wrap">
   <nav class="tabs" id="tabs" role="tablist" aria-label="Empresas"></nav>
-  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas y cuentas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="finanzas" aria-selected="false">Finanzas</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="leyes" aria-selected="false">Leyes</button><button class="view" data-view="prestaciones" aria-selected="false">Nómina: calculadora y prestaciones</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
+  <div class="views" role="tablist" aria-label="Secciones"><button class="view" data-view="tablero" aria-selected="true">Tablero de cierre</button><button class="view" data-view="facturas" aria-selected="false">Facturas y cuentas</button><button class="view" data-view="cuentas" aria-selected="false">Cuentas</button><button class="view" data-view="bancos" aria-selected="false">Bancos</button><button class="view" data-view="impuestos" aria-selected="false">Impuestos</button><button class="view" data-view="balanza" aria-selected="false">Balanza</button><button class="view" data-view="activos" aria-selected="false">Activo fijo</button><button class="view" data-view="conta" aria-selected="false">Contabilidad</button><button class="view" data-view="directorio" aria-selected="false">Directorio</button><button class="view" data-view="documentos" aria-selected="false">Documentos</button><button class="view" data-view="resumen" aria-selected="false">Resumen</button><button class="view" data-view="presupuesto" aria-selected="false">Presupuesto</button><button class="view" data-view="estados" aria-selected="false">Estados financieros</button><button class="view" data-view="finanzas" aria-selected="false">Finanzas</button><button class="view" data-view="ventas" aria-selected="false">Ventas en plataformas</button><button class="view" data-view="nominas" aria-selected="false">Nóminas</button><button class="view" data-view="calendario" aria-selected="false">Calendario</button><button class="view" data-view="leyes" aria-selected="false">Leyes</button><button class="view" data-view="noticias" aria-selected="false">Noticias fiscales</button><button class="view" data-view="prestaciones" aria-selected="false">Nómina: calculadora y prestaciones</button><button class="view" data-view="accesos" aria-selected="false">Accesos</button><button class="view" data-view="dashboard" aria-selected="false">Dashboard</button><button class="view" data-view="expediente" aria-selected="false">Expediente</button><button class="view" data-view="notas" aria-selected="false">Notas</button></div>
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 83 · Tablas que siguen en otra hoja y espacios</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 86 · Noticias fiscales</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -475,6 +475,10 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
       <h2>Resumen mensual <select id="rmes" aria-label="Mes del resumen"></select></h2>
       <div class="sheet" id="rsheet"></div>
     </div>
+  </section>
+
+  <section id="vNoticias" hidden>
+    <div id="notbody"></div>
   </section>
 
   <section id="vLeyes" hidden>
@@ -672,6 +676,19 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="notDlg" style="width:min(560px,94vw)">
+  <h2>Guardar una noticia</h2>
+  <label for="ntTitulo">Título</label><input id="ntTitulo" autocomplete="off" placeholder="Ej.: DOF: Ley de Ingresos 2027">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px"><div><label for="ntFecha">Fecha de publicación</label><input id="ntFecha" type="date"></div><div><label for="ntFuente">Fuente</label><input id="ntFuente" autocomplete="off" placeholder="DOF, SAT, IMSS…"></div></div>
+  <label for="ntLink">Link (opcional)</label><input id="ntLink" autocomplete="off" placeholder="https://…">
+  <label for="ntResumen">Resumen: qué cambia y qué hacer</label><textarea id="ntResumen" rows="5"></textarea>
+  <label>Temas</label><div id="ntEtq" style="display:flex;flex-wrap:wrap;gap:4px 0"></div>
+  <label for="ntVigor">Entra en vigor (opcional)</label><input id="ntVigor" type="date">
+  <label class="check"><input type="checkbox" id="ntCal" checked><span>Agregar la fecha de entrada en vigor a mi calendario</span></label>
+  <label class="check"><input type="checkbox" id="ntAplica"><span>Aplica a mis empresas</span></label>
+  <div class="dlg-actions"><button class="btn" id="ntCancel">Cancelar</button><button class="btn primary" id="ntOk">Guardar</button></div>
 </dialog>
 
 <dialog id="pdfEdDlg" style="width:96vw;max-width:1100px;height:94vh;padding:0">
@@ -1179,7 +1196,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const CICLO = ["", "wip", "done", "na"];
   const NOMBRE_ESTADO = {"":"Pendiente", wip:"Por registrar", done:"Terminado", na:"No aplica"};
   let empresa = null, empresaNombre = "", empresas = [];
-  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas","#nominas","#calendario","#prestaciones","#leyes","#finanzas"].includes(location.hash) ? location.hash.slice(1) : "tablero";
+  let vista = ["#facturas","#cuentas","#bancos","#impuestos","#balanza","#dashboard","#expediente","#notas","#activos","#conta","#directorio","#documentos","#resumen","#accesos","#presupuesto","#estados","#ventas","#nominas","#calendario","#prestaciones","#leyes","#finanzas","#noticias"].includes(location.hash) ? location.hash.slice(1) : "tablero";
   let polizas = {}, unsubPol = null, proveedores = {}, unsubProv = null, nominas = [], declaraciones = [], impConfig = {}, iMes = null, unsubNom = null, unsubDecl = null, unsubCfg = null, assets = null;
   let cuentasB = [], cuentaSel = null, concs = [], bMes = null, selB = null, selA = null, selBs = new Set(), selAs = new Set(), unsubBk = null, unsubConc = null, bkLoaded = false;
   let abonos = [], complementos = [], unsubAb = null, unsubComp = null, ctSel = "emitida", filSel = "pend", rMes = null, abiertos = new Set(), abLoaded = false;
@@ -1239,6 +1256,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(vista==="prestaciones"){ renderPrestaciones(); return; }
     if(vista==="leyes"){ renderLeyes(); return; }
     if(vista==="finanzas"){ renderFinanzas(); return; }
+    if(vista==="noticias"){ renderNoticias(); return; }
     const sheet = $("sheet");
     sheet.classList.toggle("readonly", !canWrite);
     if(!loadedEmpresa){ return; }
@@ -1398,6 +1416,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     subscribeVentasPlat();
     subscribeAgenda();
     subscribeLeyes();
+    subscribeNoticias();
     subscribeLiberaciones();
     subscribePagosPlat();
     subscribeRetencionesP();
@@ -1672,15 +1691,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
   }
 
-  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="nominas") renderNominas(); else if(vista==="calendario") renderCalendario(); else if(vista==="prestaciones") renderPrestaciones(); else if(vista==="leyes") renderLeyes(); else if(vista==="finanzas") renderFinanzas(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
+  function rerenderDatos(){ if(vista==="facturas") renderFacturas(); else if(vista==="cuentas") renderCuentas(); else if(vista==="bancos") renderBancos(); else if(vista==="impuestos") renderImpuestos(); else if(vista==="balanza") renderBalanza(); else if(vista==="dashboard") renderDashboard(); else if(vista==="expediente") renderExpediente(); else if(vista==="notas") renderNotas(); else if(vista==="activos") renderActivos(); else if(vista==="conta") renderConta(); else if(vista==="directorio") renderDirectorio(); else if(vista==="documentos") renderDocumentos(); else if(vista==="resumen") renderResumenAnual(); else if(vista==="accesos") renderAccesos(); else if(vista==="presupuesto") renderPresupuesto(); else if(vista==="estados") renderEstados(); else if(vista==="ventas") renderVentasPlat(); else if(vista==="nominas") renderNominas(); else if(vista==="calendario") renderCalendario(); else if(vista==="prestaciones") renderPrestaciones(); else if(vista==="leyes") renderLeyes(); else if(vista==="finanzas") renderFinanzas(); else if(vista==="noticias") renderNoticias(); else if(vista==="tablero" && typeof programarAutoRevision==="function") programarAutoRevision(); }
   function setVista(v){
     vista = v;
     document.querySelectorAll(".view").forEach(b => b.setAttribute("aria-selected", b.dataset.view===v));
-    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas"; $("vCalendario").hidden = v!=="calendario"; $("vPrestaciones").hidden = v!=="prestaciones"; $("vLeyes").hidden = v!=="leyes"; $("vFinanzas").hidden = v!=="finanzas";
-    $("viewTitle").textContent = {facturas:"Facturas y cuentas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario", prestaciones:"Nómina: calculadora y prestaciones", leyes:"Leyes", finanzas:"Finanzas"}[v] || "Cierre";
+    $("vTablero").hidden = v!=="tablero"; $("vFacturas").hidden = v!=="facturas"; $("vCuentas").hidden = v!=="cuentas"; $("vBancos").hidden = v!=="bancos"; $("vImpuestos").hidden = v!=="impuestos"; $("vBalanza").hidden = v!=="balanza"; $("vDashboard").hidden = v!=="dashboard"; $("vExpediente").hidden = v!=="expediente"; $("vNotas").hidden = v!=="notas"; $("vActivos").hidden = v!=="activos"; $("vConta").hidden = v!=="conta"; $("vDirectorio").hidden = v!=="directorio"; $("vDocumentos").hidden = v!=="documentos"; $("vResumen").hidden = v!=="resumen"; $("vAccesos").hidden = v!=="accesos"; $("vPresupuesto").hidden = v!=="presupuesto"; $("vEstados").hidden = v!=="estados"; $("vVentas").hidden = v!=="ventas"; $("vNominas").hidden = v!=="nominas"; $("vCalendario").hidden = v!=="calendario"; $("vPrestaciones").hidden = v!=="prestaciones"; $("vLeyes").hidden = v!=="leyes"; $("vFinanzas").hidden = v!=="finanzas"; $("vNoticias").hidden = v!=="noticias";
+    $("viewTitle").textContent = {facturas:"Facturas y cuentas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario", prestaciones:"Nómina: calculadora y prestaciones", leyes:"Leyes", finanzas:"Finanzas", noticias:"Noticias fiscales"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
-    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || v==="prestaciones" || v==="leyes" || v==="finanzas" || !canWrite;
-    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario","prestaciones","leyes","finanzas"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario","prestaciones","leyes","finanzas"].includes(v);
+    $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || v==="prestaciones" || v==="leyes" || v==="finanzas" || v==="noticias" || !canWrite;
+    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario","prestaciones","leyes","finanzas","noticias"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario","prestaciones","leyes","finanzas","noticias"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
@@ -2552,6 +2571,26 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     return concQ[id];
   }
   async function guardarBancos(files){
+    // Tarjetas CEDI: cada estado de cuenta va a la cuenta de su titular (se crea si no existe)
+    const tarj = files.filter(f=>f.tarjeta && f.titular);
+    if(tarj.length && vista==="bancos"){
+      const tit = tarj[0].titular, tk = tokens(tit);
+      let cta = cuentasB.find(c=>c.titular && normTxt(c.titular)===normTxt(tit)) || cuentasB.find(c=>/tarjeta/i.test(c.nombre) && inter(tk, tokens(c.nombre))>=2);
+      if(!cta){
+        const corto = tit.split(" ").slice(0,2).map(w=>w[0]+w.slice(1).toLowerCase()).join(" ");
+        if(!await confirmar(`Este estado de cuenta es de las tarjetas CEDI de ${tit}. ¿Creo la cuenta "Tarjetas CEDI · ${corto}" en Bancos para llevar su saldo?`)) return "";
+        const id = `tarjeta-${normTxt(tit).replace(/[^a-z0-9]+/g,"-").slice(0,40)}`;
+        cta = {id, nombre: `Tarjetas CEDI · ${corto}`, titular: tit, tipo: "tarjeta", banco: "CEDI", cuentaContable: ""};
+        try{ await db.doc(`empresas/${empresa}/bancos/${id}`).set({nombre: cta.nombre, titular: tit, tipo: "tarjeta", banco: "CEDI", cuentaContable: ""}); cuentasB = [...cuentasB, cta]; }catch(err){ handleWriteError(err); return ""; }
+      }
+      if(cuentaSel !== cta.id){ cuentaSel = cta.id; toast(`Lo guardé en la cuenta ${cta.nombre}.`); }
+      // Sin movimientos: el saldo es el final del mes anterior
+      for(const f of tarj) if(f.sinMovs && f.saldoInicial==null){ const pm = f.periodo.mes===1 ? [f.periodo.anio-1, 12] : [f.periodo.anio, f.periodo.mes-1], cp = concDe(cta.id, pm[0], pm[1]);
+        if(cp && cp.saldoInicialBanco!=null){ const b = cp.banco||[]; f.saldoInicial = r2(+cp.saldoInicialBanco + b.filter(x=>x.tipo==="dep").reduce((s,x)=>s+x.monto,0) - b.filter(x=>x.tipo==="ret").reduce((s,x)=>s+x.monto+(+x.comision||0),0)); }
+        // Si no hay mes anterior, sirve el saldo inicial del mes siguiente (sin movimientos, el saldo no cambia)
+        if(f.saldoInicial==null){ const sig = f.periodo.mes===12 ? [f.periodo.anio+1, 1] : [f.periodo.anio, f.periodo.mes+1]; const fs = tarj.find(x=>x.periodo && x.periodo.anio===sig[0] && x.periodo.mes===sig[1] && x.saldoInicial!=null); const cs = concDe(cta.id, sig[0], sig[1]);
+          if(fs) f.saldoInicial = fs.saldoInicial; else if(cs && cs.saldoInicialBanco!=null) f.saldoInicial = +cs.saldoInicialBanco; } }
+    }
     if(vista!=="bancos" || !cuentaSel){ toast("Para subir estados de cuenta o auxiliares, abre Bancos y elige la cuenta primero."); return ""; }
     const cta = cuentasB.find(c=>c.id===cuentaSel);
     const cambios = {}; let ultimo = null;
@@ -2568,6 +2607,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const movs = f.kind==="pdf" ? f.movs : parseEdo(f.arr); const grupos = {};
         const mesesF = new Set(movs.map(m=>m.fecha.slice(0,7))); if(f.periodo && f.periodo.anio) mesesF.add(mesKey(f.periodo.anio, f.periodo.mes));
         await guardarOriginal(f, "edo", [...mesesF].map(k=>k.split("-").map(Number)));
+        if(f.kind==="pdf" && f.periodo && f.sinMovs && f.saldoInicial==null){ const b0 = base(f.periodo.anio, f.periodo.mes); b0.banco = []; b0.edoSubido = true; ultimo = [f.periodo.anio, f.periodo.mes]; }
+        if(f.kind==="pdf" && f.periodo && f.saldoFinal!=null){ base(f.periodo.anio, f.periodo.mes).saldoFinalPdf = f.saldoFinal; }
         if(f.kind==="pdf" && f.periodo && f.saldoInicial!=null){ const b0 = base(f.periodo.anio, f.periodo.mes); b0.saldoInicialBanco = f.saldoInicial; b0.edoSubido = true; if(!movs.length){ b0.banco = []; ultimo = [f.periodo.anio, f.periodo.mes]; } }
         for(const m of movs){ (grupos[m.fecha.slice(0,7)] ||= []).push(m); }
         for(const k of Object.keys(grupos)){ const [y,m] = k.split("-").map(Number); base(y,m).banco = grupos[k]; base(y,m).edoSubido = true; ultimo = [y,m]; }
@@ -2785,8 +2826,30 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       <div class="sheet"><table class="pt"><thead><tr><th>Fecha banco</th><th>Beneficiario / remitente</th><th class="num">Monto</th><th>Póliza</th><th></th></tr></thead><tbody>${filasG}${filasP}
       ${E.auxCom.length||k.comB ? `<tr><td></td><td><strong>Comisiones bancarias</strong><div class="fsub">${(c.banco||[]).filter(b=>b.comision).length} cobros en el estado de cuenta</div></td><td class="num">${money.format(-k.comB)}</td><td>${E.auxCom.map(a=>`${esc(a.tipo)} ${esc(a.num)} · ${money.format(a.abono)}`).join("<br>")||"Sin póliza de comisiones"}</td><td></td></tr>`:""}
       </tbody></table></div></details>`;
-    $("bbody").innerHTML = html;
+    $("bbody").innerHTML = html + controlSaldosTarjeta(cta);
   }
+  // Control de saldos para las tarjetas (el estado de cuenta no trae saldo inicial: se arrastra mes con mes)
+  function controlSaldosTarjeta(cta){
+    if(!cta || cta.tipo!=="tarjeta") return "";
+    const f = money.format; let prevFin = null; const filas = [];
+    for(let m=1; m<=12; m++){ const c = concDe(cta.id, year, m); if(!c){ if(prevFin!=null) filas.push({m, ini: prevFin, dep:0, ret:0, fin: prevFin, sinEdo:true}); continue; }
+      const b = c.banco||[], dep = r2(b.filter(x=>x.tipo==="dep").reduce((s,x)=>s+x.monto,0)), ret = r2(b.filter(x=>x.tipo==="ret").reduce((s,x)=>s+x.monto+(+x.comision||0),0));
+      const ini = c.saldoInicialBanco!=null ? +c.saldoInicialBanco : prevFin, fin = ini!=null ? r2(ini + dep - ret) : null;
+      filas.push({m, ini, dep, ret, fin, pdf: c.saldoFinalPdf, salto: prevFin!=null && ini!=null && Math.abs(ini - prevFin) > 0.5 ? r2(ini - prevFin) : null, manual: !!c.saldoInicialManual}); prevFin = fin; }
+    if(!filas.length) return "";
+    return `<div class="bpanel" style="margin-top:16px"><h3>Control de saldos de ${esc(cta.titular || cta.nombre)}<small>CEDI da un solo saldo por persona (todas sus tarjetas juntas) y no trae saldo inicial: la app lo calcula con el balance del primer movimiento y lo arrastra mes con mes. Si un mes no cuadra, corrige el saldo inicial.</small></h3>
+      <div class="sheet" style="border:none;border-radius:0"><table class="decl" style="width:100%;min-width:720px"><thead><tr><th>Mes</th><th class="num">Saldo inicial</th><th class="num">Abonos (fondeos)</th><th class="num">Cargos (consumos)</th><th class="num">Saldo final</th><th class="num">Balance del PDF</th><th>Revisión</th></tr></thead><tbody>
+      ${filas.map(x=>{ const dPdf = x.pdf!=null && x.fin!=null ? r2(x.fin - x.pdf) : null;
+        const rev = x.sinEdo ? '<span class="fsub">Sin estado de cuenta: se arrastra el saldo</span>' : x.ini==null ? '<span class="st vencido">Falta el saldo inicial</span>' : dPdf!=null && Math.abs(dPdf)>0.5 ? `<span class="st vencido">No cuadra con el PDF por ${f(dPdf)}</span>` : x.salto!=null ? `<span class="st parcial">Empieza distinto al cierre anterior (${f(x.salto)})</span>` : '<span class="st pagado">Cuadra</span>';
+        return `<tr><td>${MESES[x.m-1]}</td><td class="num">${x.ini==null?"—":f(x.ini)}${canWrite && !x.sinEdo?` <button class="linkbtn" data-tjini="${x.m}" style="font-size:11px">${x.manual?"cambiar":"corregir"}</button>`:""}</td><td class="num">${f(x.dep)}</td><td class="num">${f(x.ret)}</td><td class="num"><strong>${x.fin==null?"—":f(x.fin)}</strong></td><td class="num">${x.pdf==null?"—":f(x.pdf)}</td><td>${rev}</td></tr>`; }).join("")}</tbody></table></div>
+      <div class="fsub" style="max-width:none;white-space:normal;padding:6px 14px 12px">Saldo final = saldo inicial + abonos − cargos. "Balance del PDF" es el balance del último movimiento del mes. Para el primer mes, si no hubo movimientos, captura el saldo con "corregir".</div></div>`;
+  }
+  $("bbody").addEventListener("click", async e => {
+    const b = e.target.closest("[data-tjini]"); if(!b) return; const m = +b.dataset.tjini, c = concDe(cuentaSel, year, m); if(!c) return;
+    const v = prompt(`Saldo inicial de ${MESES[m-1].toLowerCase()} ${year}:`, c.saldoInicialBanco!=null ? String(c.saldoInicialBanco) : ""); if(v==null) return;
+    const n = +String(v).replace(/[$,\s]/g,""); if(isNaN(n)){ toast("Escribe un monto válido."); return; }
+    const d = {...c, saldoInicialBanco: r2(n), saldoInicialManual: true}; try{ await escribirConc(d); toast("Saldo inicial actualizado."); }catch(err){ handleWriteError(err); }
+  });
 
   $("bcuentas").addEventListener("change", async e => {
     if(e.target.id!=="tplFile") return; const file = e.target.files[0]; e.target.value = ""; if(!file || !assets) return;
@@ -3322,8 +3385,47 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }
     return {lineas, todo: lineas.map(l=>l.texto).join("\n")};
   }
+  // ---------- Estados de cuenta de tarjetas CEDI (por persona) ----------
+  function parseCediTarjetaPdf(L, file){
+    const T = L.todo, MS = {ENE:1,JAN:1,FEB:2,MAR:3,ABR:4,APR:4,MAY:5,JUN:6,JUL:7,AGO:8,AUG:8,SEP:9,SET:9,OCT:10,NOV:11,DIC:12,DEC:12};
+    const MN = {ENERO:1,FEBRERO:2,MARZO:3,ABRIL:4,MAYO:5,JUNIO:6,JULIO:7,AGOSTO:8,SEPTIEMBRE:9,SETIEMBRE:9,OCTUBRE:10,NOVIEMBRE:11,DICIEMBRE:12};
+    const pm = sinAcento(T).toUpperCase().match(/PERIODO\s+([A-Z]+)\s+(\d{4})/); if(!pm || !MN[pm[1]]){ toast(`${file.name}: no encontré el periodo del estado de cuenta de la tarjeta.`); return null; }
+    const periodo = {anio: +pm[2], mes: MN[pm[1]]};
+    const bloque = (T.split(/Egresos/)[1] || "").split(/Periodo/i)[0] || "";
+    const titular = bloque.replace(/\$[\d,.\s]+/g," ").replace(/\s+/g," ").trim();
+    const montoTxt = s => { const d = String(s).replace(/[^\d]/g,""); return d ? +d/100 : 0; };
+    // Cada movimiento ocupa un bloque: la línea de la fecha, una arriba (inicio de la descripción y centavos) y una abajo (resto de la descripción)
+    const movs = []; let tarjeta = "", dentro = false; const LS = L.lineas;
+    const esFecha = tx => { const fm = tx.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\b/); return fm && MS[fm[2].toUpperCase()] ? fm : null; };
+    LS.forEach((l, idx) => {
+      const tx = l.texto.trim();
+      const mt = tx.match(/DETALLE DE MOVIMIENTOS\s*\(Tarjeta\s+([^)]*)\)/i); if(mt){ tarjeta = mt[1].replace(/X{3,}/g,"…").trim(); dentro = true; return; }
+      if(!dentro) return; const fm = esFecha(tx); if(!fm || !/\b(Cargo|Abono)\b/i.test(tx)) return;
+      const vecinos = LS.filter((x, j) => j!==idx && Math.abs(x.y - l.y) <= 8 && !esFecha(x.texto.trim()) && !/DETALLE DE MOVIMIENTOS|^FECHA\s/i.test(x.texto));
+      const its = [...l.items, ...vecinos.flatMap(v=>v.items.map(i=>({...i, _y:v.y})))];
+      const tipoM = /\bAbono\b/i.test(tx) ? "dep" : "ret";
+      const enteros = l.items.filter(i=>/^\$[\d,]+(\.\d{2})?$/.test(i.s.trim())).sort((a,b)=>a.x-b.x);
+      const cents = vecinos.flatMap(v=>v.items).filter(i=>/^\d{2}$/.test(i.s.trim()) && i.x > 400).sort((a,b)=>a.x-b.x);
+      const val = (ent, cen) => { if(!ent) return null; const t = ent.s.replace(/[$,\s]/g,""); if(/\./.test(t)) return +t; return +t + (cen ? +cen.s/100 : 0); };
+      const monto = r2(val(enteros[0], cents.find(c=>enteros[1] ? c.x < enteros[1].x : true)) || 0), bal = enteros[1] ? r2(val(enteros[1], cents.find(c=>c.x > enteros[0].x + 40 && c.x > (enteros[1].x-10)))) : null;
+      const descItems = its.filter(i=>i.x > 100 && i.x < 310 && !/^\d{2}$/.test(i.s.trim())).sort((a,b)=>((b._y ?? l.y) - (a._y ?? l.y)) || (a.x - b.x));
+      const desc = descItems.map(i=>i.s).join(" ").replace(/\s+/g," ").trim();
+      movs.push({fecha: `${fm[3]}-${String(MS[fm[2].toUpperCase()]).padStart(2,"0")}-${fm[1].padStart(2,"0")}`, tipo: tipoM, monto, comision: 0, nombre: desc, concepto: tarjeta ? `Tarjeta ${tarjeta}` : "", saldo: bal, id: `tj-${movs.length}-${fm[3]}${fm[2]}${fm[1]}-${Math.round(monto*100)}`});
+    });
+    // Vienen del más reciente al más antiguo
+    movs.reverse();
+    let saldoInicial = null;
+    if(movs.length && movs[0].saldo!=null) saldoInicial = r2(movs[0].saldo + (movs[0].tipo==="ret" ? movs[0].monto : -movs[0].monto));
+    const ing = sinAcento(T).match(/Ingresos\s+Egresos[\s\S]*?\$([\d,]+\.\d{2})\s+\$([\d,]+\.\d{2})/i);
+    const sDep = r2(movs.filter(m=>m.tipo==="dep").reduce((s,m)=>s+m.monto,0)), sRet = r2(movs.filter(m=>m.tipo==="ret").reduce((s,m)=>s+m.monto,0));
+    if(ing && (Math.abs(numMx(ing[1]) - sDep) > 0.009 || Math.abs(numMx(ing[2]) - sRet) > 0.009)) toast(`${file.name}: revisa los movimientos; leí ingresos ${money.format(sDep)} y egresos ${money.format(sRet)}, el PDF dice ${money.format(numMx(ing[1]))} y ${money.format(numMx(ing[2]))}.`);
+    const saldoFinal = movs.length && movs[movs.length-1].saldo!=null ? movs[movs.length-1].saldo : null;
+    return {movs: movs.map(({saldo, ...m})=>m), saldoInicial, saldoFinal, periodo, sinMovs: !movs.length, titular, tarjeta: true};
+  }
+
   function parseBancoPdf(L, file){
     const {lineas, todo} = L;
+    if(/CEDIFIN APP/i.test(todo) && (/DETALLE DE MOVIMIENTOS\s*\(Tarjeta/i.test(todo) || /No hay movimientos completados/i.test(todo))) return parseCediTarjetaPdf(L, file);
     if(/soycedi\.com|Cedi\w* App SAPI/i.test(todo) && !/BBVA MEXICO/i.test(todo)) return parseCediPdf(L, file);
     if(/MP Agregador|mercadopago\.com|ESTADO DE SALDOS Y MOVIMIENTOS/i.test(todo) && /Cust id/i.test(todo)) return parseMercadoPagoPdf(L, file);
     if(/Banamex|BANCO NACIONAL DE MEXICO/i.test(todo) && /DETALLE DE OPERACIONES/i.test(todo)) return parseBanamexPdf(L, file);
@@ -6760,6 +6862,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     estados: "Tus estados financieros, armados con tus balanzas de CONTPAQi: balanza de comprobación, estado de resultados (del mes y acumulado, con % sobre ingresos), balance general al cierre del mes y flujo de efectivo por el método indirecto. Descárgalos en PDF o Excel con los botones de arriba.",
     presupuesto: "Sube el presupuesto que hace administración (Excel con la hoja PRESUPUESTO; si trae HOJA CONTROL y ENVIO, también se leen). Al inicio del mes el inicial; al cierre, el actualizado. La app compara inicial, actualizado y lo pagado por subcategoría, te muestra lo que salió fuera de presupuesto, el saldo inicial y final de bancos, y cuánto fondear para el siguiente mes.",
     finanzas: "Herramientas de análisis financiero: razones de liquidez, endeudamiento, rentabilidad y eficiencia calculadas cada mes con tus balanzas (con fórmula, gráfica y cómo leerlas), calculadoras (VPN, TIR, préstamos, punto de equilibrio, WACC, CAPM, valor del dinero) y un glosario de términos.",
+    noticias: "Tus fuentes para estar al día (DOF de hoy, SAT, IMSS, Periódico Oficial de Guanajuato, ElConta, IDC…) a un toque, y un lugar para guardar las noticias que te importan con su resumen, temas y fecha de entrada en vigor, que puede agregarse a tu calendario.",
     leyes: "Sube los PDF de las leyes (LISR, LIVA, CFF, LSS, LFT, RMF, estatales…) para leerlas aquí, descargarlas o imprimirlas. Abajo tienes los artículos más usados de cada ley, con tasas y reglas clave, y un buscador por tema.",
     prestaciones: "Referencia rápida para nómina y finiquitos: valores del año (UMA, salario mínimo, topes), cada prestación con su mínimo de ley, cómo se calcula, su exención de ISR y su tratamiento en IMSS, la tabla de vacaciones y una calculadora de finiquito y liquidación con exentos y gravados.",
     calendario: "Tu agenda: vela por mes, semana, día o como lista. Agenda juntas, tareas, pendientes, pagos y recordatorios, con hora, lugar o link, notas y repeticiones. Además, la app agrega sola los vencimientos de impuestos, opiniones de cumplimiento y el día 5 de complementos de pago (puedes ocultarlos).",
@@ -9133,6 +9236,54 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("finbody").addEventListener("click", e => { const r = e.target.closest("[data-finind]"); if(r){ finSel = r.dataset.finind; renderFinanzas(); } });
   $("finbody").addEventListener("input", e => { if(e.target.dataset.fc){ calcFinanzas(); } if(e.target.id==="finBuscar"){ finBuscar = e.target.value; const pos = e.target.selectionStart; renderFinanzas(); const i = $("finBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
 
+  // ---------- Noticias fiscales: fuentes de un toque y tus noticias guardadas ----------
+  let noticias = [], unsubNot = null, notFiltro = "", notBuscar = "";
+  const NOT_ETQ = ["ISR","IVA","IMSS","Nómina","CFDI","RESICO","Recargos","Laboral","Otro"];
+  const NOT_SEMILLA = {id:"n-dof-2026-11-13", titulo:"DOF 13 nov 2026: Ley de Ingresos 2027 y reforma a la LISR", fecha:"2026-11-13", fuente:"DOF", link:"https://www.dof.gob.mx/index_111.php?year=2026&month=11&day=13", vigor:"2027-01-01", etiquetas:["ISR","IVA","RESICO","Recargos"],
+    resumen:"Se publicó la Ley de Ingresos 2027, reformas a la LISR y a la Ley Federal de Derechos (vigencia general: 1 de enero de 2027). Recargos por mora siguen en 2.07% mensual. Límite de deducciones y pérdidas solo para personas morales con ingresos de más de $50 millones. RESICO de personas morales sube a $50 millones y se vuelve opcional; opción de pagar el IVA al 7% en RESICO (sin acreditar IVA de gastos). Anticipos de servicios se deducen cuando se presta el servicio; pagos al extranjero, cuando se pagan y se entera la retención. Retención anual sobre intereses: 0.68%.", aplica: true};
+  function subscribeNoticias(){ if(unsubNot) unsubNot(); noticias = []; if(!db || !empresa) return;
+    let sembrada = false;
+    unsubNot = db.collection(`empresas/${empresa}/noticias`).onSnapshot(qs => { noticias = qs.docs.map(d=>({id:d.id, ...d.data()}));
+      if(!sembrada){ sembrada = true; let ya = false; try{ ya = localStorage.getItem(`notSemilla-${empresa}`)==="1"; }catch(_){}
+        if(!ya && !noticias.some(n=>n.id===NOT_SEMILLA.id) && canWrite){ const {id, ...d} = NOT_SEMILLA; db.doc(`empresas/${empresa}/noticias/${id}`).set(d).catch(()=>{}); try{ localStorage.setItem(`notSemilla-${empresa}`,"1"); }catch(_){} } }
+      if(vista==="noticias") renderNoticias(); }, () => {}); }
+  function renderNoticias(){
+    $("yearLabel").textContent = year;
+    const hoy = new Date(), Y = hoy.getFullYear(), M = hoy.getMonth()+1, D = hoy.getDate();
+    const fuentes = [["DOF de hoy", `https://www.dof.gob.mx/index_111.php?year=${Y}&month=${M}&day=${D}`, "Lo que se publicó hoy en el Diario Oficial"], ["SAT · Noticias", "https://www.sat.gob.mx/portal/public/noticias", "Comunicados y avisos del SAT"], ["IMSS · Comunicados", "https://www.imss.gob.mx/prensa", "Boletines y avisos del IMSS"],
+      ["Gobierno de Guanajuato · Periódico Oficial", "https://periodico.guanajuato.gob.mx/", "Cambios estatales (ISN, cedulares)"], ["ElConta.MX", "https://elconta.mx/", "Resúmenes fiscales y laborales"], ["IDC Online", "https://idconline.mx/", "Fiscal, laboral y seguridad social"], ["El Contribuyente", "https://www.elcontribuyente.mx/", "Indicadores y noticias"], ["Banxico · Tipo de cambio", "https://www.banxico.org.mx/tipcamb/main.do?page=tip&idioma=sp", "FIX del día"]];
+    const lista = noticias.slice().sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).filter(n=>(!notFiltro || (n.etiquetas||[]).includes(notFiltro)) && (!notBuscar || normTxt(`${n.titulo} ${n.resumen} ${n.fuente}`).includes(normTxt(notBuscar))));
+    const proximas = noticias.filter(n=>n.vigor && n.vigor >= hoyISO).sort((a,b)=>a.vigor.localeCompare(b.vigor));
+    $("statusLine").innerHTML = `${noticias.length} ${noticias.length===1?"noticia guardada":"noticias guardadas"}${proximas.length?` · próxima entrada en vigor: <strong>${fechaCorta(proximas[0].vigor)} ${proximas[0].vigor.slice(0,4)}</strong>`:""}.`;
+    let h = `<div class="bpanel" style="margin-bottom:16px"><h3>Revisa las fuentes<small>Un toque y se abren en otra pestaña. El DOF de hoy cambia solo cada día.</small></h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;padding:10px 14px 14px">
+      ${fuentes.map(([t,u,d])=>`<a href="${u}" target="_blank" rel="noopener" style="display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--ink)"><strong>${esc(t)}</strong><div class="fsub" style="max-width:none">${esc(d)}</div></a>`).join("")}</div></div>`;
+    h += `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><input id="notBuscar" type="search" placeholder="Buscar en tus noticias" value="${esc(notBuscar)}" style="max-width:260px"><div class="chips"><button class="chip" data-notf="" aria-pressed="${!notFiltro}">Todas</button>${NOT_ETQ.map(e=>`<button class="chip" data-notf="${e}" aria-pressed="${notFiltro===e}">${e}</button>`).join("")}</div>${canWrite?'<button class="btn sm primary" id="notNueva" style="margin-left:auto">Guardar una noticia</button>':""}</div>`;
+    h += lista.length ? lista.map(n=>`<div class="bpanel" style="margin-bottom:10px;padding:12px 14px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div style="min-width:0"><strong style="font-size:15px">${esc(n.titulo)}</strong><div class="fsub" style="max-width:none">${fechaCorta(n.fecha)} ${String(n.fecha).slice(0,4)} · ${esc(n.fuente||"")}${n.vigor?` · <strong>entra en vigor ${fechaCorta(n.vigor)} ${n.vigor.slice(0,4)}</strong>`:""}${n.aplica?' · <span class="st parcial" style="font-size:10px">Aplica a mis empresas</span>':""}</div></div>
+        <span style="display:flex;gap:6px;align-items:flex-start">${n.link?`<a class="btn sm" href="${esc(n.link)}" target="_blank" rel="noopener">Abrir</a>`:""}${canWrite?`<button class="btn sm" data-notedit="${esc(n.id)}">Editar</button><button class="linkbtn" data-notdel="${esc(n.id)}">quitar</button>`:""}</span></div>
+        ${n.resumen?`<div style="margin-top:6px;font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(n.resumen)}</div>`:""}<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">${(n.etiquetas||[]).map(e=>`<span class="st na" style="font-size:11px">${esc(e)}</span>`).join("")}</div></div>`).join("")
+      : `<div class="empty">${noticias.length?"No hay noticias con ese filtro.":"Guarda aquí lo que leas y te importe (por ejemplo, una publicación del DOF), con su resumen y la fecha en que entra en vigor."}</div>`;
+    $("notbody").innerHTML = h;
+  }
+  let notEdit = null;
+  function abrirNoticia(n){ notEdit = n ? n.id : null; $("ntTitulo").value = n ? n.titulo : ""; $("ntFecha").value = n ? n.fecha : hoyISO; $("ntFuente").value = n ? (n.fuente||"") : ""; $("ntLink").value = n ? (n.link||"") : ""; $("ntVigor").value = n ? (n.vigor||"") : ""; $("ntResumen").value = n ? (n.resumen||"") : ""; $("ntAplica").checked = !!(n && n.aplica); $("ntCal").checked = !n;
+    $("ntEtq").innerHTML = NOT_ETQ.map(e=>`<label class="check inline" style="margin:0 8px 0 0"><input type="checkbox" value="${e}" ${n && (n.etiquetas||[]).includes(e)?"checked":""}> ${e}</label>`).join(""); $("notDlg").showModal(); }
+  $("ntCancel").onclick = () => $("notDlg").close();
+  $("ntOk").onclick = async () => {
+    const titulo = $("ntTitulo").value.trim(); if(!titulo){ $("ntTitulo").focus(); return; }
+    const d = {titulo, fecha: $("ntFecha").value || hoyISO, fuente: $("ntFuente").value.trim(), link: $("ntLink").value.trim(), vigor: $("ntVigor").value || "", resumen: $("ntResumen").value.trim(), aplica: $("ntAplica").checked, etiquetas: [...document.querySelectorAll("#ntEtq input:checked")].map(x=>x.value)};
+    const id = notEdit || `n${Date.now().toString(36)}`;
+    try{ await db.doc(`empresas/${empresa}/noticias/${id}`).set(d);
+      if($("ntCal").checked && d.vigor){ await db.doc(`empresas/${empresa}/agenda/not-${id}`).set({titulo: `Entra en vigor: ${titulo}`, tipo:"recordatorio", fecha: d.vigor, todoDia: true, hora:"", horaFin:"", lugar: d.link, nota: d.resumen.slice(0,400), repetir:"", hecho:false, actualizado: hoyISO}); }
+      $("notDlg").close(); toast(d.vigor && $("ntCal").checked ? "Guardada y agregada a tu calendario." : "Noticia guardada."); }catch(err){ handleWriteError(err); }
+  };
+  $("notbody").addEventListener("click", async e => {
+    const f = e.target.closest("[data-notf]"); if(f){ notFiltro = f.dataset.notf; renderNoticias(); return; }
+    if(e.target.closest("#notNueva")){ abrirNoticia(null); return; }
+    const ed = e.target.closest("[data-notedit]"); if(ed){ abrirNoticia(noticias.find(n=>n.id===ed.dataset.notedit)); return; }
+    const de = e.target.closest("[data-notdel]"); if(de){ if(!await confirmar("¿Quitar esta noticia?")) return; try{ await db.doc(`empresas/${empresa}/noticias/${de.dataset.notdel}`).delete(); }catch(err){ handleWriteError(err); } }
+  });
+  $("notbody").addEventListener("input", e => { if(e.target.id==="notBuscar"){ notBuscar = e.target.value; const pos = e.target.selectionStart; renderNoticias(); const i = $("notBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
+
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
   $("recCfgOk").onclick = async () => {
     const inpc = {}, tasa = {}, dias = {};
@@ -9152,10 +9303,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       dashboard:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', expediente:'<path d="M3 7h6l2 2h10v10H3z"/>', notas:'<path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h3"/>', activos:'<path d="M3 6h18v11H3zM8 21h8M12 17v4"/>',
       conta:'<path d="M5 3h14v18H5zM9 7h6M9 11h6M9 15h2M14 15h1"/>', directorio:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 19v-1a3 3 0 0 0-2-2.8M17 5.2a3 3 0 0 1 0 5.6"/>',
       documentos:'<path d="M6 3h9l4 4v14H6zM14 3v5h5"/>', resumen:'<path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/>', accesos:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-      finanzas:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>', leyes:'<path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2zM4 17a2 2 0 0 1 2-2h12M9 7h6"/>', prestaciones:'<path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/><circle cx="16" cy="16" r="2"/>', calendario:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>', nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
+      noticias:'<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M8 9h6M8 13h6M8 17h4"/>', finanzas:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>', leyes:'<path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2zM4 17a2 2 0 0 1 2-2h12M9 7h6"/>', prestaciones:'<path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/><circle cx="16" cy="16" r="2"/>', calendario:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>', nominas:'<path d="M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 21h16"/>', ventas:'<path d="M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0"/>', presupuesto:'<path d="M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6"/>', estados:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
     };
     const GRUPOS = [["Cierre", ["tablero","calendario","notas","expediente"]], ["Operación", ["facturas","bancos","ventas","nominas","prestaciones","directorio"]], ["Impuestos", ["impuestos"]],
-      ["Contabilidad", ["conta","balanza","estados","finanzas","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","leyes","accesos"]]];
+      ["Contabilidad", ["conta","balanza","estados","finanzas","activos"]], ["Gestión", ["presupuesto","resumen","dashboard"]], ["Archivo", ["documentos","leyes","noticias","accesos"]]];
     const vistas = document.querySelector(".views"); if(!vistas) return;
     const nav = document.createElement("aside"); nav.id = "sideNav"; nav.setAttribute("aria-label", "Secciones");
     nav.innerHTML = `<div class="marca"><i aria-hidden="true">C</i><b>Cierre mensual</b></div>`;
