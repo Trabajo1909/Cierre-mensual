@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 92 · PDF con anotaciones sigue siendo PDF</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 93 · Zoom en el visor</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7463,7 +7463,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         for(let i=1;i<=pdf.numPages;i++){
           const pg = await pdf.getPage(i), v1 = pg.getViewport({scale:1}), dpr = Math.min(window.devicePixelRatio || 1, 2), vp = pg.getViewport({scale: (ancho / v1.width) * dpr});
           const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; cv.style.width = (vp.width/dpr)+"px"; cv.style.maxWidth = "100%"; cv.style.display = "block"; cv.style.margin = "0 auto 12px"; cv.style.background = "#fff"; cv.style.boxShadow = "0 1px 4px rgba(0,0,0,.2)";
-          cuerpo.appendChild(cv); await pg.render({canvasContext: cv.getContext("2d"), viewport: vp}).promise; anMontar(cv, v1.width, v1.height);
+          cuerpo.appendChild(cv); await pg.render({canvasContext: cv.getContext("2d"), viewport: vp}).promise; anMontar(cv, v1.width, v1.height, pg);
         }
         anCargar();
       } else if(["xlsx","xls","xlsm","csv"].includes(ext)){
@@ -7494,7 +7494,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const AN_SELLOS = ["✓ REVISADO","PAGADO","PENDIENTE","IMPORTANTE","✗ ERROR","CONCILIADO","⭐","❗","❓"];
   let AN = {key:null, nombre:"", pages:{}, show:true, modo:false, tool:"lapiz", color:"#C62828", w:4, sello:AN_SELLOS[0], relleno:false, soloPen:false, hist:[], fut:[], paginas:[]};
   let anGuardarT = null;
-  function anReset(key, nombre){ AN = {...AN, key, nombre, pages:{}, hist:[], fut:[], paginas:[], modo:false}; $("anBar").hidden = true; $("anBar").innerHTML = ""; }
+  function anReset(key, nombre){ verZ = 1; AN = {...AN, key, nombre, pages:{}, hist:[], fut:[], paginas:[], modo:false}; $("anBar").hidden = true; $("anBar").innerHTML = ""; }
   async function anCargar(){
     if(!AN.key || !db || !empresa) return;
     try{ const s = await db.doc(`empresas/${empresa}/anotaciones/${AN.key}`).get(); if(s.exists){ const d = s.data(); AN.pages = d.pages || {}; } }catch(_){}
@@ -7504,12 +7504,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     try{ await db.doc(`empresas/${empresa}/anotaciones/${AN.key}`).set({nombre: AN.nombre, pages: AN.pages, actualizado: new Date().toISOString()}); setSaving("Anotaciones guardadas"); }catch(err){ handleWriteError(err); } }, 900); }
   const anTotal = () => Object.values(AN.pages).reduce((s,a)=>s+(a||[]).length, 0);
   // Monta una capa de dibujo encima de cada página (canvas)
-  function anMontar(cv, w1, h1){
-    const i = AN.paginas.length, wrap = document.createElement("div");
+  function anMontar(cv, w1, h1, pg){
+    const i = AN.paginas.length, wrap = document.createElement("div"), baseW = parseFloat(cv.style.width) || cv.clientWidth;
     wrap.style.cssText = `position:relative;width:${cv.style.width};max-width:100%;margin:0 auto 12px`;
     cv.parentNode.insertBefore(wrap, cv); wrap.appendChild(cv); cv.style.margin = "0"; cv.style.width = "100%";
     const ov = document.createElement("canvas"); ov.width = cv.width; ov.height = cv.height; ov.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none";
-    wrap.appendChild(ov); AN.paginas.push({cv, ov, w1, h1}); anEventos(ov, i); anPintar(i);
+    wrap.appendChild(ov); AN.paginas.push({cv, ov, w1, h1, pg, base: baseW}); anEventos(ov, i); anPintar(i);
   }
   function anDibujar(ctx, it, W, H){
     const X = v => v*W, Y = v => v*H, L = v => v*W/1000;
@@ -7557,7 +7557,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     let act = null, pan = null;
     const pos = e => { const r = ov.getBoundingClientRect(); return [ (e.clientX - r.left)/r.width, (e.clientY - r.top)/r.height ]; };
     ov.addEventListener("pointerdown", async e => {
-      if(!AN.modo) return; e.preventDefault();
+      if(!AN.modo) return; e.preventDefault(); if(window.__anPinch || (e.pointerType==="touch" && verToques.size>1)){ act = null; anPintar(i); return; }
       if(AN.tool==="mano" || (AN.soloPen && e.pointerType==="touch")){ pan = {y: e.clientY, x: e.clientX, st: $("verCuerpo").scrollTop, sl: $("verCuerpo").scrollLeft}; ov.setPointerCapture(e.pointerId); return; }
       if(!canWrite){ toast("Solo puedes ver."); return; }
       const [x,y] = pos(e), P = AN.paginas[i], arr = AN.pages[i+1] = AN.pages[i+1] || [];
@@ -7572,6 +7572,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     });
     ov.addEventListener("pointermove", e => {
       if(pan){ $("verCuerpo").scrollTop = pan.st - (e.clientY - pan.y); $("verCuerpo").scrollLeft = pan.sl - (e.clientX - pan.x); return; }
+      if(window.__anPinch){ if(act){ act = null; anPintar(i); } pan = null; return; }
       if(!act) return; e.preventDefault(); const [x,y] = pos(e), P = AN.paginas[i];
       if(act.borrar){ const arr = AN.pages[i+1]||[], k = arr.findIndex(it=>anHit(it,x,y,P)); if(k>=0){ const [it] = arr.splice(k,1); AN.hist.push({op:"del", p:i+1, it}); anPintar(i); anGuardar(); } return; }
       if(act.t==="trazo"){ const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e]; evs.forEach(ev=>{ const [cx,cy] = pos(ev), u = act.pts[act.pts.length-1]; if(Math.hypot(cx-u[0], cy-u[1]) > 0.0015) act.pts.push([r4(cx), r4(cy), ev.pointerType==="pen" ? r4(ev.pressure||.5) : null]); }); }
@@ -7609,6 +7610,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     b.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
       <button class="btn sm ${AN.modo?"primary":""}" data-an="modo">${AN.modo?"✓ Terminar de anotar":"✏️ Anotar"}</button>
       <label class="check inline" style="margin:0"><input type="checkbox" data-an="show" ${AN.show?"checked":""}> Mostrar anotaciones${n?` (${n})`:""}</label>
+      <span style="display:flex;gap:3px;align-items:center"><button class="btn sm" data-an="zmenos" title="Alejar">−</button><button class="btn sm" data-an="zfit" title="Ajustar al ancho" style="min-width:58px">${Math.round(verZ*100)}%</button><button class="btn sm" data-an="zmas" title="Acercar">+</button></span>
       ${AN.modo ? `<span style="display:flex;gap:3px;flex-wrap:wrap">${AN_TOOLS.map(([k,ic,t])=>`<button class="btn sm" data-antool="${k}" title="${t}" aria-pressed="${AN.tool===k}" style="${AN.tool===k?"background:var(--ink);color:var(--surface)":""};min-width:34px">${ic}</button>`).join("")}</span>
         <span style="display:flex;gap:3px">${AN_COL.map(c=>`<button data-ancol="${c}" title="Color" style="width:24px;height:24px;border-radius:50%;border:${AN.color===c?"3px solid var(--ink)":"1px solid var(--line)"};background:${c};cursor:pointer;padding:0"></button>`).join("")}</span>
         <label style="margin:0;display:flex;align-items:center;gap:4px;font-size:12px">Grosor <input type="range" min="1" max="12" value="${AN.w}" data-an="w" style="width:90px"></label>
@@ -7625,6 +7627,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const t = e.target.closest("[data-antool]"); if(t){ AN.tool = t.dataset.antool; anBarra(); return; }
     const c = e.target.closest("[data-ancol]"); if(c){ AN.color = c.dataset.ancol; anBarra(); return; }
     const a = e.target.closest("[data-an]"); if(!a || a.tagName==="INPUT" || a.tagName==="SELECT") return; const k = a.dataset.an;
+    if(k==="zmas"){ verAplicarZoom(verZ*1.25); return; } if(k==="zmenos"){ verAplicarZoom(verZ/1.25); return; } if(k==="zfit"){ verAplicarZoom(1); return; }
     if(k==="modo"){ AN.modo = !AN.modo; if(AN.modo && !AN.show){ AN.show = true; AN.paginas.forEach((_,i)=>anPintar(i)); } anBarra(); return; }
     if(k==="undo" || k==="redo"){ const de = k==="undo" ? AN.hist : AN.fut, a2 = k==="undo" ? AN.fut : AN.hist, h = de.pop(); if(!h) return; const arr = AN.pages[h.p] = AN.pages[h.p] || [];
       if((h.op==="add") === (k==="undo")){ const ix = arr.indexOf(h.it); if(ix>=0) arr.splice(ix,1); } else arr.push(h.it); a2.push(h); anPintar(h.p-1); anGuardar(); anBarra(); return; }
@@ -7697,6 +7700,40 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     setSaving("");
     return {blob: b, nombre: esPdf ? verActual.nombre : verActual.nombre.replace(/\.(png|jpe?g|webp|heic)$/i, "") + ".pdf"};
   }
+
+  // ---------- Zoom del visor (botones, pellizco con dos dedos y Ctrl/Cmd + rueda) ----------
+  let verZ = 1, verZT = null;
+  function verAplicarZoom(z, centro){
+    const cuerpo = $("verCuerpo"), viejo = verZ; z = Math.min(4, Math.max(.5, Math.round(z*100)/100)); if(!AN.paginas.length || z===viejo) return;
+    const cx = centro ? centro.x : cuerpo.clientWidth/2, cy = centro ? centro.y : cuerpo.clientHeight/2, sx = (cuerpo.scrollLeft + cx) / viejo, sy = (cuerpo.scrollTop + cy) / viejo;
+    verZ = z;
+    AN.paginas.forEach(P=>{ const w = P.base * z; P.ov.parentNode.style.width = w + "px"; P.ov.parentNode.style.maxWidth = z>1 ? "none" : "100%"; });
+    cuerpo.scrollLeft = sx * z - cx; cuerpo.scrollTop = sy * z - cy;
+    clearTimeout(verZT); verZT = setTimeout(verReRender, 250); anBarra();
+  }
+  async function verReRender(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    for(let i=0; i<AN.paginas.length; i++){ const P = AN.paginas[i];
+      let s = (P.base * verZ * dpr) / P.w1; const maxPx = 12e6; if(P.w1*s * P.h1*s > maxPx) s = Math.sqrt(maxPx / (P.w1*P.h1));
+      if(Math.abs(P.cv.width - P.w1*s) < 4) continue;
+      if(P.pg){ const vp = P.pg.getViewport({scale: s}), tmp = document.createElement("canvas"); tmp.width = Math.round(vp.width); tmp.height = Math.round(vp.height);
+        await P.pg.render({canvasContext: tmp.getContext("2d"), viewport: vp}).promise; P.cv.width = tmp.width; P.cv.height = tmp.height; P.cv.getContext("2d").drawImage(tmp, 0, 0); }
+      P.ov.width = P.cv.width; P.ov.height = P.cv.height; anPintar(i);
+    }
+  }
+  // Pellizco con dos dedos sobre la hoja
+  const verToques = new Map(); let verPinch = null;
+  $("verCuerpo").addEventListener("pointerdown", e => { if(e.pointerType!=="touch") return; verToques.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(verToques.size===2){ const [a,b] = [...verToques.values()], r = $("verCuerpo").getBoundingClientRect(); verPinch = {d: Math.hypot(a.x-b.x, a.y-b.y), z: verZ, c: {x: (a.x+b.x)/2 - r.left, y: (a.y+b.y)/2 - r.top}}; window.__anPinch = true; } }, true);
+  $("verCuerpo").addEventListener("pointermove", e => { if(!verToques.has(e.pointerId)) return; verToques.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(verPinch && verToques.size===2){ const [a,b] = [...verToques.values()], d = Math.hypot(a.x-b.x, a.y-b.y); verAplicarZoom(verPinch.z * d / verPinch.d, verPinch.c); } }, true);
+  const verFinToque = e => { verToques.delete(e.pointerId); if(verToques.size<2){ verPinch = null; setTimeout(()=>{ window.__anPinch = false; }, 120); } };
+  $("verCuerpo").addEventListener("pointerup", verFinToque, true); $("verCuerpo").addEventListener("pointercancel", verFinToque, true);
+  $("verCuerpo").addEventListener("wheel", e => { if(!(e.ctrlKey || e.metaKey) || !AN.paginas.length) return; e.preventDefault(); const r = $("verCuerpo").getBoundingClientRect(); verAplicarZoom(verZ * (e.deltaY < 0 ? 1.1 : 1/1.1), {x: e.clientX - r.left, y: e.clientY - r.top}); }, {passive:false});
+  // Gestos de Safari (trackpad o pantalla) cuando no se usan los eventos anteriores
+  $("verCuerpo").addEventListener("gesturestart", e => { e.preventDefault(); verPinch = {z: verZ, g: true}; });
+  $("verCuerpo").addEventListener("gesturechange", e => { e.preventDefault(); if(verPinch && verPinch.g) verAplicarZoom(verPinch.z * e.scale); });
+  $("verCuerpo").addEventListener("gestureend", e => { e.preventDefault(); verPinch = null; });
 
   $("verCerrar").onclick = () => { $("verDlg").close(); };
   $("verImprimir").onclick = async () => { if(!verActual) return; const s = await verBlobSalida(); if(!s) return; const url = URL.createObjectURL(s.blob.type ? s.blob : new Blob([s.blob], {type: /\.pdf$/i.test(s.nombre) ? "application/pdf" : "application/octet-stream"}));
