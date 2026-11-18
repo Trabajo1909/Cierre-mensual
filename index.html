@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 97 · PDF de los recibos de nómina</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 98 · Carpetas completas del año</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7116,7 +7116,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       let leidos = 0;
       for(const p of pdfs){
         let u = (p.nombre.match(RE_U)||[])[0];
-        if(!u && leidos < 400){ try{ leidos++; setSaving(`Leyendo PDF ${leidos}…`); const bl = await p.blob(); const L = await leerPdf(new File([bl], p.nombre, {type:"application/pdf"}));
+        if(!u && leidos < 5000){ try{ leidos++; setSaving(`Leyendo PDF ${leidos}…`); const bl = await p.blob(); const L = await leerPdf(new File([bl], p.nombre, {type:"application/pdf"}));
             const T = L ? L.todo : "", todos = [...T.matchAll(RE_U)].map(x=>x[0].toUpperCase());
             // Primero el folio fiscal rotulado; si no, el primero que sea de un XML de este lote, un complemento o una factura conocida
             const rot = (T.match(/folio\s*fiscal[^0-9A-Fa-f]{0,40}([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/i)||[])[1];
