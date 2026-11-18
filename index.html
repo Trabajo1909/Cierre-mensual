@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 95 · Elegir el tipo de cada documento al adjuntar</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 96 · Declaraciones con varios impuestos</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -3801,6 +3801,16 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         }
         return out.length ? out : null;
       }
+      // Declaración completa (puede traer varios impuestos: ISR, IVA, retenciones…): cada hoja dice de qué impuesto es
+      const lineas = T.split("\n"), secciones = {}; let actual = null;
+      for(let k=0; k<lineas.length; k++){
+        if(/IMPUESTOS FEDERALES/.test(lineas[k])){ let j = k+1; while(j<lineas.length && !lineas[j].trim()) j++; const nom = (lineas[j]||"").trim(); const cl = claveSAT(nom); if(cl){ actual = cl; (secciones[cl] ||= []); k = j; continue; } }
+        if(actual) secciones[actual].push(lineas[k]);
+      }
+      const out = Object.entries(secciones).map(([clave, ls])=>{ const s = ls.join("\n"), ult = re => { const xs = [...s.matchAll(re)]; return xs.length ? num(xs[xs.length-1][1]) : null; };
+        return {...comun, clave, tipoDoc:"declaracion", aPagar: ult(/CANTIDAD A PAGAR\s+\$?\s*([\d,.]+)/g) ?? 0, aFavor: ult(/(?:^|\n)\s*(?:IMPUESTO\s+)?A FAVOR\s+\$?\s*([\d,.]+)/g) ?? 0,
+          impuesto: ult(/IMPUESTO A CARGO\s+\$?\s*([\d,.]+)/g)}; });
+      if(out.length) return out;
       const clave = claveSAT((todo.split("\n").slice(0,4).join(" "))); if(!clave) return null;
       return [{...comun, clave, tipoDoc:"declaracion"}];
     }
@@ -3856,7 +3866,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(it.tipoDoc!=="declaracion" || d.aPagar==null){ if(it.aPagar!=null) d.aPagar = it.aPagar; if(it.aFavor!=null) d.aFavor = it.aFavor; }
         if(it.linea) d.linea = {...(esOtra ? {} : (prev.linea||{})), ...Object.fromEntries(Object.entries(it.linea).filter(([,v])=>v))};
       }
-      if(archivo && !(d.archivos||[]).some(a=>a.nombre===archivo.nombre)) d.archivos = [...(d.archivos||[]), archivo];
+      if(archivo && !(d.archivos||[]).some(a=>a.nombre===archivo.nombre && (a.tipo||"acuse")===(archivo.tipo||"acuse"))) d.archivos = [...(d.archivos||[]), archivo];
       await escribirDecl(id, d);
       declaraciones = [...declaraciones.filter(x=>x.id!==id), {id, ...d}];
       iMes = it.mes; if(year!==it.anio){ year = it.anio; subscribeYear(); }
