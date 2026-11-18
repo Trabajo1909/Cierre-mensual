@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 94 · Marcar provisiones a mano</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 95 · Elegir el tipo de cada documento al adjuntar</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -4233,6 +4233,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     return null;
   }
   let adjuntarA = null;
+  async function adjuntarComoTipo(file, id, d, tipo){
+    adjuntarA = null;
+    try{ setSaving("Subiendo…"); const up = await assets.upload(file); d = {...d}; delete d.id; d.archivos = [...(d.archivos||[]), {id: up.id, nombre: file.name, tipo, subido: hoyISO}];
+      if(tipo!=="otro" && !d.presentada) d.presentada = true;
+      await escribirDecl(id, d); declaraciones = [...declaraciones.filter(y=>y.id!==id), {id, ...d}]; setSaving("Guardado"); toast(`Guardado como ${({acuse:"acuse", declaracion:"declaración", linea:"línea de captura", otro:"documento"})[tipo]||tipo} (no se marcó como pagado).`); renderImpuestos(); }
+    catch(err){ setSaving(""); toast("No se pudo guardar el archivo."); }
+  }
   function elegirTipoArchivo(nombre, actual){ return new Promise(res=>{ $("taNombre").textContent = nombre; document.querySelectorAll('[name="taTipo"]').forEach(x=>x.checked = x.value===(actual||"acuse"));
     const dlg = $("tipoArchDlg"); const fin = v => { dlg.close(); $("taOk").onclick = $("taCancel").onclick = null; res(v); };
     $("taOk").onclick = () => fin((document.querySelector('[name="taTipo"]:checked')||{}).value || null); $("taCancel").onclick = () => fin(null); dlg.showModal(); }); }
@@ -4244,9 +4251,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     try{ if(/\.pdf$/i.test(file.name) || /^image\//.test(file.type||"")){ const L = await leerPdf(file); const its = L ? parsePdfImpuesto(L.todo) : null;
         const esLinea = its && its.some(x=>x.tipoDoc==="linea" || x.tipoDoc==="cedula" || x.tipoDoc==="resumen") || (L && /LINEA DE CAPTURA|FORMATO PARA PAGO|FECHA LIMITE DE PAGO/i.test(sinAcento(L.todo)) && !/COMPROBANTE|OPERACION EXITOSA|PAGO REALIZADO|NUMERO DE AUTORIZACION|FOLIO DE OPERACION/i.test(sinAcento(L.todo)));
         if(esLinea){ toast("Ese archivo es una línea de captura, no un comprobante de pago: lo subo como línea y no lo marco como pagado."); await guardarPdfsImpuesto([{L, file}]); return; }
-        if(its && its.length && its.every(x=>x.tipoDoc && x.tipoDoc!=="comprobante")){ const nombreT = {acuse:"un acuse", declaracion:"una declaración"}[its[0].tipoDoc] || "un documento de la declaración"; toast(`Ese archivo es ${nombreT}, no un comprobante de pago: lo guardo como tal y no lo marco como pagado.`); await guardarPdfsImpuesto([{L, file}]); return; } } }catch(_){}
+        if(its && its.length && its.every(x=>x.tipoDoc && x.tipoDoc!=="comprobante")){
+          // Te preguntamos qué es, con lo que la app detectó ya seleccionado; si coincide, también se leen sus montos
+          const det = ["acuse","declaracion","linea"].includes(its[0].tipoDoc) ? its[0].tipoDoc : "acuse", eleg = await elegirTipoArchivo(file.name, det); if(!eleg) return;
+          if(eleg===det){ await guardarPdfsImpuesto([{L, file}]); toast("Listo: lo guardé y tomé sus montos."); return; }
+          adjuntarA = {id, d}; return adjuntarComoTipo(file, id, d, eleg); } } }catch(_){}
     const tipoElegido = await elegirTipoArchivo(file.name); if(!tipoElegido) return;
-    if(tipoElegido!=="comprobante"){
+    if(tipoElegido!=="comprobante") return adjuntarComoTipo(file, id, d, tipoElegido);
+    if(false){
       try{ setSaving("Subiendo…"); const up = await assets.upload(file); d.archivos = [...(d.archivos||[]), {id: up.id, nombre: file.name, tipo: tipoElegido, subido: hoyISO}];
         if(tipoElegido!=="otro" && !d.presentada){ d.presentada = true; }
         await escribirDecl(id, d); declaraciones = [...declaraciones.filter(y=>y.id!==id), {id, ...d}]; setSaving("Guardado"); toast("Archivo guardado (no se marcó como pagado)."); renderImpuestos(); }
