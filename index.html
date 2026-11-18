@@ -410,7 +410,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 96 · Declaraciones con varios impuestos</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 97 · PDF de los recibos de nómina</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1995,7 +1995,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const docs = [], comps = [], bancoFiles = [], impPdfs = [], noms = [], balPdfs = [], polXlsx = [], canceladas = [], acusesCan = [], txtRes = [], xmlFiles = [];
       for(const file of files){
         if(/\.(xml|zip)$/i.test(file.name)){ xmlFiles.push(file); continue; }
-        if(/\.pdf$/i.test(file.name) && (/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/.test(file.name) || files.some(x=>/\.(xml|zip)$/i.test(x.name)))){ xmlFiles.push(file); continue; }
+        if(/\.pdf$/i.test(file.name) && (/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/.test(file.name) || files.some(x=>/\.(xml|zip)$/i.test(x.name)) || window.__forzarCfdi)){ xmlFiles.push(file); continue; }
         if(/\.txt$/i.test(file.name) || file.type==="text/plain"){
           const txt = new TextDecoder("windows-1252").decode(await file.arrayBuffer());
           const res = await importarTxtContpaq(txt, file.name);
@@ -8784,10 +8784,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const vig = lista.filter(vigente), ded = n => n.deducciones!=null ? +n.deducciones : r2((+n.isr||0) + (+n.imss||0)), otros = n => +n.otrosPagos||0, neto = n => n.neto!=null ? +n.neto : r2((+n.percepciones||0) - ded(n) + otros(n));
     const S = fn => r2(vig.reduce((s,n)=>s+fn(n),0));
     $("statusLine").innerHTML = `${q ? `Búsqueda en ${year}` : MESES[nomMes-1]}: <strong>${vig.length}</strong> recibos · percepciones <strong>${f(S(n=>+n.percepciones||0))}</strong> · neto pagado <strong>${f(S(neto))}</strong>.`;
-    let h = `<div class="pairbar" style="margin-bottom:10px"><input id="nomBuscar" type="search" placeholder="Buscar empleado o UUID (todo el año)" value="${esc(nomBuscar)}" style="max-width:300px"></div>`;
+    const sinPdf = lista.filter(n=>vigente(n) && !(cfdiMap[String(n.uuid).toUpperCase()]||{}).pdf).length;
+    let h = `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><input id="nomBuscar" type="search" placeholder="Buscar empleado o UUID (todo el año)" value="${esc(nomBuscar)}" style="max-width:300px">${canWrite?`<button class="btn sm" id="nomSubir">Subir PDF y XML de recibos</button><input type="file" id="nomFile" accept=".pdf,.xml,.zip,application/pdf" multiple hidden>`:""}${sinPdf?`<span class="fsub" style="max-width:none">${sinPdf} ${sinPdf===1?"recibo sin PDF":"recibos sin PDF"} en esta lista</span>`:""}</div>`;
     h += lista.length ? `<div class="sheet"><table class="ft" style="min-width:1050px"><thead><tr><th>Fecha de pago</th><th>Empleado</th><th class="num">Percepciones</th><th class="num">ISR</th><th class="num">IMSS</th><th class="num">Otras deducciones</th><th class="num">Otros pagos</th><th class="num">Neto</th><th>UUID</th></tr></thead><tbody>
       ${lista.map(n=>{ const od = r2(ded(n) - (+n.isr||0) - (+n.imss||0)); return `<tr class="${vigente(n)?"":"canc"}"><td>${fechaCorta(n.fechaPago)} ${String(n.fechaPago).slice(0,4)}</td><td><div class="fname">${esc(n.nombre||"—")}</div>${vigente(n)?"":'<div class="fsub">Cancelado</div>'}${n.conceptos?`<div class="fsub" style="max-width:none;white-space:normal">${[...Object.entries(n.conceptos.perc||{}), ...Object.entries(n.conceptos.ded||{}).map(([k,v])=>[k,-v]), ...Object.entries(n.conceptos.otros||{})].map(([k,v])=>`${esc(k)} ${f(v)}`).join(" · ")}</div>`:""}</td>
-        <td class="num">${f(+n.percepciones||0)}</td><td class="num">${n.isr?f(n.isr):""}</td><td class="num">${n.imss?f(n.imss):""}</td><td class="num">${od>0.004?f(od):""}</td><td class="num">${otros(n)?f(otros(n)):""}</td><td class="num"><strong>${f(neto(n))}</strong></td><td style="min-width:150px">${uuidHTML(n.uuid)}${botonesCfdi(n.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(n.uuid)}</div>`:""}</td></tr>`; }).join("")}
+        <td class="num">${f(+n.percepciones||0)}</td><td class="num">${n.isr?f(n.isr):""}</td><td class="num">${n.imss?f(n.imss):""}</td><td class="num">${od>0.004?f(od):""}</td><td class="num">${otros(n)?f(otros(n)):""}</td><td class="num"><strong>${f(neto(n))}</strong></td><td style="min-width:150px">${uuidHTML(n.uuid)}${botonesCfdi(n.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(n.uuid)}</div>`:""}${canWrite && !(cfdiMap[String(n.uuid).toUpperCase()]||{}).pdf?`<button class="linkbtn" data-nompdf="${esc(n.uuid)}" style="font-size:12px">adjuntar PDF</button>`:""}</td></tr>`; }).join("")}
       <tr style="background:var(--group)"><td colspan="2"><strong>Total</strong> <span class="fsub">(sin cancelados)</span></td><td class="num"><strong>${f(S(n=>+n.percepciones||0))}</strong></td><td class="num"><strong>${f(S(n=>+n.isr||0))}</strong></td><td class="num"><strong>${f(S(n=>+n.imss||0))}</strong></td><td class="num"><strong>${f(S(n=>r2(ded(n)-(+n.isr||0)-(+n.imss||0))))}</strong></td><td class="num"><strong>${f(S(otros))}</strong></td><td class="num"><strong>${f(S(neto))}</strong></td><td></td></tr></tbody></table></div>`
       : `<div class="empty">Sin recibos de nómina ${q?"que coincidan":`en ${MESES[nomMes-1].toLowerCase()}`}. Súbelos en <strong>Facturas</strong> con el reporte de nóminas de AdminXML o con los XML.</div>`;
     // Resumen por concepto
@@ -8799,6 +8800,16 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("nombody").innerHTML = h;
   }
   $("nommonths").addEventListener("click", e => { const b = e.target.closest("[data-nommes]"); if(b){ nomMes = +b.dataset.nommes; nomBuscar = ""; renderNominas(); } });
+  let nomPdfPara = null;
+  $("nombody").addEventListener("click", e => {
+    if(e.target.closest("#nomSubir")){ $("nomFile").click(); return; }
+    const b = e.target.closest("[data-nompdf]"); if(b){ nomPdfPara = b.dataset.nompdf; const i = document.createElement("input"); i.type = "file"; i.accept = "application/pdf,.pdf";
+      i.onchange = async () => { const f = i.files[0]; if(!f || !assets) return; const u = String(nomPdfPara).toUpperCase();
+        try{ setSaving("Subiendo…"); const up = await assets.upload(f); const prev = cfdiMap[u] || {}, d = {...prev, pdf: {id: up.id, nombre: f.name}}; await db.doc(`empresas/${empresa}/cfdi/${u}`).set(d); cfdiMap = {...cfdiMap, [u]: d}; setSaving("Guardado"); toast("PDF guardado con su recibo."); renderNominas(); }
+        catch(err){ setSaving(""); toast("No se pudo guardar el PDF."); } }; i.click(); return; }
+  });
+  $("nombody").addEventListener("change", async e => { if(e.target.id!=="nomFile") return; const files = [...e.target.files]; e.target.value = ""; if(!files.length) return;
+    window.__forzarCfdi = true; try{ await importar(files); } finally { window.__forzarCfdi = false; } renderNominas(); });
   $("nombody").addEventListener("input", e => { if(e.target.id==="nomBuscar"){ nomBuscar = e.target.value; const pos = e.target.selectionStart; renderNominas(); const i = $("nomBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
   async function exportNominas(){
     const xs = nominas.filter(n=>n.anio===year && n.mes===nomMes); if(!xs.length){ toast("Sin recibos este mes."); return; }
