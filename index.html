@@ -372,6 +372,30 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
 .st.vencido{background:var(--late-fill);color:var(--late-ink)}
 @media (prefers-reduced-motion: reduce){ .btn,.mchip,#sideNav{transition:none} .btn:hover,.mchip:hover{transform:none} }
 @media print{ #sideNav,#navToggle{display:none !important} .wrap{margin-left:0} }
+/* Oficina del cierre */
+.of-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:12px}
+.of-zona{border-radius:16px;padding:12px 14px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);transition:transform .15s}
+.of-zona:hover{transform:translateY(-2px)}
+.of-zona h4{margin:0;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.of-zona .of-msg{font-size:13px;line-height:1.4;margin-top:6px;min-height:36px}
+.of-piso{border-radius:12px;margin-top:8px;height:150px;position:relative;overflow:hidden}
+.of-listo .of-piso{background:#E1F5EE}.of-trab .of-piso{background:#FAEEDA}.of-ator .of-piso{background:#FCEBEB}.of-esp .of-piso{background:#EEEDFE}.of-na .of-piso{background:#F1EFE8}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .of-listo .of-piso{background:#0F3B30} :root:not([data-theme="light"]) .of-trab .of-piso{background:#3E2A08} :root:not([data-theme="light"]) .of-ator .of-piso{background:#4A1515} :root:not([data-theme="light"]) .of-esp .of-piso{background:#2A2560} :root:not([data-theme="light"]) .of-na .of-piso{background:#2C2C2A} }
+:root[data-theme="dark"] .of-listo .of-piso{background:#0F3B30} :root[data-theme="dark"] .of-trab .of-piso{background:#3E2A08} :root[data-theme="dark"] .of-ator .of-piso{background:#4A1515} :root[data-theme="dark"] .of-esp .of-piso{background:#2A2560} :root[data-theme="dark"] .of-na .of-piso{background:#2C2C2A}
+.of-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.of-listo .of-chip{background:#9FE1CB;color:#04342C}.of-trab .of-chip{background:#FAC775;color:#412402}.of-ator .of-chip{background:#F7C1C1;color:#501313}.of-esp .of-chip{background:#CECBF6;color:#26215C}.of-na .of-chip{background:#D3D1C7;color:#2C2C2A}
+.of-cuenta{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:16px}
+.of-cuenta div{border-radius:12px;padding:10px 12px;font-size:13px}.of-cuenta b{display:block;font-size:22px}
+@keyframes ofTeclea{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@keyframes ofSalta{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes ofTiembla{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+@keyframes ofFlota{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.of-trab .of-cuerpo{animation:ofTeclea .6s ease-in-out infinite}
+.of-listo .of-cuerpo{animation:ofSalta 1.6s ease-in-out infinite}
+.of-ator .of-burbuja{animation:ofTiembla .9s ease-in-out infinite;transform-origin:50% 100%;transform-box:fill-box}
+.of-esp .of-burbuja{animation:ofFlota 2s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){ .of-cuerpo,.of-burbuja{animation:none !important} }
+
 /* Calendario */
 .cal-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
 .cal-bar h2{margin:0 8px 0 4px;font-size:20px;letter-spacing:-.01em;min-width:180px}
@@ -410,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 99 · Borrar activos duplicados</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 100 · Oficina del cierre</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -433,6 +457,8 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </header>
 
   <section id="vTablero">
+  <div class="seg" id="tabModo" aria-label="Cómo ver el tablero" style="margin-bottom:10px"><button data-tmodo="tabla" aria-pressed="true">Tabla</button><button data-tmodo="oficina" aria-pressed="false">Oficina</button></div>
+  <div id="oficina" hidden></div>
   <div class="legend" aria-label="Significado de colores">
     <span><i class="sw none"></i>Pendiente</span>
     <span><i class="sw wip"></i>Por registrar</span>
@@ -1272,6 +1298,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       $("statusLine").textContent = "Tu lista está vacía.";
       return;
     }
+    document.querySelectorAll("#tabModo [data-tmodo]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.tmodo===tabModo));
+    const enOficina = tabModo==="oficina"; $("oficina").hidden = !enOficina; sheet.hidden = enOficina; document.querySelector("#vTablero .legend").style.display = enOficina ? "none" : ""; if($("note")) $("note").style.display = enOficina ? "none" : "";
+    if(enOficina){ renderOficina(); return; }
     const cm = year === now.getFullYear() ? now.getMonth()+1 : -1;
     let h = '<table><thead><tr><th class="act" scope="col">Actividad</th>';
     for(let m=1;m<=12;m++) h += `<th class="m${m===cm?' now':''}" scope="col" title="${MESES[m-1]}">${ABR[m-1]}</th>`;
@@ -9645,6 +9674,71 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const de = e.target.closest("[data-notdel]"); if(de){ if(!await confirmar("¿Quitar esta noticia?")) return; try{ await db.doc(`empresas/${empresa}/noticias/${de.dataset.notdel}`).delete(); }catch(err){ handleWriteError(err); } }
   });
   $("notbody").addEventListener("input", e => { if(e.target.id==="notBuscar"){ notBuscar = e.target.value; const pos = e.target.selectionStart; renderNoticias(); const i = $("notBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
+
+  // ---------- Oficina del cierre: el tablero visto como una oficina con personajes ----------
+  let tabModo = "tabla", ofMes = null;
+  try{ tabModo = localStorage.getItem("tabModo") || "tabla"; }catch(_){}
+  const OF_ROPA = ["#7A1F3D","#2F6FB3","#2E6B4E","#B98A1E","#6B5BA8","#C2533A","#3E9E9E","#5F5E5A"], OF_PIEL = ["#F1C27D","#E0AC69","#C68642","#FFDBAC","#8D5524"], OF_PELO = ["#2C1B10","#5A3825","#151515","#A0522D","#3B2F2F"];
+  const OF_VISTA = [[/factur|cuenta|cxc|cxp|cobr|pago a prov/i,"facturas"],[/banc|concilia/i,"bancos"],[/impuest|sat\b|sateg|iva|isr|diot/i,"impuestos"],[/imss|nomin|n[oó]mina|sua|infonavit/i,"nominas"],[/contab|p[oó]liza|balanza|cierre contable/i,"conta"],[/presup/i,"presupuesto"],[/plataforma|venta/i,"ventas"],[/activo/i,"activos"]];
+  function ofPersonaje(i, estado){
+    const ropa = OF_ROPA[i % OF_ROPA.length], piel = OF_PIEL[i % OF_PIEL.length], pelo = OF_PELO[(i*3) % OF_PELO.length];
+    const burb = {listo:["#1D9E75","✓"], trab:["#BA7517","…"], ator:["#E24B4A","!"], esp:["#7F77DD","?"], na:["#888780","–"]}[estado] || ["#888780","…"];
+    const brazos = estado==="listo" ? `<rect x="78" y="56" width="8" height="22" rx="3" fill="${ropa}" transform="rotate(-25 82 78)"/><rect x="114" y="56" width="8" height="22" rx="3" fill="${ropa}" transform="rotate(25 118 78)"/>` : `<rect x="80" y="80" width="40" height="8" rx="3" fill="${ropa}"/>`;
+    return `<svg viewBox="0 0 220 150" width="100%" height="150" aria-hidden="true">
+      <polygon points="40,118 110,90 180,118 110,146" fill="rgba(0,0,0,.06)"/>
+      <rect x="128" y="96" width="34" height="6" rx="2" fill="#5F5E5A"/><rect x="134" y="102" width="4" height="22" fill="#5F5E5A"/><rect x="152" y="102" width="4" height="22" fill="#5F5E5A"/>
+      <g class="of-cuerpo"><rect x="86" y="74" width="28" height="30" rx="5" fill="${ropa}"/>${brazos}<rect x="90" y="46" width="20" height="22" rx="5" fill="${piel}"/><rect x="88" y="42" width="24" height="9" rx="4" fill="${pelo}"/>
+        <rect x="95" y="55" width="3" height="3" rx="1" fill="#151515"/><rect x="102" y="55" width="3" height="3" rx="1" fill="#151515"/>${estado==="ator" ? `<rect x="96" y="62" width="8" height="2" rx="1" fill="#151515"/>` : `<path d="M95 61 q5 4 10 0" stroke="#151515" stroke-width="1.6" fill="none"/>`}
+        <rect x="88" y="104" width="10" height="16" rx="3" fill="#3C3489"/><rect x="102" y="104" width="10" height="16" rx="3" fill="#3C3489"/></g>
+      <polygon points="40,96 110,72 150,86 80,110" fill="#D9C3A0"/><polygon points="40,96 80,110 80,118 40,104" fill="#B89A6E"/><polygon points="80,110 150,86 150,94 80,118" fill="#C8AE85"/>
+      <rect x="58" y="70" width="30" height="20" rx="2" fill="#2C2C2A" transform="skewY(-18) translate(0,24)"/><rect x="61" y="73" width="24" height="14" rx="1" fill="${estado==="ator" ? "#F09595" : estado==="listo" ? "#9FE1CB" : "#85B7EB"}" transform="skewY(-18) translate(0,24)"/>
+      ${estado==="esp" ? `<rect x="122" y="80" width="9" height="10" rx="2" fill="#FFFFFF" stroke="#888780"/><path d="M131 83 q4 2 0 5" stroke="#888780" fill="none"/>` : ""}
+      <g class="of-burbuja"><circle cx="140" cy="34" r="15" fill="${burb[0]}"/><polygon points="130,44 136,54 140,46" fill="${burb[0]}"/><text x="140" y="40" text-anchor="middle" font-size="17" font-weight="700" fill="#fff" font-family="IBM Plex Sans,Arial,sans-serif">${burb[1]}</text></g>
+    </svg>`;
+  }
+  function ofEstadoGrupo(g, m){
+    const items = actividades.filter(a=>a.grupo===g), st = a => (estados[a.id]||{})[m] || (estados[a.id]||{})[String(m)] || "";
+    const vivos = items.filter(a=>st(a)!=="na"), done = vivos.filter(a=>st(a)==="done"), wip = vivos.filter(a=>st(a)==="wip"), pend = vivos.filter(a=>!st(a));
+    const total = vivos.length, mesActual = year===now.getFullYear() ? now.getMonth()+1 : 13;
+    if(!items.length || !total) return {estado:"na", msg:"No aplica este mes", done:0, total:0, falta:[]};
+    if(done.length===total) return {estado:"listo", msg:`Todo listo: ${done.length} de ${total} actividades`, done:done.length, total, falta:[]};
+    const falta = [...wip, ...pend];
+    // Impuestos: si algo vence pronto o ya venció, el personaje está atorado
+    if(/impuest|sat\b|sateg|iva|isr|imss|diot/i.test(g)){ try{ const P = pendientesImpuestos(year).filter(p=>p.m===m); const urg = P.filter(p=>diasEntre(hoyISO, p.vence) <= 3).sort((a,b)=>a.vence.localeCompare(b.vence))[0];
+      if(urg){ const d = diasEntre(hoyISO, urg.vence); return {estado:"ator", msg:`${urg.o.nombre}: ${d<0?`venció hace ${-d} ${-d===1?"día":"días"}`:d===0?"vence hoy":`vence en ${d} ${d===1?"día":"días"}`}`, done:done.length, total, falta}; } }catch(_){} }
+    if(m < mesActual - 1 && falta.length) return {estado:"ator", msg:`Atrasado: falta ${falta[0].nombre}${falta.length>1?` y ${falta.length-1} más`:""}`, done:done.length, total, falta};
+    if(!done.length && !wip.length) return {estado:"esp", msg:`Sin empezar: ${pend[0].nombre}${pend.length>1?` y ${pend.length-1} más`:""}`, done:0, total, falta};
+    return {estado:"trab", msg:`${done.length} de ${total} listas · falta ${falta[0].nombre}${falta.length>1?` y ${falta.length-1} más`:""}`, done:done.length, total, falta};
+  }
+  function renderOficina(){
+    const ul = year===now.getFullYear() ? now.getMonth()+1 : 12; if(!ofMes) ofMes = ul;
+    const nombres = (empActual().oficinaNombres)||{}, f = money.format;
+    const zonas = grupos.filter(g=>actividades.some(a=>a.grupo===g)).map((g,i)=>({g, i, ...ofEstadoGrupo(g, ofMes)}));
+    const cuenta = k => zonas.filter(z=>z.estado===k).length;
+    const TXT = {listo:"Listo", trab:"Trabajando", ator:"Atorado", esp:"Te espera", na:"No aplica"};
+    let h = `<div class="months" style="margin-bottom:6px">${Array.from({length:12},(_,i)=>{ const zs = grupos.filter(g=>actividades.some(a=>a.grupo===g)).map(g=>ofEstadoGrupo(g, i+1)), ok = zs.length && zs.every(z=>z.estado==="listo"||z.estado==="na"); return `<button class="mchip ${ok?"ok":""}" data-ofmes="${i+1}" aria-current="${ofMes===i+1}"><b>${ABR[i]}</b><small>${ok?"Listo":"—"}</small></button>`; }).join("")}</div>`;
+    h += `<div class="of-grid">${zonas.map(z=>{ const nom = nombres[z.g]; return `<div class="of-zona of-${z.estado}" data-ofzona="${esc(z.g)}" title="Toca para ir a lo que falta">
+      <h4><span>${esc(nom || z.g)}${nom?`<span class="fsub" style="display:block;font-weight:400">${esc(z.g)}</span>`:""}</span><span class="of-chip">${TXT[z.estado]}</span></h4>
+      <div class="of-piso">${ofPersonaje(z.i, z.estado)}</div>
+      <div class="of-msg">${esc(z.msg)}</div>
+      ${z.total?`<div style="height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:6px"><div style="height:100%;width:${Math.round(z.done/z.total*100)}%;background:var(--done)"></div></div>`:""}
+      ${canWrite?`<button class="linkbtn" data-ofnombre="${esc(z.g)}" style="font-size:12px;margin-top:6px">${nom?"cambiar nombre":"ponerle nombre"}</button>`:""}</div>`; }).join("")}</div>`;
+    h += `<div class="of-cuenta"><div style="background:#E1F5EE;color:#04342C"><b>${cuenta("listo")}</b>listas</div><div style="background:#FAEEDA;color:#412402"><b>${cuenta("trab")}</b>trabajando</div><div style="background:#FCEBEB;color:#501313"><b>${cuenta("ator")}</b>atoradas</div><div style="background:#EEEDFE;color:#26215C"><b>${cuenta("esp")}</b>te esperan</div></div>`;
+    const pend = zonas.filter(z=>z.falta.length);
+    if(pend.length) h += `<div class="bpanel" style="margin-top:16px"><h3>Lo que falta en ${MESES[ofMes-1].toLowerCase()}<small>Toca el área de arriba para ir a su sección, o cambia a Tabla para marcarlas.</small></h3><div style="padding:6px 14px 12px">${pend.map(z=>`<div style="margin:6px 0"><strong>${esc(nombres[z.g] || z.g)}</strong>: ${z.falta.map(a=>`<span class="st ${((estados[a.id]||{})[ofMes])==="wip"?"parcial":"vencido"}" style="font-size:11px;margin:2px">${esc(a.nombre)}</span>`).join(" ")}</div>`).join("")}</div></div>`;
+    $("oficina").innerHTML = h;
+    $("statusLine").innerHTML = `Oficina de <strong>${MESES[ofMes-1].toLowerCase()} ${year}</strong>: ${cuenta("listo")} de ${zonas.filter(z=>z.estado!=="na").length} áreas listas.`;
+  }
+  $("tabModo").addEventListener("click", e => { const b = e.target.closest("[data-tmodo]"); if(!b) return; tabModo = b.dataset.tmodo; try{ localStorage.setItem("tabModo", tabModo); }catch(_){} render(); });
+  $("oficina").addEventListener("click", async e => {
+    const mb = e.target.closest("[data-ofmes]"); if(mb){ ofMes = +mb.dataset.ofmes; renderOficina(); return; }
+    const nb = e.target.closest("[data-ofnombre]"); if(nb){ e.stopPropagation(); const g = nb.dataset.ofnombre, cur = ((empActual().oficinaNombres)||{})[g] || "";
+      const v = prompt(`Nombre del personaje de "${g}" (déjalo vacío para quitarlo):`, cur); if(v==null) return; const nombres = {...((empActual().oficinaNombres)||{})}; if(v.trim()) nombres[g] = v.trim(); else delete nombres[g];
+      const e0 = empActual(); e0.oficinaNombres = nombres; try{ await db.doc(`empresas/${empresa}`).update({oficinaNombres: nombres}); }catch(err){ handleWriteError(err); } renderOficina(); return; }
+    const z = e.target.closest("[data-ofzona]"); if(z){ const g = z.dataset.ofzona, v = (OF_VISTA.find(([re])=>re.test(g))||[])[1];
+      if(v){ const btn = document.querySelector(`.view[data-view="${v}"]`); if(btn){ btn.click(); return; } }
+      tabModo = "tabla"; render(); }
+  });
 
   $("recCfgCancel").onclick = () => $("recCfgDlg").close();
   $("recCfgOk").onclick = async () => {
