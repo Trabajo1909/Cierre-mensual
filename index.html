@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 101 · Marca en archivos con anotaciones</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 102 · Ver XML y PDF en XML contra pólizas</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -5268,7 +5268,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const sinXml = R.P.filter(p=>+p.fecha.slice(5,7)===m && p.cap>0.02 && !p.esNom);
     const totalF = R.items.filter(falta).length;
     $("statusLine").innerHTML = totalF ? `Faltan <strong>${totalF} XML</strong> por registrar en CONTPAQi en los meses que subiste.` : `<strong>Todos tus XML están registrados</strong> en los meses que subiste.`;
-    const fila = (x, extra="") => `<tr><td>${fechaCorta(x.fecha)}</td><td>${esc(x.k)}</td><td><div class="fname" title="${esc(x.nombre)}">${esc(x.nombre||"—")}</div><div class="uuid">${esc(x.uuid.slice(0,8))}…</div></td><td class="num">${x.monto==null?"—":f(x.monto)}</td><td>${extra}</td></tr>`;
+    // Cada XML con su UUID completo, sus botones XML/PDF y, si es complemento, la factura que paga
+    const relacion = x => { const cs = complementos.filter(c=>String(c.uuid).toUpperCase()===String(x.uuid).toUpperCase()); if(!cs.length) return "";
+      return cs.map(c=>{ const fa = facturas.find(ff=>String(ff.uuid).toUpperCase()===String(c.doc).toUpperCase()); return `<div class="fsub" style="max-width:none;white-space:normal">Paga ${fa ? `la factura <strong>${esc(fa.folio||String(fa.uuid).slice(0,8))}</strong> de ${esc(fa.nombre)} (${fechaCorta(fa.fecha)} ${String(fa.fecha).slice(0,4)}, ${f(+fa.total||0)})` : `la factura ${esc(String(c.doc).slice(0,8))}… (no está en tus facturas)`} · parcialidad ${c.parcialidad||1}</div>`; }).join(""); };
+    const fila = (x, extra="") => `<tr><td>${fechaCorta(x.fecha)}</td><td>${esc(x.k)}</td><td><div class="fname" title="${esc(x.nombre)}">${esc(x.nombre||"—")}</div>${relacion(x)}${uuidHTML(x.uuid)}${botonesCfdi(x.uuid)?`<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(x.uuid)}</div>`:'<div class="fsub">Sin XML/PDF guardado: súbelo en Facturas y cuentas</div>'}</td><td class="num">${x.monto==null?"—":f(x.monto)}</td><td>${extra}</td></tr>`;
     const tabla = (titulo, sub, rows, vacio) => `<div class="bpanel" style="margin-bottom:16px"><h3>${titulo}<small>${sub}</small></h3>${rows.length ? `<div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Fecha</th><th>Tipo</th><th>Emisor / receptor</th><th class="num">Importe</th><th></th></tr></thead><tbody>${rows.join("")}</tbody></table></div>` : `<div class="empty" style="padding:16px">${vacio}</div>`}</div>`;
     let html = `<div class="kpis">${[["XML del mes", its.filter(x=>x.vig).length],["Registrados", regs.filter(x=>x.vig).length],["Faltan", faltan.length],["Pólizas con CFDI sin XML", sinXml.length]].map(([t,v],i)=>`<div class="kpi ${i===2&&v?"neg":""}"><span>${t}</span><b>${v}</b></div>`).join("")}</div>`;
     html += tabla("Faltan por registrar", "No encontré estos XML en ninguna póliza: ni asociados, ni con su UUID en el concepto, ni por importe.", faltan.map(x=>{ const p = R.posibles[x.uuid];
