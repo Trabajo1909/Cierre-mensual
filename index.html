@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 103 · Pistas en pólizas sin XML</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 104 · Método PPD/PUE corregido</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1724,6 +1724,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!db || !empresa) return;
     unsubFac = db.collection(`empresas/${empresa}/facturas`).onSnapshot(qs => {
       facturas = qs.docs.map(d => ({id:d.id, ...d.data()}));
+      // Si algún reporte guardó la forma de pago ("99 - Por definir") en lugar del método, se corrige a PPD/PUE
+      const malas = facturas.filter(f=>f.metodo && f.metodo!=="PPD" && f.metodo!=="PUE");
+      malas.forEach(f=>{ f.metodo = normMetodo(f.metodo); });
+      if(malas.length && canWrite) malas.filter(f=>f.metodo==="PPD"||f.metodo==="PUE").forEach(f=>db.doc(`empresas/${empresa}/facturas/${f.id}`).update({metodo: f.metodo}).catch(()=>{}));
       facLoaded = true;
       rerenderDatos();
     }, () => { facLoaded = true; if(vista==="facturas") $("fsum").textContent = "No se pudieron cargar las facturas. Recarga la página."; });
@@ -1840,6 +1844,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const fi = e.target.closest("[data-ffil]"); if(fi){ fFiltro = fi.dataset.ffil; renderFacturas(); return; }
     const vi = e.target.closest("[data-fvista]"); if(vi){ fVista = vi.dataset.fvista; renderFacturas(); return; }
   });
+  // Método de pago: PPD o PUE, aunque el reporte traiga el texto completo o la forma de pago
+  function normMetodo(v, forma){
+    const t = sinAcento(String(v||"")).toUpperCase().trim(), fm = sinAcento(String(forma||"")).toUpperCase().trim();
+    if(/\bPPD\b|PARCIALIDADES|DIFERIDO/.test(t)) return "PPD"; if(/\bPUE\b|UNA SOLA EXHIBICION/.test(t)) return "PUE";
+    if(/\bPPD\b|PARCIALIDADES|DIFERIDO/.test(fm)) return "PPD"; if(/\bPUE\b|UNA SOLA EXHIBICION/.test(fm)) return "PUE";
+    if(/^99\b|POR DEFINIR/.test(t)) return "PPD"; // la forma "99 - Por definir" solo se usa con PPD
+    if(/^\d{2}\b/.test(t)) return "PUE";          // una forma real (01 efectivo, 03 transferencia…) indica pago hecho
+    return t;
+  }
   function renderFacturas(){
     $("yearLabel").textContent = year;
     // Vistas de cuentas dentro de esta misma sección
@@ -2117,7 +2130,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
             folio: String(row["Folio"]||"").trim(),
             nombre: String(row[tipo==="emitida"?"Nombre Receptor":"Nombre Emisor"]||"").trim(),
             rfc: String((ambas ? (tipo==="emitida" ? row["RFC Receptor"] : row["RFC Emisor"]) : (row["RFC Emisor"]||row["RFC Receptor"]))||"").trim(),
-            metodo: String(row["Metodo de Pago"]||"").trim().toUpperCase(),
+            metodo: normMetodo(row["Metodo de Pago"] ?? row["Método de Pago"] ?? row["MetodoPago"], row["Forma de Pago"] ?? row["FormaPago"]),
             total: Math.round((+row["Total"]||0)*100)/100,
             estadoSAT: String(row["Estado SAT"]||"").trim(),
             conceptos: String(row["Conceptos"]||"").replace(/\s+/g," ").trim().slice(0,160),
