@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 104 · Método PPD/PUE corregido</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 105 · Borrar un estado de cuenta subido por error</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -2799,7 +2799,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       return `<div class="bpanel" style="margin:0 0 14px;border-left:4px solid var(--today-line)"><h3>Volviste a subir archivos el ${fechaCorta(ur.fecha)}<small>La conciliación ya se revisó otra vez con los cambios.</small></h3><div style="padding:10px 14px;font-size:13px;display:grid;gap:4px">${det || "<div>No hubo cambios en los movimientos.</div>"}${ur.deshechos ? `<div><strong>${ur.deshechos} ${ur.deshechos===1?"emparejamiento que armaste":"emparejamientos que armaste"} se deshizo</strong> porque una de sus pólizas o movimientos cambió o ya no viene: revisa <strong>Por revisar</strong>.</div>` : ""}${ur.partidasQuitadas ? `<div><strong>${ur.partidasQuitadas} ${ur.partidasQuitadas===1?"partida en conciliación se quitó":"partidas en conciliación se quitaron"}</strong> por la misma razón.</div>` : ""}</div>${canWrite?`<div class="pairbar" style="padding:0 14px 12px"><button class="btn sm" id="revVisto">Entendido</button></div>`:""}</div>`; })() : "";
     const arch = c.archivos || [], extDe = a => (a.ext || (String(a.nombre).split(".").pop()||"")).toUpperCase();
     const bt = (tipo, txt) => arch.filter(a=>a.tipo===tipo).map(a=>`<button class="btn sm" data-bver="${esc(a.id)}">${txt} (${esc(extDe(a)==="XLSX"||extDe(a)==="XLS"?"Excel":extDe(a))})</button>${anMarca(a.id)}`).join("");
-    const verArch = `<div class="pairbar" style="margin:0 0 10px;flex-wrap:wrap;gap:8px">${bt("edo","Ver estado de cuenta") || '<span class="fsub" style="max-width:none">Estado de cuenta: el archivo no está guardado (vuelve a subirlo para poder verlo)</span>'}${bt("aux","Ver auxiliar")}</div>`;
+    const tieneEdo = (c.banco||[]).length || c.edoSubido || arch.some(a=>a.tipo==="edo"), tieneAux = (c.aux||[]).length || c.auxSubido || arch.some(a=>a.tipo==="aux");
+    const verArch = `<div class="pairbar" style="margin:0 0 10px;flex-wrap:wrap;gap:8px">${bt("edo","Ver estado de cuenta") || '<span class="fsub" style="max-width:none">Estado de cuenta: el archivo no está guardado (vuelve a subirlo para poder verlo)</span>'}${bt("aux","Ver auxiliar")}
+      ${canWrite ? `<span style="margin-left:auto;display:flex;gap:10px">${tieneEdo?`<button class="linkbtn" data-bborrar="edo">Borrar estado de cuenta de ${MESES[bMes-1].toLowerCase()}</button>`:""}${tieneAux?`<button class="linkbtn" data-bborrar="aux">Borrar auxiliar de ${MESES[bMes-1].toLowerCase()}</button>`:""}</span>` : ""}</div>`;
     let html = resumenRev + verArch + `<div class="bfiles"><span>Estado de cuenta: ${nB ? `<b>${nB} movimientos</b>` : c.edoSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Auxiliar: ${nA ? `<b>${nA} pólizas</b>` : c.auxSubido ? "<b>sin movimientos</b>" : '<span class="falta">falta subirlo</span>'}</span><span>Emparejados: <b>${E.pairs.length}</b></span></div>`;
     const okDif = Math.abs(k.dif)<=0.009;
     html += `<div class="bgrid"><div class="bpanel"><h3>Carátula de conciliación<small>${esc(cta.nombre)}${cta.cuentaContable?` · cuenta ${esc(cta.cuentaContable)}`:""} · al ${new Date(Date.UTC(year,bMes,0)).getUTCDate()} de ${MESES[bMes-1].toLowerCase()} de ${year}</small></h3>
@@ -2991,6 +2993,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
 
   $("bbody").addEventListener("click", async e => {
+    const bb = e.target.closest("[data-bborrar]"); if(bb){ const c0 = concDe(cuentaSel, year, bMes); if(!c0) return; const cta = cuentasB.find(x=>x.id===cuentaSel) || {}, esEdo = bb.dataset.bborrar==="edo";
+      if(!await confirmar(`¿Borrar ${esEdo?"el estado de cuenta":"el auxiliar"} de ${MESES[bMes-1].toLowerCase()} ${year} de la cuenta ${cta.nombre||""}? Se quitan sus movimientos${esEdo?" y su saldo":""}; ${esEdo?"el auxiliar":"el estado de cuenta"} se queda. Después puedes subir el correcto.`)) return;
+      const d = {...c0}; if(esEdo){ d.banco = []; delete d.saldoInicialBanco; delete d.saldoFinalPdf; delete d.saldoInicialManual; d.edoSubido = false; } else { d.aux = []; d.auxSubido = false; }
+      d.archivos = (d.archivos||[]).filter(a=>a.tipo!==(esEdo?"edo":"aux"));
+      try{ setSaving("Guardando…"); if(!(d.banco||[]).length && !(d.aux||[]).length && !d.archivos.length){ await db.doc(`empresas/${empresa}/conciliaciones/${d.id}`).delete(); concs = concs.filter(x=>x.id!==d.id); } else { await escribirConc(d); concs = [...concs.filter(x=>x.id!==d.id), d]; }
+        setSaving("Guardado"); toast(`Listo: borré ${esEdo?"el estado de cuenta":"el auxiliar"} de ${MESES[bMes-1].toLowerCase()}.`); renderBancos(); }catch(err){ handleWriteError(err); } return; }
     const bv = e.target.closest("[data-bver]"); if(bv){ const c0 = concDe(cuentaSel, year, bMes); const a = c0 && (c0.archivos||[]).find(x=>x.id===bv.dataset.bver || x.tipo===bv.dataset.bver); if(a) descargarAsset(a, true); return; }
     const arm = e.target.closest("[data-armar]"); if(arm){ abrirArmar(arm.dataset.armar); return; }
     if(e.target.closest("#revVisto")){ const c0 = concDe(cuentaSel, year, bMes); if(c0 && c0.ultimaRevision){ try{ await escribirConc({...c0, ultimaRevision: {...c0.ultimaRevision, visto:true}}); }catch(err){ handleWriteError(err); } } return; }
