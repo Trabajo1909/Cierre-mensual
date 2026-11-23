@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 109 · IVA declarado: trasladado y acreditable</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 111 · Complementos se actualizan con su IVA</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -2113,7 +2113,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
             comps.push({tipo, uuid, doc, fechaPago: parseFecha(row["FechaPago"]) || parseFecha(row["Fecha Emision"]),
               impPagado: Math.round((+row["ImpPagado"]||0)*100)/100, saldoInsoluto: Math.round((+row["ImpSaldoInsoluto"]||0)*100)/100,
               parcialidad: +row["NumParcialidad"]||1, estadoSAT: String(row["Estado SAT"]||"").trim(),
-              nombre: String(row[tipo==="emitida"?"Nombre Receptor":"Nombre Emisor"]||"").trim(),
+              nombre: String(row[tipo==="emitida"?"Nombre Receptor":"Nombre Emisor"]||"").trim(), rfc: String(row[tipo==="emitida"?"RFC Receptor":"RFC Emisor"]||"").trim().toUpperCase(),
               ivaBase: r2((+row["IVA 16 Base"]||0) + (+row["IVA 8 Base"]||0)), iva: r2((+row["IVA 16 Importe"]||0) + (+row["IVA 8 Importe"]||0)),
               isrRet: r2(+(row[Object.keys(row).find(k=>/^Ret ISR.*Importe$/i.test(k))]||0)), regimen: String(row["RegimenFiscal"]||"").slice(0,3)});
           }
@@ -2147,7 +2147,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       for(const c of comps){
         i++; setSaving(`Subiendo ${i} de ${totalW}…`);
         const id = `${c.uuid}_${c.doc}`, e = compById[id];
-        if(e && e.estadoSAT===c.estadoSAT && +e.impPagado===c.impPagado && e.iva!=null) continue;
+        // Solo se salta si ya está igual; si antes se guardó sin IVA o sin RFC, se actualiza
+        if(e && e.estadoSAT===c.estadoSAT && +e.impPagado===c.impPagado && e.iva!=null && Math.abs((+e.iva||0)-(+c.iva||0)) < 0.01 && (!c.rfc || e.rfc===c.rfc)) continue;
         if(e && !/cancel/i.test(e.estadoSAT||"") && /cancel/i.test(c.estadoSAT||"")) canceladas.push({clase: c.tipo==="emitida" ? "Complemento emitido" : "Complemento recibido", x:{...e}});
         await conReintento(()=>db.doc(`empresas/${empresa}/complementos/${id}`).set(c)); compN++;
       }
@@ -3636,10 +3637,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     ret.iva += exM("retIva"); ret.isrPF += exM("retIsr");
     // DIOT por proveedor
     const dg = {};
-    const addD = (f, p) => { const rfc = String(f.rfc||"").toUpperCase() || ("SIN-RFC " + f.nombre); const g = dg[rfc] ||= {rfc, nombre:f.nombre, regimen:f.regimen, b16:0, iva:0, b0:0, ex:0, ret:0};
-      g.b16 += (+f.ivaBase||0)*p; g.iva += (+f.iva||0)*p; g.b0 += (+f.iva0Base||0)*p; g.ex += (+f.ivaExBase||0)*p; g.ret += (+f.ivaRet||0)*p; };
-    rPUE.forEach(f=>addD(f,1)); pagosMes.forEach(x=>addD(x.f, x.p));
-    huerfanos.forEach(c=>{ const g = dg["SIN-RFC "+c.nombre] ||= {rfc:"", nombre:c.nombre, b16:0, iva:0, b0:0, ex:0, ret:0}; g.b16 += +c.ivaBase||0; g.iva += +c.iva||0; });
+    const addD = (f, p, x) => { if(f.noDed) return; const rfc = String(f.rfc||"").toUpperCase() || ("SIN-RFC " + f.nombre); const g = dg[rfc] ||= {rfc, nombre:f.nombre, regimen:f.regimen, b16:0, iva:0, b0:0, ex:0, ret:0};
+      g.b16 += x && x.ivaBase!=null ? +x.ivaBase : (+f.ivaBase||0)*p; g.iva += x && x.iva!=null ? +x.iva : (+f.iva||0)*p; g.b0 += (+f.iva0Base||0)*p; g.ex += (+f.ivaExBase||0)*p; g.ret += (+f.ivaRet||0)*p; };
+    rPUE.forEach(f=>addD(f,1)); pagosMes.forEach(x=>addD(x.f, x.p, x));
+    huerfanos.forEach(c=>{ const k0 = c.rfc || "SIN-RFC "+c.nombre, g = dg[k0] ||= {rfc: c.rfc||"", nombre:c.nombre, regimen:c.regimen, b16:0, iva:0, b0:0, ex:0, ret:0}; g.b16 += +c.ivaBase||0; g.iva += +c.iva||0; });
     manD.forEach(x=>{ const rfc = String(x.rfc||"").toUpperCase().trim(); const g = dg[rfc || "SIN-RFC "+x.nombre] ||= {rfc, nombre:x.nombre, b16:0, iva:0, b0:0, ex:0, ret:0}; g.b16 += +x.b16||0; g.iva += +x.iva||0; g.b0 += +x.b0||0; g.ex += +x.ex||0; g.ret += +x.ret||0; g.manual = true; if(x.tipoOp) g.tipoOpMan = x.tipoOp; if(x.tercero) g.tercero = x.tercero; });
     const diotRows = Object.values(dg).filter(g=>g.b16||g.iva||g.b0||g.ex||g.ret).map(g=>{
       const rfcOk = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(g.rfc);
@@ -4049,6 +4050,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // DIOT
     const D = k.diot, TIPO_OP = {"02":"02 Enajenación de bienes","03":"03 Servicios profesionales","06":"06 Arrendamiento","85":"85 Otros"};
     let dt = `<div class="bpanel" style="margin-top:18px"><h3>DIOT de ${MESES[iMes-1].toLowerCase()}<small>Lo que pagaste a cada proveedor en el mes, con el mismo criterio que tu IVA acreditable. Se redondea a pesos, como la pide el SAT.</small></h3>`;
+    { // Compara el IVA de la DIOT contra el acreditable de la app y contra el que declaraste
+      const ivaDiot = r2((k.diot.rows||[]).reduce((s,g)=>s+(+g.iva||0),0)), dIva = declDe(year, iMes, "iva"), decl = dIva && dIva.ivaDecl ? dIva.ivaDecl.acreditable : null;
+      const fila = (t, v, ok) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0"><span>${t}</span><strong style="color:${ok===false?"var(--late-ink)":"inherit"}">${v}</strong></div>`;
+      dt += `<div style="padding:8px 14px;border-bottom:1px solid var(--line);font-size:13px;max-width:560px">${fila("IVA en esta DIOT", f(ivaDiot))}${fila("IVA acreditable que calcula la app", f(k.acr), Math.abs(ivaDiot - k.acr) <= 2)}${decl!=null ? fila("IVA acreditable que declaraste", f(+decl), Math.abs(ivaDiot - decl) <= 2) : `<div class="fsub" style="max-width:none">Sube tu declaración de IVA del mes para comparar contra lo que declaraste.</div>`}
+        ${decl!=null && Math.abs(ivaDiot - decl) > 2 ? `<div style="margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--vino-soft)"><strong>No coincide con lo que declaraste por ${f(r2(ivaDiot - decl))}.</strong> La DIOT debe traer el mismo IVA acreditable de tu declaración. Revisa en Impuestos → "¿Qué toma la app para este cálculo?" qué facturas o complementos sobran o faltan (puedes quitarlos o agregarlos) y vuelve a descargar.</div>` : decl!=null ? `<div class="fsub" style="max-width:none;margin-top:4px">✓ Coincide con tu declaración.</div>` : ""}</div>`;
+    }
     const manRows = (diotManual[mesKey(year, iMes)]||{}).rows || [];
     const manHtml = `<div style="padding:12px 14px;border-top:1px solid var(--line)"><strong>Proveedores sin factura</strong><div class="fsub" style="max-width:none;white-space:normal">Por ejemplo, el banco: su estado de cuenta timbrado ampara las comisiones y su IVA. Lo que agregues aquí entra a la DIOT y, si lo marcas, a tu IVA acreditable del mes.</div>
       ${manRows.length ? `<div class="sheet" style="border:none;border-radius:0;margin-top:8px"><table class="decl"><thead><tr><th>RFC</th><th>Proveedor</th><th class="num">Base 16%</th><th class="num">IVA</th><th class="num">Tasa 0%</th><th class="num">Exento</th><th>IVA acreditable</th><th></th></tr></thead><tbody>${manRows.map((x,i)=>`<tr><td class="uuid">${esc(x.rfc||"—")}</td><td>${esc(x.nombre)}${x.nota?`<div class="fsub">${esc(x.nota)}</div>`:""}</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td><td class="num">${x.b0?f(+x.b0):""}</td><td class="num">${x.ex?f(+x.ex):""}</td><td>${x.acreditable===false?"No":"Sí"}</td><td>${canWrite?`<button class="linkbtn" data-dmquitar="${i}">Quitar</button>`:""}</td></tr>`).join("")}</tbody></table></div>` : ""}
@@ -7168,7 +7175,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
             els("TrasladoDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="002" && +at(t,"TasaOCuotaDR") > 0){ ivaB += +at(t,"BaseDR")||0; iva += +at(t,"ImporteDR")||0; } });
             els("RetencionDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="001") isr += +at(t,"ImporteDR")||0; });
             comps.push({tipo, uuid, doc: at(dr,"IdDocumento").toUpperCase(), fechaPago: fp || fecha, impPagado: num(at(dr,"ImpPagado")), saldoInsoluto: num(at(dr,"ImpSaldoInsoluto")),
-              parcialidad: +at(dr,"NumParcialidad")||1, estadoSAT: (complementos.find(c=>c.id===`${uuid}_${at(dr,"IdDocumento").toUpperCase()}`)||{}).estadoSAT || "Vigente", nombre: at(otro,"Nombre"), ivaBase: r2(ivaB), iva: r2(iva), isrRet: r2(isr), regimen: at(E,"RegimenFiscal")});
+              parcialidad: +at(dr,"NumParcialidad")||1, estadoSAT: (complementos.find(c=>c.id===`${uuid}_${at(dr,"IdDocumento").toUpperCase()}`)||{}).estadoSAT || "Vigente", nombre: at(otro,"Nombre"), rfc: String(at(otro,"Rfc")||"").toUpperCase(), ivaBase: r2(ivaB), iva: r2(iva), isrRet: r2(isr), regimen: at(E,"RegimenFiscal")});
           }
         }
         continue;
