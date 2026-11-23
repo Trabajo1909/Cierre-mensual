@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 105 · Borrar un estado de cuenta subido por error</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 106 · IVA 8% y facturas sin IVA</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -2134,7 +2134,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
             total: Math.round((+row["Total"]||0)*100)/100,
             estadoSAT: String(row["Estado SAT"]||"").trim(),
             conceptos: String(row["Conceptos"]||"").replace(/\s+/g," ").trim().slice(0,160),
-            subtotal: r2(+row["SubTotal"]||0), ivaBase: r2(+row["IVA 16 Base"]||0), iva: r2(+row["IVA 16 Importe"]||0), iva0Base: r2(+row["IVA Cero Base"]||0), ivaExBase: r2(+row["IVA Exento Base"]||0),
+            subtotal: r2(+row["SubTotal"]||0), ivaBase: r2((+row["IVA 16 Base"]||0) + (+row["IVA 8 Base"]||0)), iva: r2((+row["IVA 16 Importe"]||0) + (+row["IVA 8 Importe"]||0)), iva0Base: r2(+row["IVA Cero Base"]||0), ivaExBase: r2(+row["IVA Exento Base"]||0),
             isrRet: r2(+row["ISR Retenido"]||0), ivaRet: r2(+row["IVA Retenido"]||0), impLoc: r2(+row["ImpLoc Total Retenidos"]||0),
             regimen: String(row[tipo==="emitida"?"RegimenFiscalReceptor":"RegimenFiscal"]||"").slice(0,3), uso: String(row["UsoCFDI"]||"").slice(0,3), formaPago: String(row["FormaDePago"]||"").slice(0,2)});
         }
@@ -3678,7 +3678,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // IVA acreditable
     const ac = [...F.rPUE.map(x=>({f:x, p:1, o:"PUE del mes"})), ...F.pagosMes.map(x=>({...x, o:"Pago de PPD"})), ...F.huerfanos.map(c=>({c, o:"Complemento sin factura"}))];
     h += bloque("IVA acreditable (pagado)", `${ac.length + F.manAcr.length} movimientos · ${f(k.acr)}`, `<div class="fsub" style="max-width:none">Facturas PUE recibidas en el mes y la parte pagada de las PPD (por tus pagos registrados o, si no hay, por sus complementos del mes), más los proveedores sin factura de la DIOT. Las marcadas como no deducibles no suman IVA.</div>` +
-      tabla([{t:"De dónde sale"},{t:"Proveedor"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], [...ac.map(x=>x.c ? `<tr><td>${x.o}${qx(x.c.uuid)}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${x.f.noDed?' <span class="st parcial" style="font-size:10px">No deducible: no suma</span>':""}${qx(x.f.uuid)}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.iva||0)*x.p))}</td></tr>`), ...F.manAcr.map(x=>`<tr><td>DIOT sin factura</td><td>${esc(x.nombre||x.rfc||"")}</td><td></td><td class="num">—</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td></tr>`)], `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.acrBase)}</strong></td><td class="num"><strong>${f(k.acr)}</strong></td>`));
+      tabla([{t:"De dónde sale"},{t:"Proveedor"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], [...ac.map(x=>x.c ? `<tr><td>${x.o}${qx(x.c.uuid)}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${x.f.noDed?' <span class="st parcial" style="font-size:10px">No deducible: no suma</span>':""}${qx(x.f.uuid)}${!x.f.noDed && !(+x.f.iva) ? `<div class="fsub" style="max-width:none;white-space:normal">${(+x.f.iva0Base)||(+x.f.ivaExBase) ? `Factura a tasa 0% o exenta (base ${f(r2((+x.f.iva0Base||0)+(+x.f.ivaExBase||0)))}): no lleva IVA.` : `Esta factura no tiene IVA guardado. Si sí lo trae (por ejemplo, IVA 8% de frontera), vuelve a subir su XML.`}${botonesCfdi(x.f.uuid)?` ${botonesCfdi(x.f.uuid)}`:""}</div>` : ""}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.iva||0)*x.p))}</td></tr>`), ...F.manAcr.map(x=>`<tr><td>DIOT sin factura</td><td>${esc(x.nombre||x.rfc||"")}</td><td></td><td class="num">—</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td></tr>`)], `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.acrBase)}</strong></td><td class="num"><strong>${f(k.acr)}</strong></td>`));
     // Retenciones a terceros
     const rt = [...F.rPUE.map(x=>({f:x, p:1})), ...F.pagosMes].filter(x=>(+x.f.isrRet||0)+(+x.f.ivaRet||0)+(+x.f.impLoc||0) > 0);
     h += bloque("Retenciones que hiciste a terceros", `${rt.length} facturas · IVA ${f(k.ret.iva)} · ISR ${f(r2(k.ret.isrPF + k.ret.isrRES))}`, `<div class="fsub" style="max-width:none">Honorarios, arrendamiento y RESICO a los que les retuviste, por el pago del mes (proporcional si fue parcial).</div>` +
@@ -7162,11 +7162,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       // Impuestos del comprobante (nivel Comprobante, no los de cada concepto)
       const imp = [...C.children].find(x=>x.localName==="Impuestos");
       let ivaBase = 0, iva = 0, iva0 = 0, ivaEx = 0, isrRet = 0, ivaRet = 0;
-      if(imp){ els("Traslado", imp).forEach(t=>{ if(at(t,"Impuesto")!=="002") return; if(at(t,"TipoFactor")==="Exento"){ ivaEx += +at(t,"Base")||0; return; } const tasa = +at(t,"TasaOCuota"); if(Math.abs(tasa-0.16)<0.0001){ ivaBase += +at(t,"Base")||0; iva += +at(t,"Importe")||0; } else if(tasa===0) iva0 += +at(t,"Base")||0; });
+      if(imp){ els("Traslado", imp).forEach(t=>{ if(at(t,"Impuesto")!=="002") return; if(at(t,"TipoFactor")==="Exento"){ ivaEx += +at(t,"Base")||0; return; } const tasa = +at(t,"TasaOCuota"); if(tasa > 0){ ivaBase += +at(t,"Base")||0; iva += +at(t,"Importe")||0; } else if(tasa===0) iva0 += +at(t,"Base")||0; }); // 16% o 8% (región fronteriza)
         els("Retencion", imp).forEach(t=>{ if(at(t,"Impuesto")==="001") isrRet += +at(t,"Importe")||0; if(at(t,"Impuesto")==="002") ivaRet += +at(t,"Importe")||0; }); }
       const loc = el("ImpuestosLocales", d);
       docs.push({tipo, uuid, fecha, anio: +fecha.slice(0,4), mes: +fecha.slice(5,7), folio: [at(C,"Serie"), at(C,"Folio")].filter(Boolean).join("-"),
-        nombre: at(otro,"Nombre"), rfc: (tipo==="emitida" ? rR : eR), metodo: at(C,"MetodoPago").toUpperCase(), total: num(at(C,"Total")), estadoSAT: (facturas.find(f=>f.uuid===uuid)||{}).estadoSAT || "Vigente",
+        nombre: at(otro,"Nombre"), rfc: (tipo==="emitida" ? rR : eR), metodo: normMetodo(at(C,"MetodoPago"), at(C,"FormaPago")), total: num(at(C,"Total")), estadoSAT: (facturas.find(f=>f.uuid===uuid)||{}).estadoSAT || "Vigente",
         conceptos: els("Concepto", d).map(c=>at(c,"Descripcion")).join(" | ").replace(/\s+/g," ").slice(0,160),
         subtotal: r2((+at(C,"SubTotal")||0) - (+at(C,"Descuento")||0)), ivaBase: r2(ivaBase), iva: r2(iva), iva0Base: r2(iva0), ivaExBase: r2(ivaEx), isrRet: r2(isrRet), ivaRet: r2(ivaRet), impLoc: num(at(loc,"TotaldeRetenciones")),
         regimen: tipo==="emitida" ? at(R,"RegimenFiscalReceptor") : at(E,"RegimenFiscal"), uso: at(R,"UsoCFDI"), formaPago: at(C,"FormaPago")});
