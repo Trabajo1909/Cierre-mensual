@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 106 · IVA 8% y facturas sin IVA</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 108 · IVA exacto de los complementos</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -2114,7 +2114,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
               impPagado: Math.round((+row["ImpPagado"]||0)*100)/100, saldoInsoluto: Math.round((+row["ImpSaldoInsoluto"]||0)*100)/100,
               parcialidad: +row["NumParcialidad"]||1, estadoSAT: String(row["Estado SAT"]||"").trim(),
               nombre: String(row[tipo==="emitida"?"Nombre Receptor":"Nombre Emisor"]||"").trim(),
-              ivaBase: r2(+row["IVA 16 Base"]||0), iva: r2(+row["IVA 16 Importe"]||0),
+              ivaBase: r2((+row["IVA 16 Base"]||0) + (+row["IVA 8 Base"]||0)), iva: r2((+row["IVA 16 Importe"]||0) + (+row["IVA 8 Importe"]||0)),
               isrRet: r2(+(row[Object.keys(row).find(k=>/^Ret ISR.*Importe$/i.test(k))]||0)), regimen: String(row["RegimenFiscal"]||"").slice(0,3)});
           }
           continue;
@@ -3607,11 +3607,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     emit.filter(f=>f.metodo==="PPD" && +f.total>0).forEach(f=>{
       const abs = memo.__idxC.ab[f.uuid];
       if(abs && abs.length) abs.filter(a=>String(a.fecha).slice(0,7)===mesKey(y,m)).forEach(a=>cobrosMes.push({f, p:(+a.monto||0)/f.total}));
-      else (memo.__idxC.cp[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mesKey(y,m)).forEach(c=>cobrosMes.push({f, p:(+c.impPagado||0)/f.total}));
+      else (memo.__idxC.cp[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mesKey(y,m)).forEach(c=>cobrosMes.push({f, p:(+c.impPagado||0)/f.total, ...(+c.iva>0 ? {iva:+c.iva, ivaBase:+c.ivaBase||0, deComp:true} : {})}));
     });
     for(let i=cobrosMes.length-1;i>=0;i--) if(EXC.has(cobrosMes[i].f.uuid)) cobrosMes.splice(i,1);
     const huerfE = cE.filter(c=>!fac[c.doc] && !EXC.has(c.uuid));
-    const trasBase = r2(S(ePUE,f=>f.ivaBase) + S(cobrosMes,x=>x.f.ivaBase*x.p) + S(huerfE,c=>c.ivaBase) + exB("ivaTras")), tras = r2(S(ePUE,f=>f.iva) + S(cobrosMes,x=>x.f.iva*x.p) + S(huerfE,c=>c.iva) + exM("ivaTras"));
+    const trasBase = r2(S(ePUE,f=>f.ivaBase) + S(cobrosMes,x=>x.ivaBase ?? x.f.ivaBase*x.p) + S(huerfE,c=>c.ivaBase) + exB("ivaTras")), tras = r2(S(ePUE,f=>f.iva) + S(cobrosMes,x=>x.iva ?? x.f.iva*x.p) + S(huerfE,c=>c.iva) + exM("ivaTras"));
     // Pagos a proveedores del mes: primero los pagos registrados en Facturas y cuentas (fecha real); si una factura no tiene, sus complementos.
     if(!memo.__idx){ const ab = {}, cp = {}; abonos.forEach(a=>{ if(a.tipo==="pago") (ab[a.uuid] ||= []).push(a); }); complementos.forEach(c=>{ if(c.tipo==="recibida" && vig(c)) (cp[c.doc] ||= []).push(c); }); memo.__idx = {ab, cp}; }
     const {ab: abIdx, cp: cpIdx} = memo.__idx, mk = mesKey(y,m);
@@ -3619,12 +3619,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     reci.filter(f=>f.metodo==="PPD" && +f.total>0).forEach(f=>{
       const abs = abIdx[f.uuid];
       if(abs && abs.length) abs.filter(a=>String(a.fecha).slice(0,7)===mk).forEach(a=>pagosMes.push({f, p:(+a.monto||0)/f.total}));
-      else (cpIdx[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mk).forEach(c=>pagosMes.push({f, p:(+c.impPagado||0)/f.total}));
+      else (cpIdx[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mk).forEach(c=>pagosMes.push({f, p:(+c.impPagado||0)/f.total, ...(+c.iva>0 ? {iva:+c.iva, ivaBase:+c.ivaBase||0, deComp:true} : {})}));
     });
     for(let i=pagosMes.length-1;i>=0;i--) if(EXC.has(pagosMes[i].f.uuid)) pagosMes.splice(i,1);
     const huerfanos = cR.filter(c=>!fac[c.doc] && !EXC.has(c.uuid));
     const manD = ((typeof diotManual!=="undefined" && diotManual[mesKey(y,m)]) || {}).rows || [], manAcr = manD.filter(x=>x.acreditable!==false);
-    const acrBase = r2(S(rPUE,f=>f.noDed?0:f.ivaBase) + S(pagosMes,x=>x.f.noDed?0:x.f.ivaBase*x.p) + S(huerfanos,c=>c.ivaBase) + S(manAcr,x=>+x.b16||0) + exB("ivaAcr")), acr = r2(S(rPUE,f=>f.noDed?0:f.iva) + S(pagosMes,x=>x.f.noDed?0:x.f.iva*x.p) + S(huerfanos,c=>c.iva) + S(manAcr,x=>+x.iva||0) + exM("ivaAcr"));
+    const acrBase = r2(S(rPUE,f=>f.noDed?0:f.ivaBase) + S(pagosMes,x=>x.f.noDed?0:(x.ivaBase ?? x.f.ivaBase*x.p)) + S(huerfanos,c=>c.ivaBase) + S(manAcr,x=>+x.b16||0) + exB("ivaAcr")), acr = r2(S(rPUE,f=>f.noDed?0:f.iva) + S(pagosMes,x=>x.f.noDed?0:(x.iva ?? x.f.iva*x.p)) + S(huerfanos,c=>c.iva) + S(manAcr,x=>+x.iva||0) + exM("ivaAcr"));
     const ivaRetCli = r2(S(ePUE,f=>f.ivaRet) + S(cobrosMes,x=>(+x.f.ivaRet||0)*x.p));
     // Retenciones a terceros (recibidas PUE + complementos proporcionales)
     const ret = {isrPF:0, isrRES:0, iva:0, cedPF:0, cedRES:0};
@@ -3674,11 +3674,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // IVA trasladado
     const tr = [...F.ePUE.map(x=>({f:x, p:1, o:"PUE del mes"})), ...F.cobrosMes.map(x=>({...x, o:"Cobro de PPD"})), ...F.huerfE.map(c=>({c, o:"Complemento sin factura"}))];
     h += bloque("IVA trasladado (cobrado)", `${tr.length} movimientos · ${f(k.tras)}`, `<div class="fsub" style="max-width:none">Facturas PUE emitidas en el mes y la parte cobrada de las PPD (por tus cobros registrados o, si no hay, por sus complementos del mes).</div>` +
-      tabla([{t:"De dónde sale"},{t:"Cliente"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], tr.map(x=>x.c ? `<tr><td>${x.o}${qx(x.c.uuid)}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${qx(x.f.uuid)}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(r2((+x.f.iva||0)*x.p))}</td></tr>`), `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.trasBase)}</strong></td><td class="num"><strong>${f(k.tras)}</strong></td>`));
+      tabla([{t:"De dónde sale"},{t:"Cliente"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], tr.map(x=>x.c ? `<tr><td>${x.o}${qx(x.c.uuid)}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${qx(x.f.uuid)}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}${x.deComp?'<div class="fsub">IVA del complemento</div>':""}</td><td class="num">${f(r2(x.ivaBase ?? (+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(r2(x.iva ?? (+x.f.iva||0)*x.p))}</td></tr>`), `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.trasBase)}</strong></td><td class="num"><strong>${f(k.tras)}</strong></td>`));
     // IVA acreditable
     const ac = [...F.rPUE.map(x=>({f:x, p:1, o:"PUE del mes"})), ...F.pagosMes.map(x=>({...x, o:"Pago de PPD"})), ...F.huerfanos.map(c=>({c, o:"Complemento sin factura"}))];
     h += bloque("IVA acreditable (pagado)", `${ac.length + F.manAcr.length} movimientos · ${f(k.acr)}`, `<div class="fsub" style="max-width:none">Facturas PUE recibidas en el mes y la parte pagada de las PPD (por tus pagos registrados o, si no hay, por sus complementos del mes), más los proveedores sin factura de la DIOT. Las marcadas como no deducibles no suman IVA.</div>` +
-      tabla([{t:"De dónde sale"},{t:"Proveedor"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], [...ac.map(x=>x.c ? `<tr><td>${x.o}${qx(x.c.uuid)}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${x.f.noDed?' <span class="st parcial" style="font-size:10px">No deducible: no suma</span>':""}${qx(x.f.uuid)}${!x.f.noDed && !(+x.f.iva) ? `<div class="fsub" style="max-width:none;white-space:normal">${(+x.f.iva0Base)||(+x.f.ivaExBase) ? `Factura a tasa 0% o exenta (base ${f(r2((+x.f.iva0Base||0)+(+x.f.ivaExBase||0)))}): no lleva IVA.` : `Esta factura no tiene IVA guardado. Si sí lo trae (por ejemplo, IVA 8% de frontera), vuelve a subir su XML.`}${botonesCfdi(x.f.uuid)?` ${botonesCfdi(x.f.uuid)}`:""}</div>` : ""}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(x.f.noDed?0:r2((+x.f.iva||0)*x.p))}</td></tr>`), ...F.manAcr.map(x=>`<tr><td>DIOT sin factura</td><td>${esc(x.nombre||x.rfc||"")}</td><td></td><td class="num">—</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td></tr>`)], `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.acrBase)}</strong></td><td class="num"><strong>${f(k.acr)}</strong></td>`));
+      tabla([{t:"De dónde sale"},{t:"Proveedor"},{t:"Folio / UUID"},{t:"% tomado",n:1},{t:"Base",n:1},{t:"IVA",n:1}], [...ac.map(x=>x.c ? `<tr><td>${x.o}${qx(x.c.uuid)}</td><td>${esc(x.c.nombre||"")}</td><td class="uuid">${u8(x.c.uuid)}…</td><td class="num">—</td><td class="num">${f(+x.c.ivaBase||0)}</td><td class="num">${f(+x.c.iva||0)}</td></tr>` : `<tr><td>${x.o}${x.f.noDed?' <span class="st parcial" style="font-size:10px">No deducible: no suma</span>':""}${qx(x.f.uuid)}${!x.f.noDed && !(+x.f.iva) && !x.deComp ? `<div class="fsub" style="max-width:none;white-space:normal">${(+x.f.iva0Base)||(+x.f.ivaExBase) ? `Factura a tasa 0% o exenta (base ${f(r2((+x.f.iva0Base||0)+(+x.f.ivaExBase||0)))}): no lleva IVA.` : Math.abs((+x.f.total||0) - (+x.f.subtotal||0)) < 1 ? `No lleva IVA (el total es igual al subtotal; por ejemplo, cuotas del IMSS o conceptos sin impuesto).` : `Esta factura no tiene IVA guardado. Si sí lo trae (por ejemplo, IVA 8% de frontera), vuelve a subir su XML.`}${botonesCfdi(x.f.uuid)?` ${botonesCfdi(x.f.uuid)}`:""}</div>` : ""}</td><td>${esc(x.f.nombre)}</td><td>${esc(x.f.folio||"")} <span class="uuid">${u8(x.f.uuid)}…</span></td><td class="num">${pct(x.p)}${x.deComp?'<div class="fsub">IVA del complemento</div>':""}</td><td class="num">${f(x.f.noDed?0:r2(x.ivaBase ?? (+x.f.ivaBase||0)*x.p))}</td><td class="num">${f(x.f.noDed?0:r2(x.iva ?? (+x.f.iva||0)*x.p))}</td></tr>`), ...F.manAcr.map(x=>`<tr><td>DIOT sin factura</td><td>${esc(x.nombre||x.rfc||"")}</td><td></td><td class="num">—</td><td class="num">${f(+x.b16||0)}</td><td class="num">${f(+x.iva||0)}</td></tr>`)], `<td colspan="4"><strong>Total</strong></td><td class="num"><strong>${f(k.acrBase)}</strong></td><td class="num"><strong>${f(k.acr)}</strong></td>`));
     // Retenciones a terceros
     const rt = [...F.rPUE.map(x=>({f:x, p:1})), ...F.pagosMes].filter(x=>(+x.f.isrRet||0)+(+x.f.ivaRet||0)+(+x.f.impLoc||0) > 0);
     h += bloque("Retenciones que hiciste a terceros", `${rt.length} facturas · IVA ${f(k.ret.iva)} · ISR ${f(r2(k.ret.isrPF + k.ret.isrRES))}`, `<div class="fsub" style="max-width:none">Honorarios, arrendamiento y RESICO a los que les retuviste, por el pago del mes (proporcional si fue parcial).</div>` +
@@ -3687,6 +3687,25 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const nm = F.nm.slice().sort((a,b)=>String(a.fechaPago).localeCompare(String(b.fechaPago)) || String(a.nombre).localeCompare(String(b.nombre)));
     h += bloque("Recibos de nómina", `${nm.length} recibos · percepciones ${f(S(nm,x=>x.percepciones))} · ISR ${f(S(nm,x=>x.isr))}`, `<div class="fsub" style="max-width:none">Recibos vigentes con fecha de pago del mes. Con IMSS cuentan como sueldos; sin IMSS, como asimilados.</div>` +
       tabla([{t:"Fecha de pago"},{t:"Empleado"},{t:"Tipo"},{t:"Percepciones",n:1},{t:"ISR",n:1},{t:"IMSS",n:1}], nm.map(x=>`<tr><td>${fechaCorta(x.fechaPago)}</td><td>${esc(x.nombre)}</td><td>${+x.imss>0?"Sueldos":"Asimilados"}</td><td class="num">${f(+x.percepciones||0)}</td><td class="num">${f(+x.isr||0)}</td><td class="num">${+x.imss?f(+x.imss):""}</td></tr>`), `<td colspan="3"><strong>Total</strong></td><td class="num"><strong>${f(S(nm,x=>x.percepciones))}</strong></td><td class="num"><strong>${f(S(nm,x=>x.isr))}</strong></td><td class="num"><strong>${f(S(nm,x=>x.imss))}</strong></td>`));
+    // Complementos de pago con fecha de pago en el mes: si se tomaron y, si no, por qué
+    const mkC = mesKey(k.y, k.m), excC = new Set((((typeof ajustesImp!=="undefined" && ajustesImp[mkC])||{}).excluir)||[]);
+    const compsMes = complementos.filter(c=>vigente(c) && String(c.fechaPago).slice(0,7)===mkC).sort((a,b)=>String(a.fechaPago).localeCompare(String(b.fechaPago)));
+    const diag = c => { const fa = facturas.find(x=>String(x.uuid).toUpperCase()===String(c.doc).toUpperCase()), tipoAb = c.tipo==="emitida" ? "cobro" : "pago";
+      if(excC.has(c.uuid) || (fa && excC.has(fa.uuid))) return {ok:false, txt:"La quitaste del cálculo de este mes."};
+      if(!fa) return (+c.iva>0) ? {ok:true, iva:+c.iva, txt:`La factura no está en la app; tomé el IVA que trae el complemento (${f(+c.iva)}).`} : {ok:false, txt:"La factura que paga no está en la app y el complemento no trae el desglose de IVA: sube el XML de la factura."};
+      if(!vigente(fa)) return {ok:false, txt:"La factura que paga está cancelada."};
+      if(fa.metodo!=="PPD") return {ok:false, txt:`La factura está como ${esc(fa.metodo||"sin método")}: su IVA se toma completo en el mes de la factura (${fechaCorta(fa.fecha)} ${String(fa.fecha).slice(0,4)}), no con el complemento.`};
+      const abs = abonos.filter(a=>a.uuid===fa.uuid && a.tipo===tipoAb);
+      if(abs.length){ const enMes = abs.filter(a=>String(a.fecha).slice(0,7)===mkC); return enMes.length ? {ok:true, iva: r2((+fa.iva||0)*enMes.reduce((s,a)=>s+(+a.monto||0),0)/fa.total), txt:`Se tomó por tu ${tipoAb} registrado del ${enMes.map(a=>fechaCorta(a.fecha)).join(", ")} (no por el complemento).`}
+        : {ok:false, txt:`No se tomó: esa factura tiene ${tipoAb}s registrados en Facturas y cuentas con otras fechas (${abs.map(a=>`${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}`).join(", ")}), y la app usa tus ${tipoAb}s registrados en lugar de los complementos. Corrige la fecha del ${tipoAb} o regístralo con la del complemento.`}; }
+      if(+c.iva>0) return {ok:true, iva: r2(+c.iva), txt:`Se tomó el IVA que trae el complemento (${f(+c.iva)}), de la factura ${esc(fa.folio||"")}.`};
+      if(!(+fa.iva)) return {ok:false, txt:"La factura no tiene IVA guardado y el complemento no trae el desglose (tasa 0%, exenta o falta el dato): revisa su XML."};
+      return {ok:true, iva: r2((+fa.iva||0)*(+c.impPagado||0)/fa.total), txt:`Se tomó ${Math.round((+c.impPagado||0)/fa.total*1000)/10}% de la factura ${esc(fa.folio||"")} (${f(+fa.total||0)}).`};
+    };
+    if(compsMes.length){ const D = compsMes.map(c=>({c, d: diag(c)})), noTom = D.filter(x=>!x.d.ok).length;
+      h += bloque("Complementos de pago del mes", `${compsMes.length} complementos · ${noTom ? `<strong style="color:var(--late-ink)">${noTom} no se tomaron</strong>` : "todos se tomaron"}`, `<div class="fsub" style="max-width:none">Complementos con fecha de pago en ${MESES[k.m-1].toLowerCase()}, si sumaron al IVA y, si no, por qué.</div>` +
+        tabla([{t:"Fecha de pago"},{t:"Tipo"},{t:"Cliente o proveedor"},{t:"Pagado",n:1},{t:"IVA tomado",n:1},{t:"Qué pasó"}], D.map(({c,d})=>`<tr><td>${fechaCorta(String(c.fechaPago).slice(0,10))}</td><td>${c.tipo==="emitida"?"Cobro":"Pago"}</td><td>${esc(c.nombre||"")}<div class="uuid">${u8(c.uuid)}…</div>${botonesCfdi(c.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(c.uuid)}</div>`:""}</td><td class="num">${f(+c.impPagado||0)}</td><td class="num">${d.ok?f(d.iva||0):"—"}</td><td style="white-space:normal;font-size:12px">${d.ok?"✓ ":'<span style="color:var(--late-ink)">✗</span> '}${d.txt}</td></tr>`)));
+    }
     const tiposM = {ingreso:"Ingreso para el ISR", ivaTras:"IVA trasladado", ivaAcr:"IVA acreditable", retIva:"Retención de IVA a terceros", retIsr:"Retención de ISR a terceros"};
     h += bloque("Ajustes que hiciste a mano", `${(F.excluidas||[]).length} quitadas · ${(F.extrasF||[]).length + (F.extrasM||[]).length} agregadas`,
       `${(F.excluidas||[]).length ? `<div style="font-weight:600;margin:6px 0">Quitadas del cálculo de este mes</div>${F.excluidas.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${esc(x.nombre||"")} · ${esc(x.folio||"")} <span class="uuid">${u8(x.uuid)}…</span> · ${f(+x.total||+x.impPagado||0)}</span>${canWrite?`<button class="linkbtn" data-calcin="${esc(x.uuid)}">regresar</button>`:""}</div>`).join("")}` : ""}
@@ -7141,7 +7160,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           const fp = at(pg,"FechaPago").slice(0,10);
           for(const dr of els("DoctoRelacionado", pg)){
             let ivaB = 0, iva = 0, isr = 0;
-            els("TrasladoDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="002" && Math.abs(+at(t,"TasaOCuotaDR")-0.16)<0.0001){ ivaB += +at(t,"BaseDR")||0; iva += +at(t,"ImporteDR")||0; } });
+            els("TrasladoDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="002" && +at(t,"TasaOCuotaDR") > 0){ ivaB += +at(t,"BaseDR")||0; iva += +at(t,"ImporteDR")||0; } });
             els("RetencionDR", dr).forEach(t=>{ if(at(t,"ImpuestoDR")==="001") isr += +at(t,"ImporteDR")||0; });
             comps.push({tipo, uuid, doc: at(dr,"IdDocumento").toUpperCase(), fechaPago: fp || fecha, impPagado: num(at(dr,"ImpPagado")), saldoInsoluto: num(at(dr,"ImpSaldoInsoluto")),
               parcialidad: +at(dr,"NumParcialidad")||1, estadoSAT: (complementos.find(c=>c.id===`${uuid}_${at(dr,"IdDocumento").toUpperCase()}`)||{}).estadoSAT || "Vigente", nombre: at(otro,"Nombre"), ivaBase: r2(ivaB), iva: r2(iva), isrRet: r2(isr), regimen: at(E,"RegimenFiscal")});
