@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 115 · Pendientes del mes corregidos</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 117 · Estado de cuenta con varias tarjetas</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -2598,6 +2598,17 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         cur.movs.push({fecha, tipo: celdas[1], num: celdas[2], concepto: celdas[3], cargo: r2(+r[cols.cargo]||0), abono: r2(+r[cols.abono]||0), saldo: r2(+r[cols.saldo]||0)});
       }
     }
+    // Varias cuentas en el mismo auxiliar: si esta cuenta del banco junta varias cuentas contables (por ejemplo, las 2 tarjetas de una persona), se suman
+    const lista = cta ? [...new Set([...(cta.cuentasAux||[]), cta.cuentaContable].filter(Boolean))] : [];
+    const conDatos = cuentas.filter(c=>c.movs.length || c.saldoInicial!==null);
+    const juntar = cuentas.length > 1 && cta && (lista.length >= 2 ? conDatos.filter(c=>lista.includes(c.cuenta)) : cta.tipo==="tarjeta" ? conDatos : []);
+    if(juntar && juntar.length >= 2){
+      const ids2 = new Set(), movsJ = juntar.flatMap(c=>c.movs.map(m=>({...m, cta: c.cuenta, ctaNombre: c.nombre}))).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+      const movsF = movsJ.map(m=>{ let id = `${m.cta}-${m.tipo.charAt(0)}${m.num}-${m.fecha}`.replace(/[^A-Za-z0-9_.~:@+-]/g,""); while(ids2.has(id)) id += "x"; ids2.add(id); return {id, ...m}; });
+      if(!periodo && movsF.length) periodo = {anio:+movsF[0].fecha.slice(0,4), mes:+movsF[0].fecha.slice(5,7)};
+      const si = r2(juntar.reduce((s,c)=>s+(+c.saldoInicial||0),0)), sf = r2(juntar.reduce((s,c)=>s + (c.movs.length ? (c.movs[c.movs.length-1].saldo || r2((+c.saldoInicial||0) + c.movs.reduce((x,m)=>x+m.cargo-m.abono,0))) : (+c.saldoInicial||0)), 0));
+      return {saldoInicial: si, saldoFinal: sf, periodo, movs: movsF, varias: false, juntas: juntar.map(c=>`${c.cuenta} ${c.nombre}`.trim()), cuentaUsada: juntar.map(c=>c.cuenta).join(" + ")};
+    }
     // Si el auxiliar trae varias cuentas, toma la de este banco
     let elegida = cuentas.find(c=>c.movs.length || c.saldoInicial!==null) || {saldoInicial:null, movs:[]};
     if(cuentas.length > 1 && cta){
@@ -2680,7 +2691,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const a = parseAux(f.arr, cta);
         if(!a.periodo){ toast(`${f.name}: no encontré el periodo del auxiliar. ¿Es el auxiliar de CONTPAQi?`); continue; }
         if(!a.movs.length) toast(`${f.name}: leí el auxiliar de ${MESES[a.periodo.mes-1].toLowerCase()}, pero no encontré movimientos.`);
-        else if(a.varias) toast(`El auxiliar traía varias cuentas; usé la ${a.cuentaUsada || "primera"} para ${cta.nombre}.`);
+        else if(a.juntas) toast(`Junté ${a.juntas.length} cuentas del auxiliar para ${cta.nombre}: ${a.juntas.join(" y ")}.`);
+        else if(a.varias) toast(`El auxiliar traía varias cuentas; usé la ${a.cuentaUsada || "primera"} para ${cta.nombre}. Si esta cuenta junta varias (como 2 tarjetas), ponlas en "Cuentas contables".`);
         await guardarOriginal(f, "aux", [[a.periodo.anio, a.periodo.mes]]);
         const d = base(a.periodo.anio, a.periodo.mes);
         d.aux = a.movs; d.saldoInicialAux = a.saldoInicial; d.saldoFinalAux = a.saldoFinal; d.auxSubido = true; ultimo = [a.periodo.anio, a.periodo.mes];
@@ -2784,6 +2796,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const bc = $("bcuentas");
     const ctaP = cuentasB.find(c=>c.id===cuentaSel);
     bc.innerHTML = cuentasB.map(c=>`<button class="chip" data-cta="${esc(c.id)}" aria-pressed="${c.id===cuentaSel}">${esc(c.nombre)}</button>`).join("") + (canWrite ? '<button class="chip" id="addBk">+ Agregar cuenta</button>' : "")
+      + (ctaP && canWrite ? `<button class="linkbtn" id="bkCtas" style="margin-left:8px;font-size:12px" title="Cuentas contables de CONTPAQi que corresponden a esta cuenta">Cuentas contables: ${esc([...new Set([ctaP.cuentaContable, ...(ctaP.cuentasAux||[])].filter(Boolean))].join(", ") || "sin asignar")}</button>` : "")
       + (ctaP && canWrite ? `<span class="fsub" style="max-width:none;margin-left:8px">Excel: ${ctaP.plantilla ? `en tu formato (${esc(ctaP.plantilla.nombre)})` : "formato de la app"} · <button class="linkbtn" id="tplBtn">${ctaP.plantilla ? "Cambiar formato" : "Usar mi formato de Excel"}</button>${ctaP.plantilla ? ` · <button class="linkbtn" id="tplQuitar">Usar el de la app</button>` : ""}</span><input type="file" id="tplFile" accept=".xlsx" hidden>` : "");
     if(!bkLoaded){ $("bbody").innerHTML = '<div class="empty">Cargando…</div>'; $("bmonths").innerHTML = ""; return; }
     if(!cuentaSel){ $("bmonths").innerHTML = ""; $("bbody").innerHTML = '<div class="empty">Agrega tu primera cuenta bancaria con <strong>+ Agregar cuenta</strong>.</div>'; $("statusLine").textContent = "Sin cuentas bancarias."; return; }
@@ -2930,6 +2943,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("bcuentas").addEventListener("click", async e => {
     if(e.target.closest("#tplBtn")){ $("tplFile").click(); return; }
     if(e.target.closest("#tplQuitar")){ const cta = cuentasB.find(c=>c.id===cuentaSel); const {id, plantilla, ...resto} = cta; try{ await db.doc(`empresas/${empresa}/bancos/${id}`).set(resto); }catch(err){ handleWriteError(err); } return; }
+    if(e.target.closest("#bkCtas")){ const cta = cuentasB.find(c=>c.id===cuentaSel); if(!cta) return; const cur = [...new Set([cta.cuentaContable, ...(cta.cuentasAux||[])].filter(Boolean))].join(", ");
+      const v = prompt(`Cuentas contables de ${cta.nombre} en CONTPAQi.\nSi son varias (por ejemplo, 2 tarjetas de la misma persona), sepáralas con coma. La primera es la principal para las pólizas.`, cur); if(v==null) return;
+      const lst = [...new Set(v.split(/[,;\s]+/).map(x=>x.trim()).filter(x=>/^\d{3}-\d{2}-\d{3}$/.test(x)))]; if(v.trim() && !lst.length){ toast("Escribe las cuentas como 102-01-005, separadas por coma."); return; }
+      const {id, ...resto} = cta; try{ await db.doc(`empresas/${empresa}/bancos/${id}`).set({...resto, cuentaContable: lst[0]||"", cuentasAux: lst}); toast(lst.length>1 ? `Listo: ${cta.nombre} junta ${lst.length} cuentas. Vuelve a subir el auxiliar.` : "Cuenta contable guardada."); }catch(err){ handleWriteError(err); } return; }
     if(e.target.closest("#addBk")){ $("bkName").value=""; $("bkCta").value=""; $("bkDlg").showModal(); $("bkName").focus(); return; }
     const b = e.target.closest("[data-cta]"); if(b){ cuentaSel = b.dataset.cta; bMes = null; selA = selB = null; selBs = new Set(); selAs = new Set(); renderBancos(); }
   });
@@ -3484,8 +3501,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const desc = descItems.map(i=>i.s).join(" ").replace(/\s+/g," ").trim();
       movs.push({fecha: `${fm[3]}-${String(MS[fm[2].toUpperCase()]).padStart(2,"0")}-${fm[1].padStart(2,"0")}`, tipo: tipoM, monto, comision: 0, nombre: desc, concepto: tarjeta ? `Tarjeta ${tarjeta}` : "", saldo: bal, id: `tj-${movs.length}-${fm[3]}${fm[2]}${fm[1]}-${Math.round(monto*100)}`});
     });
-    // Vienen del más reciente al más antiguo
-    movs.reverse();
+    // Cada tarjeta viene del más reciente al más antiguo, y las tarjetas una tras otra: se ordenan por fecha,
+    // y en el mismo día por el balance (el de mayor balance va primero si es cargo)
+    movs.sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)) || ((b.saldo ?? 0) + (b.tipo==="ret" ? b.monto : -b.monto)) - ((a.saldo ?? 0) + (a.tipo==="ret" ? a.monto : -a.monto)));
     let saldoInicial = null;
     if(movs.length && movs[0].saldo!=null) saldoInicial = r2(movs[0].saldo + (movs[0].tipo==="ret" ? movs[0].monto : -movs[0].monto));
     const ing = sinAcento(T).match(/Ingresos\s+Egresos[\s\S]*?\$([\d,]+\.\d{2})\s+\$([\d,]+\.\d{2})/i);
