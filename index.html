@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 111 · Complementos se actualizan con su IVA</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 112 · IVA de facturas guardadas sin desglose</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1725,6 +1725,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     unsubFac = db.collection(`empresas/${empresa}/facturas`).onSnapshot(qs => {
       facturas = qs.docs.map(d => ({id:d.id, ...d.data()}));
       // Si algún reporte guardó la forma de pago ("99 - Por definir") en lugar del método, se corrige a PPD/PUE
+      // Si una factura se guardó sin el desglose de IVA pero su total sí lo trae, se calcula con el total
+      const sinIva = facturas.filter(f=>!(+f.iva) && +f.total>0 && +f.subtotal>0 && !(+f.iva0Base) && !(+f.ivaExBase));
+      sinIva.forEach(f=>{ const base = r2((+f.subtotal||0) - (+f.descuento||0)), dif = r2((+f.total||0) - base + (+f.ivaRet||0) + (+f.isrRet||0) - (+f.impLoc||0) * 0), tasa = base ? dif/base : 0;
+        if(Math.abs(tasa-0.16) < 0.006 || Math.abs(tasa-0.08) < 0.006){ f.iva = dif; f.ivaBase = base; f.ivaDerivado = true; if(canWrite) db.doc(`empresas/${empresa}/facturas/${f.id}`).update({iva: dif, ivaBase: base, ivaDerivado: true}).catch(()=>{}); } });
       const malas = facturas.filter(f=>f.metodo && f.metodo!=="PPD" && f.metodo!=="PUE");
       malas.forEach(f=>{ f.metodo = normMetodo(f.metodo); });
       if(malas.length && canWrite) malas.filter(f=>f.metodo==="PPD"||f.metodo==="PUE").forEach(f=>db.doc(`empresas/${empresa}/facturas/${f.id}`).update({metodo: f.metodo}).catch(()=>{}));
@@ -2134,7 +2138,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
             total: Math.round((+row["Total"]||0)*100)/100,
             estadoSAT: String(row["Estado SAT"]||"").trim(),
             conceptos: String(row["Conceptos"]||"").replace(/\s+/g," ").trim().slice(0,160),
-            subtotal: r2(+row["SubTotal"]||0), ivaBase: r2((+row["IVA 16 Base"]||0) + (+row["IVA 8 Base"]||0)), iva: r2((+row["IVA 16 Importe"]||0) + (+row["IVA 8 Importe"]||0)), iva0Base: r2(+row["IVA Cero Base"]||0), ivaExBase: r2(+row["IVA Exento Base"]||0),
+            subtotal: r2(+row["SubTotal"]||0), ivaBase: r2((+row["IVA 16 Base"]||0) + (+row["IVA 8 Base"]||0)) || (((+row["IVA 16 Importe"]||0) + (+row["IVA 8 Importe"]||0) || +row["Total Trasladados"]||0) ? r2((+row["SubTotal"]||0) - (+row["Descuento"]||0)) : 0), iva: r2((+row["IVA 16 Importe"]||0) + (+row["IVA 8 Importe"]||0)) || r2(+row["Total Trasladados"]||0), iva0Base: r2(+row["IVA Cero Base"]||0), ivaExBase: r2(+row["IVA Exento Base"]||0),
             isrRet: r2(+row["ISR Retenido"]||0), ivaRet: r2(+row["IVA Retenido"]||0), impLoc: r2(+row["ImpLoc Total Retenidos"]||0),
             regimen: String(row[tipo==="emitida"?"RegimenFiscalReceptor":"RegimenFiscal"]||"").slice(0,3), uso: String(row["UsoCFDI"]||"").slice(0,3), formaPago: String(row["FormaDePago"]||"").slice(0,2)});
         }
