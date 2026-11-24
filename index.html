@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 113 · Notas por importancia y urgencia</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 115 · Pendientes del mes corregidos</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1715,7 +1715,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const money = new Intl.NumberFormat("es-MX",{style:"currency",currency:"MXN"});
   const vigente = f => !/cancel/i.test(f.estadoSAT||"") && !f.canceladaManual;
   const listo = s => s==="done" || s==="na";
-  const completa = f => listo(f.prov) && listo(f.ctrl);
+  // Una factura está completa para el cierre del mes cuando: (PPD) tiene su provisión, y si ya se pagó o cobró, tiene la póliza del pago.
+  // Si aún no se paga, no bloquea el mes: queda en cuentas por pagar o cobrar.
+  const completa = f => { if(listo(f.prov) && listo(f.ctrl)) return true;
+    let ec; try{ const t = Date.now(); if(!completa._i || t - completa._t > 1500){ completa._i = indices(); try{ completa._rx = conciliarXml(); }catch(_){ completa._rx = null; } completa._t = t; } ec = estadoContable(f, completa._rx, completa._i); }catch(_){ return false; }
+    const provOk = f.metodo!=="PPD" || !!ec.prov || listo(f.prov);
+    const pagoOk = !ec.tienePago || !!ec.pago || listo(f.ctrl);
+    return provOk && pagoOk; };
   const ACT_REV = {emitida:"rev-fac-emitidas", recibida:"rev-fac-recibidas"};
   const CTRL_LBL = {emitida:"CxC", recibida:"CxP"};
   const writeQ = {};
