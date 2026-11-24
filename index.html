@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 117 · Estado de cuenta con varias tarjetas</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 118 · Tarjetas: meses como Sept</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -3476,7 +3476,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   // ---------- Estados de cuenta de tarjetas CEDI (por persona) ----------
   function parseCediTarjetaPdf(L, file){
-    const T = L.todo, MS = {ENE:1,JAN:1,FEB:2,MAR:3,ABR:4,APR:4,MAY:5,JUN:6,JUL:7,AGO:8,AUG:8,SEP:9,SET:9,OCT:10,NOV:11,DIC:12,DEC:12};
+    const T = L.todo, MS = {ENE:1,JAN:1,FEB:2,MAR:3,ABR:4,APR:4,MAY:5,JUN:6,JUL:7,AGO:8,AUG:8,SEP:9,SEPT:9,SET:9,OCT:10,NOV:11,DIC:12,DEC:12};
     const MN = {ENERO:1,FEBRERO:2,MARZO:3,ABRIL:4,MAYO:5,JUNIO:6,JULIO:7,AGOSTO:8,SEPTIEMBRE:9,SETIEMBRE:9,OCTUBRE:10,NOVIEMBRE:11,DICIEMBRE:12};
     const pm = sinAcento(T).toUpperCase().match(/PERIODO\s+([A-Z]+)\s+(\d{4})/); if(!pm || !MN[pm[1]]){ toast(`${file.name}: no encontré el periodo del estado de cuenta de la tarjeta.`); return null; }
     const periodo = {anio: +pm[2], mes: MN[pm[1]]};
@@ -3485,12 +3485,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const montoTxt = s => { const d = String(s).replace(/[^\d]/g,""); return d ? +d/100 : 0; };
     // Cada movimiento ocupa un bloque: la línea de la fecha, una arriba (inicio de la descripción y centavos) y una abajo (resto de la descripción)
     const movs = []; let tarjeta = "", dentro = false; const LS = L.lineas;
-    const esFecha = tx => { const fm = tx.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\b/); return fm && MS[fm[2].toUpperCase()] ? fm : null; };
+    const esFecha = tx => { const fm = tx.match(/^(\d{1,2})\s+([A-Za-z]{3,4})\.?\s+(\d{4})\b/); return fm && MS[fm[2].toUpperCase()] ? fm : null; };
     LS.forEach((l, idx) => {
       const tx = l.texto.trim();
       const mt = tx.match(/DETALLE DE MOVIMIENTOS\s*\(Tarjeta\s+([^)]*)\)/i); if(mt){ tarjeta = mt[1].replace(/X{3,}/g,"…").trim(); dentro = true; return; }
       if(!dentro) return; const fm = esFecha(tx); if(!fm || !/\b(Cargo|Abono)\b/i.test(tx)) return;
-      const vecinos = LS.filter((x, j) => j!==idx && Math.abs(x.y - l.y) <= 8 && !esFecha(x.texto.trim()) && !/DETALLE DE MOVIMIENTOS|^FECHA\s/i.test(x.texto));
+      // Solo las líneas de la MISMA página y pegadas a este movimiento (arriba: descripción y centavos; abajo: resto de la descripción)
+      const vecinos = LS.filter((x, j) => j!==idx && (x.p ?? 0)===(l.p ?? 0) && Math.abs(x.y - l.y) <= 8 && !esFecha(x.texto.trim()) && !/DETALLE DE MOVIMIENTOS|^FECHA\s/i.test(x.texto));
       const its = [...l.items, ...vecinos.flatMap(v=>v.items.map(i=>({...i, _y:v.y})))];
       const tipoM = /\bAbono\b/i.test(tx) ? "dep" : "ret";
       const enteros = l.items.filter(i=>/^\$[\d,]+(\.\d{2})?$/.test(i.s.trim())).sort((a,b)=>a.x-b.x);
@@ -3499,18 +3500,20 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const monto = r2(val(enteros[0], cents.find(c=>enteros[1] ? c.x < enteros[1].x : true)) || 0), bal = enteros[1] ? r2(val(enteros[1], cents.find(c=>c.x > enteros[0].x + 40 && c.x > (enteros[1].x-10)))) : null;
       const descItems = its.filter(i=>i.x > 100 && i.x < 310 && !/^\d{2}$/.test(i.s.trim())).sort((a,b)=>((b._y ?? l.y) - (a._y ?? l.y)) || (a.x - b.x));
       const desc = descItems.map(i=>i.s).join(" ").replace(/\s+/g," ").trim();
-      movs.push({fecha: `${fm[3]}-${String(MS[fm[2].toUpperCase()]).padStart(2,"0")}-${fm[1].padStart(2,"0")}`, tipo: tipoM, monto, comision: 0, nombre: desc, concepto: tarjeta ? `Tarjeta ${tarjeta}` : "", saldo: bal, id: `tj-${movs.length}-${fm[3]}${fm[2]}${fm[1]}-${Math.round(monto*100)}`});
+      movs.push({seq: movs.length, fecha: `${fm[3]}-${String(MS[fm[2].toUpperCase()]).padStart(2,"0")}-${fm[1].padStart(2,"0")}`, tipo: tipoM, monto, comision: 0, nombre: desc, concepto: tarjeta ? `Tarjeta ${tarjeta}` : "", saldo: bal, id: `tj-${movs.length}-${fm[3]}${fm[2]}${fm[1]}-${Math.round(monto*100)}`});
     });
     // Cada tarjeta viene del más reciente al más antiguo, y las tarjetas una tras otra: se ordenan por fecha,
     // y en el mismo día por el balance (el de mayor balance va primero si es cargo)
-    movs.sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)) || ((b.saldo ?? 0) + (b.tipo==="ret" ? b.monto : -b.monto)) - ((a.saldo ?? 0) + (a.tipo==="ret" ? a.monto : -a.monto)));
-    let saldoInicial = null;
-    if(movs.length && movs[0].saldo!=null) saldoInicial = r2(movs[0].saldo + (movs[0].tipo==="ret" ? movs[0].monto : -movs[0].monto));
+    const previo = x => x.saldo==null ? null : x.saldo + (x.tipo==="ret" ? x.monto : -x.monto);
+    movs.sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)) || (previo(a)!=null && previo(b)!=null && Math.abs(previo(a)-previo(b))>0.004 ? previo(b) - previo(a) : b.seq - a.seq));
+    // Saldo inicial: con el primer movimiento que trae balance, quitando el efecto de los que van antes y no lo traen ("—")
+    let saldoInicial = null; const kB = movs.findIndex(m=>m.saldo!=null);
+    if(kB >= 0) saldoInicial = r2(previo(movs[kB]) - movs.slice(0,kB).reduce((s,m)=>s + (m.tipo==="dep" ? m.monto : -m.monto), 0));
     const ing = sinAcento(T).match(/Ingresos\s+Egresos[\s\S]*?\$([\d,]+\.\d{2})\s+\$([\d,]+\.\d{2})/i);
     const sDep = r2(movs.filter(m=>m.tipo==="dep").reduce((s,m)=>s+m.monto,0)), sRet = r2(movs.filter(m=>m.tipo==="ret").reduce((s,m)=>s+m.monto,0));
     if(ing && (Math.abs(numMx(ing[1]) - sDep) > 0.009 || Math.abs(numMx(ing[2]) - sRet) > 0.009)) toast(`${file.name}: revisa los movimientos; leí ingresos ${money.format(sDep)} y egresos ${money.format(sRet)}, el PDF dice ${money.format(numMx(ing[1]))} y ${money.format(numMx(ing[2]))}.`);
-    const saldoFinal = movs.length && movs[movs.length-1].saldo!=null ? movs[movs.length-1].saldo : null;
-    return {movs: movs.map(({saldo, ...m})=>m), saldoInicial, saldoFinal, periodo, sinMovs: !movs.length, titular, tarjeta: true};
+    const saldoFinal = saldoInicial!=null ? r2(saldoInicial + movs.reduce((s,m)=>s + (m.tipo==="dep" ? m.monto : -m.monto), 0)) : (movs.length && movs[movs.length-1].saldo!=null ? movs[movs.length-1].saldo : null);
+    return {movs: movs.map(({saldo, seq, ...m})=>m), saldoInicial, saldoFinal, periodo, sinMovs: !movs.length, titular, tarjeta: true};
   }
 
   function parseBancoPdf(L, file){
