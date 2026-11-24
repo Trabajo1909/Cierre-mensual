@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 112 · IVA de facturas guardadas sin desglose</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 113 · Notas por importancia y urgencia</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -597,11 +597,13 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
           <div class="chips" id="notaTipo" aria-label="Tipo"><button class="chip" data-ntipo="pendiente" aria-pressed="true">Pendiente</button><button class="chip" data-ntipo="pregunta" aria-pressed="false">Pregunta para mi jefe</button><button class="chip" data-ntipo="nota" aria-pressed="false">Nota</button></div>
           <select id="notaMes" style="width:auto" aria-label="Mes relacionado"></select>
+          <select id="notaPrio" style="width:auto" aria-label="Importancia y urgencia"></select>
+          <label style="margin:0;display:flex;gap:6px;align-items:center;font-size:13px">Fecha límite <input id="notaLimite" type="date" style="width:auto"></label>
           <button class="btn primary sm" id="notaAdd">Agregar</button>
         </div>
       </div>
     </div>
-    <div class="ftools"><div class="chips" id="notaFiltro"><button class="chip" data-nfil="abiertas" aria-pressed="true">Abiertas</button><button class="chip" data-nfil="hechas" aria-pressed="false">Resueltas</button><button class="chip" data-nfil="todas" aria-pressed="false">Todas</button></div></div>
+    <div class="ftools"><div class="chips" id="notaFiltro"><button class="chip" data-nfil="abiertas" aria-pressed="true">Abiertas</button><button class="chip" data-nfil="hechas" aria-pressed="false">Resueltas</button><button class="chip" data-nfil="todas" aria-pressed="false">Todas</button></div><div class="chips" id="notaPrioFil" style="margin-left:8px"></div></div>
     <div id="nbody"></div>
   </section>
 
@@ -5476,31 +5478,47 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!db || !empresa) return;
     unsubNotas = db.collection(`empresas/${empresa}/notas`).onSnapshot(qs => { notas = qs.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>String(b.creada).localeCompare(String(a.creada))); rerenderDatos(); if(vista==="tablero") render(); }, () => {});
   }
+  // Importancia y urgencia (matriz de Eisenhower) con su color
+  const N_PRIO = {ui:{t:"Urgente e importante", c:"#E24B4A", bg:"#FCEBEB", ink:"#791F1F", o:1, hint:"Hazlo ya"}, i:{t:"Importante, no urgente", c:"#EF9F27", bg:"#FAEEDA", ink:"#633806", o:2, hint:"Agéndalo"},
+    u:{t:"Urgente, no importante", c:"#378ADD", bg:"#E6F1FB", ink:"#0C447C", o:3, hint:"Resuélvelo rápido o delega"}, n:{t:"Ni urgente ni importante", c:"#888780", bg:"#F1EFE8", ink:"#444441", o:4, hint:"Cuando haya tiempo"}};
+  let nPrioFil = "";
+  function notaPrioEfectiva(n){ // si la fecha límite está cerca, sube la urgencia
+    let p = n.prio || "n"; if(n.limite && !n.hecha){ const d = diasEntre(hoyISO, n.limite); if(d <= 2){ if(p==="i") p = "ui"; else if(p==="n") p = "u"; } } return p; }
   function renderNotas(){
     $("yearLabel").textContent = year;
     const sel = $("notaMes"); if(!sel.options.length) sel.innerHTML = `<option value="">Sin mes</option>` + MESES.map((n,i)=>`<option value="${i+1}">${n}</option>`).join("");
+    const sp = $("notaPrio"); if(!sp.options.length){ sp.innerHTML = Object.entries(N_PRIO).map(([k,p])=>`<option value="${k}">${p.o===1?"🔴":p.o===2?"🟠":p.o===3?"🔵":"⚪"} ${p.t}</option>`).join(""); sp.value = "n"; }
+    $("notaPrioFil").innerHTML = `<button class="chip" data-nprio="" aria-pressed="${!nPrioFil}">Todas las prioridades</button>${Object.entries(N_PRIO).map(([k,p])=>`<button class="chip" data-nprio="${k}" aria-pressed="${nPrioFil===k}" style="border-left:5px solid ${p.c}">${p.t}</button>`).join("")}`;
     const ab = notas.filter(n=>!n.hecha).length;
     $("statusLine").innerHTML = ab ? `Tienes <strong>${ab} ${ab===1?"pendiente abierto":"pendientes abiertos"}</strong>.` : "No tienes pendientes abiertos.";
-    const lista = notas.filter(n=> nFil==="todas" ? true : nFil==="hechas" ? n.hecha : !n.hecha);
+    const lista = notas.filter(n=> (nFil==="todas" ? true : nFil==="hechas" ? n.hecha : !n.hecha) && (!nPrioFil || notaPrioEfectiva(n)===nPrioFil))
+      .sort((a,b)=>(a.hecha-b.hecha) || (N_PRIO[notaPrioEfectiva(a)].o - N_PRIO[notaPrioEfectiva(b)].o) || String(a.limite||"9999").localeCompare(String(b.limite||"9999")) || String(b.creada).localeCompare(String(a.creada)));
     if(!lista.length){ $("nbody").innerHTML = `<div class="empty">${nFil==="hechas" ? "Aún no hay notas resueltas." : "No hay notas aquí. Escribe la primera arriba."}</div>`; return; }
-    $("nbody").innerHTML = `<div class="bpanel"><div class="sheet" style="border:none;border-radius:0"><table class="decl"><tbody>${lista.map(n=>`<tr>
+    const cuentaP = k => notas.filter(n=>!n.hecha && notaPrioEfectiva(n)===k).length;
+    const matriz = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px">${Object.entries(N_PRIO).map(([k,p])=>`<button data-nprio="${k}" style="text-align:left;border:none;cursor:pointer;border-radius:12px;padding:10px 12px;background:${p.bg};color:${p.ink};border-left:6px solid ${p.c};font:inherit"><div style="font-size:22px;font-weight:700">${cuentaP(k)}</div><div style="font-weight:600;font-size:13px">${p.t}</div><div style="font-size:12px;opacity:.85">${p.hint}</div></button>`).join("")}</div>`;
+    $("nbody").innerHTML = matriz + `<div class="bpanel"><div class="sheet" style="border:none;border-radius:0"><table class="decl"><tbody>${lista.map(n=>{ const pk = notaPrioEfectiva(n), P = N_PRIO[pk], dl = n.limite ? diasEntre(hoyISO, n.limite) : null; return `<tr style="box-shadow:inset 5px 0 0 ${n.hecha?"var(--line)":P.c}">
       <td style="width:28px"><button class="cell ${n.hecha?"done":""}" data-nhecha="${esc(n.id)}" aria-label="${n.hecha?"Marcar como abierta":"Marcar como resuelta"}" style="width:28px;height:28px">${n.hecha?ICON.done:""}</button></td>
-      <td><span class="st ${n.tipo==="pregunta"?"parcial":n.tipo==="nota"?"na":"pendiente"}">${N_TIPO[n.tipo]||"Nota"}</span>${n.mes?` <span class="fsub">· ${MESES[n.mes-1]} ${n.anio||""}</span>`:""}
+      <td><span class="st ${n.tipo==="pregunta"?"parcial":n.tipo==="nota"?"na":"pendiente"}">${N_TIPO[n.tipo]||"Nota"}</span> ${canWrite?`<select data-nprioset="${esc(n.id)}" aria-label="Importancia y urgencia" style="width:auto;padding:1px 6px;font-size:12px;border-radius:999px;border:1px solid ${P.c};background:${P.bg};color:${P.ink}">${Object.entries(N_PRIO).map(([k,p])=>`<option value="${k}" ${(n.prio||"n")===k?"selected":""}>${p.t}</option>`).join("")}</select>`:`<span class="st" style="background:${P.bg};color:${P.ink}">${P.t}</span>`}${pk!==(n.prio||"n")?` <span class="fsub" style="color:${P.ink}">↑ subió por la fecha límite</span>`:""}${n.mes?` <span class="fsub">· ${MESES[n.mes-1]} ${n.anio||""}</span>`:""}${n.limite?` <span class="fsub" style="${dl!=null && dl<=2 && !n.hecha?"color:var(--late-ink);font-weight:600":""}">· límite ${fechaCorta(n.limite)}${!n.hecha && dl!=null ? (dl<0?` (venció hace ${-dl} ${-dl===1?"día":"días"})`:dl===0?" (hoy)":` (en ${dl} ${dl===1?"día":"días"})`) : ""}</span>`:""}
         <div style="margin-top:4px;white-space:pre-wrap;${n.hecha?"text-decoration:line-through;color:var(--muted)":""}">${esc(n.texto)}</div>
         ${n.respuesta?`<div class="fsub" style="max-width:none;white-space:normal;margin-top:4px">Respuesta: ${esc(n.respuesta)}</div>`:""}</td>
-      <td style="text-align:right;white-space:nowrap"><div class="fsub">${fechaCorta(String(n.creada).slice(0,10))}</div>${canWrite?`<div class="acts" style="justify-content:flex-end">${n.tipo==="pregunta"?`<button class="linkbtn" data-nresp="${esc(n.id)}">${n.respuesta?"Cambiar respuesta":"Anotar respuesta"}</button>`:""}<button class="linkbtn" data-nborrar="${esc(n.id)}">Borrar</button></div>`:""}</td></tr>`).join("")}</tbody></table></div></div>`;
+      <td style="text-align:right;white-space:nowrap"><div class="fsub">${fechaCorta(String(n.creada).slice(0,10))}</div>${canWrite?`<div class="acts" style="justify-content:flex-end">${n.tipo==="pregunta"?`<button class="linkbtn" data-nresp="${esc(n.id)}">${n.respuesta?"Cambiar respuesta":"Anotar respuesta"}</button>`:""}<button class="linkbtn" data-nlimite="${esc(n.id)}">${n.limite?"Cambiar fecha límite":"Poner fecha límite"}</button><button class="linkbtn" data-nborrar="${esc(n.id)}">Borrar</button></div>`:""}</td></tr>`; }).join("")}</tbody></table></div></div>`;
   }
   document.querySelectorAll("[data-ntipo]").forEach(b=>b.onclick = () => { nTipo = b.dataset.ntipo; document.querySelectorAll("[data-ntipo]").forEach(x=>x.setAttribute("aria-pressed", x===b)); });
   document.querySelectorAll("[data-nfil]").forEach(b=>b.onclick = () => { nFil = b.dataset.nfil; document.querySelectorAll("[data-nfil]").forEach(x=>x.setAttribute("aria-pressed", x===b)); renderNotas(); });
   $("notaAdd").onclick = async () => {
     const texto = $("notaTexto").value.trim(); if(!texto){ $("notaTexto").focus(); return; }
     const mes = +$("notaMes").value || null, id = `n-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
-    try{ await db.doc(`empresas/${empresa}/notas/${id}`).set({texto, tipo:nTipo, mes, anio: mes ? year : null, creada: new Date().toISOString(), hecha:false}); $("notaTexto").value = ""; toast("Nota agregada."); }
+    try{ await db.doc(`empresas/${empresa}/notas/${id}`).set({texto, tipo:nTipo, mes, anio: mes ? year : null, creada: new Date().toISOString(), hecha:false, prio: $("notaPrio").value || "n", limite: $("notaLimite").value || ""}); $("notaTexto").value = ""; $("notaLimite").value = ""; toast("Nota agregada."); }
     catch(err){ handleWriteError(err); }
   };
   $("notaTexto").addEventListener("keydown", e => { if(e.key==="Enter" && (e.ctrlKey || e.metaKey)) $("notaAdd").click(); });
   let respPara = null;
+  $("nbody").addEventListener("change", async e => { const s = e.target.closest("[data-nprioset]"); if(!s) return; const n = notas.find(x=>x.id===s.dataset.nprioset); if(!n) return;
+    const {id, ...resto} = n; try{ await db.doc(`empresas/${empresa}/notas/${id}`).set({...resto, prio: s.value}); }catch(err){ handleWriteError(err); } });
+  document.addEventListener("click", e => { const b = e.target.closest("[data-nprio]"); if(!b || vista!=="notas") return; nPrioFil = nPrioFil===b.dataset.nprio ? "" : b.dataset.nprio; renderNotas(); });
   $("nbody").addEventListener("click", async e => {
+    const lm = e.target.closest("[data-nlimite]"); if(lm){ const n = notas.find(x=>x.id===lm.dataset.nlimite); if(!n) return; const v = prompt("Fecha límite (AAAA-MM-DD). Déjalo vacío para quitarla:", n.limite || hoyISO); if(v==null) return;
+      if(v && !/^\d{4}-\d{2}-\d{2}$/.test(v.trim())){ toast("Escribe la fecha como AAAA-MM-DD."); return; } const {id, ...resto} = n; try{ await db.doc(`empresas/${empresa}/notas/${id}`).set({...resto, limite: v.trim()}); }catch(err){ handleWriteError(err); } return; }
     const h1 = e.target.closest("[data-nhecha]"), bo = e.target.closest("[data-nborrar]"), rp = e.target.closest("[data-nresp]");
     const n = notas.find(x=>x.id===(h1||bo||rp||{dataset:{}}).dataset[h1?"nhecha":bo?"nborrar":"nresp"]); if(!n) return;
     const {id, ...resto} = n;
