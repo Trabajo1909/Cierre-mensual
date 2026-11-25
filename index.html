@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 131 · Elegir qué papeles de trabajo descargar</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 133 · Borrar o pasar licencias a otra empresa</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -610,7 +610,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <section id="vExpediente" hidden>
     <div class="months" id="emonths"></div>
     <div id="ebody"></div>
-    <input type="file" id="expFile" accept=".pdf,image/*" multiple hidden>
+    <input type="file" id="expFile" accept=".pdf,image/*,.heic,.heif" multiple hidden><input type="file" id="expCam" accept="image/*" capture="environment" hidden>
   </section>
 
   <section id="vDashboard" hidden>
@@ -704,6 +704,13 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="camDlg" style="width:min(400px,92vw)">
+  <h2>Escaneo</h2>
+  <p id="camTxt" style="font-size:14px;margin:0 0 6px"></p>
+  <div id="camMini" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  <div class="dlg-actions"><button class="btn" id="camCancel">Cancelar</button><button class="btn" id="camOtra">📷 Otra hoja</button><button class="btn primary" id="camListo">Listo, guardar</button></div>
 </dialog>
 
 <dialog id="ptSelDlg" style="width:min(460px,94vw)">
@@ -5445,7 +5452,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // Pólizas
     html += `<div class="bpanel"><h3>Pólizas impresas<small>Sube el PDF de las pólizas del mes que imprimes de CONTPAQi. Puedes subir uno o varios.</small></h3><div style="padding:12px 14px">
       <div class="docs">${(e.polizas||[]).map((a,i)=>docBtn(a,"polizas",i)).join("") || '<span class="fsub">Todavía no hay pólizas de este mes.</span>'}</div>
-      ${canWrite?`<div class="pairbar"><button class="btn sm primary" data-esubir="polizas">Subir pólizas (PDF)</button></div>`:""}</div></div>`;
+      ${canWrite?`<div class="pairbar"><button class="btn sm primary" data-esubir="polizas">Subir pólizas (PDF o foto)</button><button class="btn sm" data-ecam="polizas">📷 Escanear</button></div>`:""}</div></div>`;
     // Invoices
     html += `<div class="bpanel"><h3>Invoices de licencias<small>Las facturas de tus licencias y suscripciones. Cada mes subes la de cada una.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><tbody>`;
     if(!licencias.length) html += `<tr><td><span class="fsub">Agrega tus licencias (por ejemplo Adobe, Freepik o Canva) para llevar el control mes por mes.</span></td></tr>`;
@@ -5453,7 +5460,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const arr = (e.invoices||{})[l.id]||[], na = (e.noAplica||{})[l.id];
       html += `<tr><td><strong>${esc(l.nombre)}</strong>${l.montoRef?`<div class="fsub">Aprox. ${f(+l.montoRef)} al mes</div>`:""}<div class="docs">${arr.map((a,i)=>docBtn(a,`inv:${l.id}`,i)).join("")}</div></td>
         <td style="text-align:right;white-space:nowrap">${arr.length ? '<span class="st pagado">Lista</span>' : na ? '<span class="st na">No aplica este mes</span>' : '<span class="st vencido">Falta</span>'}
-        ${canWrite?`<div class="acts" style="justify-content:flex-end"><button class="linkbtn" data-esubir="inv:${l.id}">Subir invoice</button>${arr.length?"":`<button class="linkbtn" data-ena="${l.id}">${na?"Sí aplica":"No aplica este mes"}</button>`}<button class="linkbtn" data-ebaja="${l.id}">Ya no la uso</button></div>`:""}</td></tr>`;
+        ${canWrite?`<div class="acts" style="justify-content:flex-end"><button class="linkbtn" data-esubir="inv:${l.id}">Subir invoice</button><button class="linkbtn" data-ecam="inv:${l.id}" title="Toma una foto con la cámara del celular o del iPad">📷 Escanear</button>${arr.length?"":`<button class="linkbtn" data-ena="${l.id}">${na?"Sí aplica":"No aplica este mes"}</button>`}<button class="linkbtn" data-ebaja="${l.id}">Ya no la uso</button>${empresas.length>1?`<button class="linkbtn" data-emover="${l.id}">Pasar a otra empresa</button>`:""}<button class="linkbtn" data-eborrar="${l.id}">Borrar</button></div>`:""}</td></tr>`;
     }
     html += `</tbody></table></div>${canWrite?`<div class="pairbar" style="padding:0 14px 14px"><input id="licNombre" placeholder="Nombre de la licencia" style="max-width:240px" aria-label="Nombre de la licencia"><button class="btn sm" id="licAdd">Agregar licencia</button></div>`:""}</div>`;
     html += `</div>`;
@@ -5496,6 +5503,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   $("ebody").addEventListener("click", async e => {
     const sub = e.target.closest("[data-esubir]"); if(sub){ expDestino = sub.dataset.esubir; $("expFile").click(); return; }
+    const cam = e.target.closest("[data-ecam]"); if(cam){ expDestino = cam.dataset.ecam; expFotos = []; $("expCam").click(); return; }
     const dl = e.target.closest("[data-edl]");
     if(dl){ const ctx = dl.dataset.edl, ex = expDe(eMes), arr = ctx==="polizas" ? ex.polizas : (ex.invoices||{})[ctx.slice(4)]; const a = (arr||[])[+dl.dataset.ix]; if(a) descargarAsset(a); return; }
     const q = e.target.closest("[data-equitar]");
@@ -5508,6 +5516,19 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       return; }
     const na = e.target.closest("[data-ena]");
     if(na){ const ex = expDe(eMes), m = {...(ex.noAplica||{})}; m[na.dataset.ena] = !m[na.dataset.ena]; try{ await guardarExp(eMes, {noAplica: m}); }catch(err){ handleWriteError(err); } return; }
+    const bor = e.target.closest("[data-eborrar]"); if(bor){ const l = licencias.find(x=>x.id===bor.dataset.eborrar); if(!l) return;
+      const conInv = Object.entries(expedientes).filter(([k, x])=>((x.invoices||{})[l.id]||[]).length);
+      if(!await confirmar(`¿Borrar ${l.nombre} de ${empresaNombre}? ${conInv.length ? `Tiene invoices en ${conInv.length} ${conInv.length===1?"mes":"meses"}; también se quitan.` : "No tiene invoices subidas."} Si la agregaste en la empresa equivocada, mejor usa "Pasar a otra empresa".`)) return;
+      try{ for(const [k, x] of Object.entries(expedientes)){ const inv = {...(x.invoices||{})}, na = {...(x.noAplica||{})}; if(!(l.id in inv) && !(l.id in na)) continue; delete inv[l.id]; delete na[l.id]; const d = {...x, invoices: inv, noAplica: na}; await db.doc(`empresas/${empresa}/expedientes/${k}`).set(d); expedientes = {...expedientes, [k]: d}; }
+        await db.doc(`empresas/${empresa}/licencias/${l.id}`).delete(); toast(`Listo: borré ${l.nombre}.`); renderExpediente(); }catch(err){ handleWriteError(err); } return; }
+    const mov = e.target.closest("[data-emover]"); if(mov){ const l = licencias.find(x=>x.id===mov.dataset.emover); if(!l) return;
+      const otras = empresas.filter(x=>x.id!==empresa); const v = prompt(`¿A qué empresa pasas ${l.nombre}? Escribe el número:\n${otras.map((x,i)=>`${i+1}. ${x.nombre}`).join("\n")}`, "1"); if(v==null) return; const dest = otras[(+v||0)-1]; if(!dest){ toast("Escribe el número de la empresa."); return; }
+      if(!await confirmar(`¿Pasar ${l.nombre} (y sus invoices subidas) de ${empresaNombre} a ${dest.nombre}?`)) return;
+      try{ setSaving("Moviendo…"); const {id, ...resto} = l; await db.doc(`empresas/${dest.id}/licencias/${id}`).set({...resto, activa: true});
+        for(const [k, x] of Object.entries(expedientes)){ const arr = (x.invoices||{})[id]||[]; const na = (x.noAplica||{})[id]; if(!arr.length && !na) continue;
+          const ref = db.doc(`empresas/${dest.id}/expedientes/${k}`), s = await ref.get(), dd = s.exists ? (s.data()||{}) : {}; const inv2 = {...(dd.invoices||{})}; if(arr.length) inv2[id] = [...(inv2[id]||[]), ...arr]; const na2 = {...(dd.noAplica||{})}; if(na && !arr.length) na2[id] = true; await ref.set({...dd, invoices: inv2, noAplica: na2});
+          const inv = {...(x.invoices||{})}, naL = {...(x.noAplica||{})}; delete inv[id]; delete naL[id]; const d = {...x, invoices: inv, noAplica: naL}; await db.doc(`empresas/${empresa}/expedientes/${k}`).set(d); expedientes = {...expedientes, [k]: d}; }
+        await db.doc(`empresas/${empresa}/licencias/${id}`).delete(); setSaving("Guardado"); toast(`Listo: ${l.nombre} ahora está en ${dest.nombre}.`); renderExpediente(); }catch(err){ setSaving(""); handleWriteError(err); } return; }
     const baja = e.target.closest("[data-ebaja]");
     if(baja){ const l = licencias.find(x=>x.id===baja.dataset.ebaja); if(!l || !await confirmar(`¿Dejar de pedir la invoice de ${l.nombre} a partir de ahora?`)) return;
       try{ const {id, ...resto} = l; await db.doc(`empresas/${empresa}/licencias/${id}`).set({...resto, activa:false}); }catch(err){ handleWriteError(err); } return; }
@@ -5522,10 +5543,36 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(e.target.closest("#expZipAnual")) armarZipAnual();
     if(e.target.closest("#respaldoBtn")) descargarRespaldo();
   });
+  // Escanear con la cámara: cada foto se agrega; al terminar se juntan en un solo PDF
+  let expFotos = [];
+  $("expCam").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ""; if(!f || !expDestino) return; expFotos.push(f);
+    $("camTxt").textContent = `Llevas ${expFotos.length} ${expFotos.length===1?"hoja":"hojas"}. Se guardarán juntas en un solo PDF.`;
+    $("camMini").innerHTML = expFotos.map(x=>`<img src="${URL.createObjectURL(x)}" alt="" style="height:70px;border-radius:6px;border:1px solid var(--line)">`).join("");
+    if(!$("camDlg").open) $("camDlg").showModal();
+  };
+  $("camOtra").onclick = () => $("expCam").click();
+  $("camCancel").onclick = () => { expFotos = []; expDestino = null; $("camDlg").close(); };
+  $("camListo").onclick = async () => { $("camDlg").close(); const fotos = expFotos; expFotos = []; if(fotos.length) await subirExp(fotos, true); };
+  async function fotosAPdf(fotos, nombre){
+    await loadLibs("pdf"); const {jsPDF} = window.jspdf; let doc = null;
+    for(const f of fotos){ const bmp = await createImageBitmap(f), esc2 = Math.min(1, 2000/Math.max(bmp.width, bmp.height)), cv = document.createElement("canvas"); cv.width = Math.round(bmp.width*esc2); cv.height = Math.round(bmp.height*esc2); cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+      const W = 612, H = 792, M = 18, k = Math.min((W-2*M)/cv.width, (H-2*M)/cv.height), w = cv.width*k, hh = cv.height*k;
+      if(!doc) doc = new jsPDF({unit:"pt", format:"letter"}); else doc.addPage("letter");
+      doc.addImage(cv.toDataURL("image/jpeg", .85), "JPEG", (W-w)/2, (H-hh)/2, w, hh); }
+    doc.__estampado = true; return new File([doc.output("blob")], nombre, {type:"application/pdf"});
+  }
   $("expFile").onchange = async e => {
     const files = [...e.target.files]; e.target.value = ""; if(!files.length || !expDestino) return;
+    const fotos = files.filter(f=>/^image\//.test(f.type||"") || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name));
+    if(fotos.length > 1 && fotos.length === files.length && await confirmar(`Son ${fotos.length} fotos. ¿Las junto en un solo PDF (como un escaneo de varias hojas)?`)) return subirExp(fotos, true);
+    return subirExp(files, false);
+  };
+  async function subirExp(files, juntarFotos){
+    if(!expDestino) return;
     if(!assets){ toast("No se pueden guardar archivos en esta vista."); return; }
     const destino = expDestino; expDestino = null;
+    if(juntarFotos){ try{ setSaving("Armando el PDF…"); const lic = destino.startsWith("inv:") ? (licencias.find(l=>l.id===destino.slice(4))||{}).nombre : "Polizas"; files = [await fotosAPdf(files, `${lic || "Invoice"} ${ABR[eMes-1]} ${year}.pdf`)]; }catch(err){ console.error(err); toast("No pude convertir las fotos a PDF; las subo como fotos."); } }
     try{
       setSaving("Subiendo…"); const subidos = [];
       for(const f of files){ const up = await assets.upload(f); subidos.push({id: up.id, nombre: f.name, subido: hoyISO}); }
