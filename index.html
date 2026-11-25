@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 125 · Arreglo del Expediente</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 128 · Logo también en los Excel</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -748,6 +748,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div id="dcPrev" style="min-height:40px;display:flex;align-items:center"></div><button class="btn sm" type="button" onclick="document.getElementById('dcLogoFile').click()">Subir logo (PNG o JPG)</button><button class="linkbtn" id="dcQuitar" type="button">quitar</button><input type="file" id="dcLogoFile" accept="image/png,image/jpeg,image/webp" hidden></div>
   <label class="check"><input type="checkbox" id="dcLogoApp" checked><span>Mostrar el logo en la app</span></label>
   <label class="check"><input type="checkbox" id="dcLogoPdf" checked><span>Poner el logo en todos los PDF (arriba a la derecha)</span></label>
+  <label class="check"><input type="checkbox" id="dcLogoXls" checked><span>Poner el logo en los Excel (a un lado de la tabla, en cada hoja)</span></label>
   <label for="dcPie">Pie de página de los PDF (opcional)</label><input id="dcPie" autocomplete="off" placeholder="Ej.: Plataforma Estratégica de Negocios Digitales · RFC PEN250903PU0 · Documento interno">
   <label>Firmas</label>
   <div style="display:grid;grid-template-columns:1fr 2fr;gap:6px"><input data-dcrol="0" placeholder="Elaboró"><input data-dcnom="0" placeholder="Nombre"><input data-dcrol="1" placeholder="Revisó"><input data-dcnom="1" placeholder="Nombre"><input data-dcrol="2" placeholder="Autorizó"><input data-dcnom="2" placeholder="Nombre"></div>
@@ -1663,7 +1664,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
   const loaded = {};
   function loadScript(src){ return loaded[src] ||= new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>{delete loaded[src]; rej(new Error("load"));}; document.head.appendChild(s); }); }
-  async function loadLibs(k){ for(const s of LIBS[k]) await loadScript(s); if(k==="pdf") parcharJsPDF(); }
+  async function loadLibs(k){ for(const s of LIBS[k]) await loadScript(s); if(k==="pdf") parcharJsPDF(); if(k==="excel") parcharExcel(); }
 
   const TXT = {done:"Listo", wip:"Por registrar", na:"N/A", "":""};
   function filas(){
@@ -3186,7 +3187,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     await loadLibs("excel");
     const snap = await db.doc(`empresas/${empresa}/plantillas/${cta.id}`).get(); if(!snap.exists) throw new Error("plantilla");
     const bin = atob(snap.data().b64), bytes = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
-    const wb = new ExcelJS.Workbook(); await wb.xlsx.load(bytes.buffer);
+    const wb = new ExcelJS.Workbook(); await wb.xlsx.load(bytes.buffer); wb.__sinLogo = true; // tu propio formato se respeta tal cual
     const E = k.e, m = c.mes, y = c.anio;
     const txt = v => String(v==null ? "" : (typeof v==="object" && v.richText ? v.richText.map(t=>t.text).join("") : v)).trim();
     const norm = v => sinAcento(txt(v)).replace(/\s+/g," ");
@@ -3427,8 +3428,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${i} de ${n}`, W - Mg, doc.internal.pageSize.getHeight() - 20, {align:"right"}); }
     window.__pdfNota = M.nota || ""; window.__pdfLogoPos = M.logo;
   }
-  function abrirEditorPdf(datos){ return new Promise(res=>{
-    pdfModelo = modeloConc(datos); pintarEditorPdf(); const dlg = $("pdfEdDlg");
+  function abrirEditorPdf(datos, modelo){ return new Promise(res=>{
+    pdfModelo = modelo || modeloConc(datos); pintarEditorPdf(); const dlg = $("pdfEdDlg");
     const fin = v => { dlg.close(); $("peOk").onclick = $("peCancel").onclick = null; res(v); };
     $("peOk").onclick = () => { leerEditorPdf(); fin(pdfModelo); }; $("peCancel").onclick = () => fin(null); dlg.showModal(); }); }
   $("pdfEdDlg").addEventListener("click", e => {
@@ -4149,7 +4150,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         o.clave==="imss" && d.pagada ? (d.contpaq ? "Registrado en CONTPAQi" : "Falta registrarlo en CONTPAQi") : "",
         banco ? `<strong>Encontré un retiro de ${f(banco.monto)} en ${esc(banco.cuenta)} el ${fechaCorta(banco.fecha)}</strong>` : ""].filter(Boolean).join(" · ");
       const acts = canWrite ? [ !d.presentada && !e.porTablero ? `<button class="linkbtn" data-act="presentar" data-cl="${o.clave}">${o.clave==="imss"?"Registrar cuotas del mes":"Marcar presentada"}</button>` : "",
-        `<button class="linkbtn" data-act="detalle" data-cl="${o.clave}">Recargos, compensación y notas</button>`,
+        `<button class="linkbtn" data-act="detalle" data-cl="${o.clave}">Recargos, compensación y notas</button>`, `<button class="linkbtn" data-pt="${o.clave}">Papel de trabajo (PDF)</button> <button class="linkbtn" data-pted="${o.clave}" title="Ver y editar antes de descargar">editar</button>`,
         !d.presentada && e.st!=="noaplica" ? `<button class="linkbtn" data-act="noaplica" data-cl="${o.clave}">No aplica este mes</button> <button class="linkbtn" data-act="noaplicaEmp" data-cl="${o.clave}">No aplica a esta empresa</button>` : "",
         e.st==="noaplica" ? `<button class="linkbtn" data-act="${e.noEmp?"siaplicaEmp":"siaplica"}" data-cl="${o.clave}">${e.noEmp?"Sí aplica a esta empresa":"Sí aplica este mes"}</button>` : "",
         d.presentada && +d.aPagar>0 && !d.pagada ? `<button class="linkbtn" data-act="pagar" data-cl="${o.clave}">Marcar pagada</button>` : "",
@@ -4242,7 +4243,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(m%3===0){ filasIng += `<tr style="background:var(--group)"><td><strong>Trimestre ${m/3}</strong></td><td class="num"><strong>${f(trim)}</strong></td><td></td><td></td></tr>`; trim = 0; }
     }
     const tablaIng = `<div class="bpanel"><h3>Ingresos nominales ${year}<small>Facturas emitidas vigentes, por mes, acumulado y por trimestre, comparadas con la cuenta 401 de tu balanza.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Mes</th><th class="num">Ingresos del mes</th><th class="num">Acumulado</th><th class="num">Balanza (401)</th></tr></thead><tbody>${filasIng}<tr><td><strong>Total del año</strong></td><td class="num"><strong>${f(acum)}</strong></td><td></td><td></td></tr></tbody></table></div></div>`;
-    $("ibody").innerHTML = `<div class="imp-grid">${calc}${ctl}</div>${htmlFuentesCalculo(k)}${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}${htmlIMSSEmpleados()}`;
+    $("ibody").innerHTML = `${downloads ? `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="fsub" style="max-width:none">Papeles de trabajo para anexar a tus pólizas:</span><button class="btn sm" data-ptall="1">Todos los impuestos de ${MESES[iMes-1].toLowerCase()} (un PDF por impuesto, .zip)</button><button class="btn sm" data-ptmes="1">Cálculo completo del mes (PDF)</button></div>` : ""}<div class="imp-grid">${calc}${ctl}</div>${htmlFuentesCalculo(k)}${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}${htmlIMSSEmpleados()}`;
   }
 
   $("imonths").addEventListener("click", e => { const b = e.target.closest("[data-imes]"); if(b){ iMes = +b.dataset.imes; renderImpuestos(); } });
@@ -4263,6 +4264,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(e.target.closest("#cuBorrar")){ if(!await confirmar("¿Quitar tu cálculo de este mes?")) return; try{ await db.doc(`empresas/${empresa}/calcUsuario/${mesKey(year, iMes)}`).delete(); const c = {...calcUsr}; delete c[mesKey(year, iMes)]; calcUsr = c; renderImpuestos(); }catch(err){ handleWriteError(err); } return; }
   });
   $("ibody").addEventListener("click", async e => {
+    const pe = e.target.closest("[data-pted]"); if(pe){ try{ await papelEditar(pe.dataset.pted, year, iMes); }catch(err){ console.error(err); toast("No se pudo abrir el editor."); } return; }
+    const pt = e.target.closest("[data-pt]"); if(pt){ try{ await papelTrabajo(pt.dataset.pt, year, iMes); }catch(err){ console.error(err); toast("No se pudo armar el papel de trabajo."); } return; }
+    if(e.target.closest("[data-ptall]")){ try{ await papelesTodos(year, iMes); }catch(err){ console.error(err); toast("No se pudieron armar los papeles de trabajo."); } return; }
+    if(e.target.closest("[data-ptmes]")){ await exportImpuestos("pdf"); return; }
     const at = e.target.closest("[data-archtipo]");
     if(at){ const cl = at.dataset.archtipo, id = declId(year, iMes, cl), prev = declDe(year, iMes, cl); if(!prev) return; const ix = +at.dataset.ix, a = (prev.archivos||[])[ix]; if(!a) return;
       const nuevo = await elegirTipoArchivo(a.nombre, a.tipo || "acuse"); if(!nuevo || nuevo===a.tipo) return;
@@ -4543,6 +4548,88 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       }catch(err){ toast("No se pudo preparar el Excel."); }
     }
   });
+
+  // ---------- Papeles de trabajo: el cálculo de cada impuesto por separado (para anexarlo a su póliza) ----------
+  function datosPapel(cl, y, m){
+    const k = calcMes(y, m), F = k.fuentes || {}, f = money.format, d = declDe(y, m, cl) || {}, o = OBLIG.find(x=>x.clave===cl) || {nombre: cl};
+    const R = (t, v, fuerte) => [t, typeof v==="number" ? f(v) : (v ?? ""), fuerte ? 1 : 0];
+    const out = {titulo: o.nombre, resumen: [], tablas: [], notas: []};
+    const recibos = arr => ({titulo:"Recibos de nómina del mes", head:["Empleado","Fecha de pago","Percepciones","Exento","ISR retenido","IMSS obrero"], body: arr.map(n=>[n.nombre||"", n.fechaPago||"", f(+n.percepciones||0), f(+n.exento||0), f(+n.isr||0), f(+n.imss||0)]), tot: ["Total", "", f(arr.reduce((s,n)=>s+(+n.percepciones||0),0)), f(arr.reduce((s,n)=>s+(+n.exento||0),0)), f(arr.reduce((s,n)=>s+(+n.isr||0),0)), f(arr.reduce((s,n)=>s+(+n.imss||0),0))]});
+    const nm = (F.nm||[]);
+    if(cl==="iva"){
+      out.resumen = [R("IVA trasladado cobrado (base)", k.trasBase), R("IVA trasladado cobrado", k.tras), R("(-) IVA retenido por tus clientes", k.ivaRetCli), R("IVA trasladado neto", r2(k.tras - k.ivaRetCli), 1),
+        R("IVA acreditable pagado (base)", k.acrBase), R("(-) IVA acreditable pagado", k.acr), R("(+) IVA que retuviste a tus proveedores", k.ret.iva), R(k.ivaNeto >= 0 ? "IVA a cargo del mes" : "Saldo a favor del mes", Math.abs(k.ivaNeto), 1)];
+      const tr = [...(F.ePUE||[]).map(x=>["PUE emitida", x.fecha, x.nombre, x.folio||String(x.uuid).slice(0,8), +x.ivaBase||0, +x.iva||0]), ...(F.cobrosMes||[]).map(x=>[x.deComp?"Cobro (complemento)":"Cobro de PPD", x.f.fecha, x.f.nombre, x.f.folio||String(x.f.uuid).slice(0,8), x.ivaBase ?? (+x.f.ivaBase||0)*x.p, x.iva ?? (+x.f.iva||0)*x.p]), ...(F.huerfE||[]).map(c=>["Complemento sin factura", String(c.fechaPago).slice(0,10), c.nombre, String(c.uuid).slice(0,8), +c.ivaBase||0, +c.iva||0])];
+      const ac = [...(F.rPUE||[]).filter(x=>!x.noDed).map(x=>["PUE recibida", x.fecha, x.nombre, x.folio||String(x.uuid).slice(0,8), +x.ivaBase||0, +x.iva||0]), ...(F.pagosMes||[]).filter(x=>!x.f.noDed).map(x=>[x.deComp?"Pago (complemento)":"Pago de PPD", x.f.fecha, x.f.nombre, x.f.folio||String(x.f.uuid).slice(0,8), x.ivaBase ?? (+x.f.ivaBase||0)*x.p, x.iva ?? (+x.f.iva||0)*x.p]), ...(F.huerfanos||[]).map(c=>["Complemento sin factura", String(c.fechaPago).slice(0,10), c.nombre, String(c.uuid).slice(0,8), +c.ivaBase||0, +c.iva||0])];
+      const tabla = (t, rows) => ({titulo: t, head:["De dónde sale","Fecha","Cliente o proveedor","Folio","Base","IVA"], body: rows.map(r=>[r[0], r[1], String(r[2]||"").slice(0,40), r[3], f(r2(r[4])), f(r2(r[5]))]), tot:["Total","","","", f(r2(rows.reduce((s,r)=>s+r[4],0))), f(r2(rows.reduce((s,r)=>s+r[5],0)))]});
+      out.tablas.push(tabla("IVA trasladado cobrado", tr), tabla("IVA acreditable pagado", ac));
+      if(d.ivaDecl) out.notas.push(`Declarado en el SAT: trasladado ${f(+d.ivaDecl.trasladado||0)} · acreditable ${f(+d.ivaDecl.acreditable||0)} · retenido ${f(+d.ivaDecl.retenido||0)}.`);
+    } else if(cl==="isr-pm"){
+      out.resumen = [R("Ingresos nominales del mes", k.ingMes), R("Ingresos de meses anteriores", k.ingAnt), R("Ingresos acumulados", k.ingAcum, 1), R("Coeficiente de utilidad", String(+k.cfg.coeficiente||0)), R("Utilidad fiscal estimada", k.utilidad), R("ISR causado (30%)", k.isrCausado), R("(-) Pagos provisionales anteriores", k.pagosAnt), R("ISR a pagar del mes", k.isrPM, 1)];
+      out.tablas.push({titulo:"Facturas emitidas del mes (ingresos)", head:["Fecha","Cliente","Folio","Subtotal"], body:(F.ingresos||[]).map(x=>[x.fecha, String(x.nombre||"").slice(0,45), x.folio||String(x.uuid).slice(0,8), f(+x.subtotal||0)]), tot:["Total","","", f(k.ingMes)]});
+    } else if(cl==="isr-sueldos" || cl==="isr-asim"){
+      const arr = nm.filter(n=>cl==="isr-sueldos" ? +n.imss>0 : !(+n.imss>0));
+      out.resumen = cl==="isr-sueldos" ? [R("Sueldos pagados en el mes", k.nom.sueldos), R("Parte exenta", k.nom.sueldosEx), R("ISR retenido a enterar", k.nom.isrSueldos, 1)] : [R("Asimilados pagados en el mes", k.nom.asim), R("Parte exenta", k.nom.asimEx), R("ISR retenido a enterar", k.nom.isrAsim, 1)];
+      out.tablas.push(recibos(arr));
+    } else if(["iva-ret","isr-ret","ced-hon","ced-resico"].includes(cl)){
+      const docs = [...(F.rPUE||[]).map(x=>({f:x, p:1})), ...(F.pagosMes||[])].filter(x=>(+x.f.ivaRet||0) || (+x.f.isrRet||0));
+      out.resumen = cl==="iva-ret" ? [R("IVA retenido a proveedores (a enterar)", k.ret.iva, 1)] : cl==="isr-ret" ? [R("ISR retenido a personas físicas (honorarios y arrendamiento)", k.ret.isrPF), R("ISR retenido a RESICO", k.ret.isrRES), R("Total ISR retenido a enterar", r2(k.ret.isrPF + k.ret.isrRES), 1)] : cl==="ced-hon" ? [R("Cedular honorarios a enterar", k.ret.cedPF, 1)] : [R("Cedular RESICO a enterar", k.ret.cedRES, 1)];
+      out.tablas.push({titulo:"Facturas pagadas con retenciones", head:["Fecha","Proveedor","Folio","% pagado","IVA retenido","ISR retenido"], body: docs.map(x=>[x.f.fecha, String(x.f.nombre||"").slice(0,40), x.f.folio||String(x.f.uuid).slice(0,8), `${Math.round(x.p*1000)/10}%`, f(r2((+x.f.ivaRet||0)*x.p)), f(r2((+x.f.isrRet||0)*x.p))])});
+    } else if(cl==="isn"){
+      out.resumen = [R("Sueldos del mes", k.nom.sueldos), R("Asimilados del mes", k.nom.asim), R("Base gravable", r2(k.nom.sueldos + k.nom.asim), 1), R("Tasa", `${r2((+k.cfg.tasaISN||0)*100)}%`), R("Impuesto sobre nómina", k.isn, 1)];
+      out.tablas.push(recibos(nm));
+    } else if(cl==="imss"){
+      const im = d.imssDet || {};
+      out.resumen = [R("Cuotas IMSS", +im.imss||0), R("RCV (bimestral)", +im.rcv||0), R("INFONAVIT (bimestral)", +im.inf||0), R("Actualización", +im.actualizacion||0), R("Recargos", +im.recargos||0), R("Parte patronal", +im.patronal||0), R("Parte obrera", +im.obrera||0), R("Total a pagar de la línea de captura", +d.aPagar||0, 1), R("IMSS obrero retenido en nómina", r2(nm.reduce((s,n)=>s+(+n.imss||0),0)))];
+      if(!d.imssDet) out.notas.push("Sube la línea de captura del SUA del mes para que el papel de trabajo traiga el desglose.");
+      out.tablas.push(recibos(nm.filter(n=>+n.imss>0)));
+    } else if(cl==="diot"){
+      out.resumen = [R("Proveedores", String((k.diot.rows||[]).length)), R("Base al 16%", k.diot.b16), R("IVA pagado", k.diot.ivaExacto, 1)];
+      out.tablas.push({titulo:"Proveedores", head:["RFC","Proveedor","Base 16%","IVA","Base 0%","IVA retenido"], body:(k.diot.rows||[]).map(g=>[g.rfc||"SIN RFC", String(g.nombre||"").slice(0,40), f(r2(g.b16)), f(r2(g.iva)), f(r2(g.b0)), f(r2(g.ret))])});
+    }
+    if(d.presentada) out.notas.push(`Presentada${d.fechaPresentacion?` el ${d.fechaPresentacion}`:""}${d.operacion?` · número de operación ${d.operacion}`:""} · ${+d.aFavor ? `saldo a favor ${f(+d.aFavor)}` : `a pagar ${f(+d.aPagar||0)}`}${d.pagada?` · pagada${d.fechaPago?` el ${d.fechaPago}`:""}`:""}.`);
+    return out;
+  }
+  async function papelTrabajo(cl, y, m, soloBlob){
+    await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt", format:"letter"}), W = doc.internal.pageSize.getWidth(), M = 40, VINO = [122,31,61];
+    const P = datosPapel(cl, y, m), e = empActual();
+    doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(empresaNombre, M, 46);
+    doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(`Papel de trabajo · ${P.titulo}`, M, 64);
+    doc.setFontSize(8.5); doc.setTextColor(120); doc.text(`Periodo: ${MESES[m-1]} ${y}${e.rfc?`    RFC: ${e.rfc}`:""}    Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`, M, 82);
+    doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(M, 96, W-M, 96); doc.setLineWidth(.5);
+    const est = {theme:"grid", margin:{left:M, right:M, top:84}, styles:{fontSize:8.5, cellPadding:4, lineColor:[210,210,210], lineWidth:.5}, headStyles:{fillColor:VINO, textColor:[255,255,255]}};
+    doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...VINO); doc.text("Cálculo", M, 118);
+    doc.autoTable({...est, startY:126, head:[["Concepto",{content:"Importe",styles:{halign:"right"}}]], columnStyles:{1:{cellWidth:130, halign:"right"}}, body: P.resumen.map(([t,v,b])=>[{content:t, styles:{fontStyle:b?"bold":"normal", fillColor:b?[245,238,241]:[255,255,255]}},{content:v, styles:{fontStyle:b?"bold":"normal", fillColor:b?[245,238,241]:[255,255,255]}}])});
+    let yy = doc.lastAutoTable.finalY + 14;
+    if(P.notas.length){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60); const ls = doc.splitTextToSize(P.notas.join(" "), W-2*M); doc.text(ls, M, yy); yy += ls.length*11 + 6; }
+    for(const t of P.tablas){ doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...VINO); if(yy > doc.internal.pageSize.getHeight() - 120){ doc.addPage(); yy = 70; } doc.text(t.titulo, M, yy + 8);
+      const nCol = t.head.length, der = t.head.map((h,i)=>i>=nCol-3 && i>0 && !/fecha|rfc|folio|proveedor|cliente|empleado/i.test(h));
+      doc.autoTable({...est, startY: yy + 14, head:[t.head.map((h,i)=>({content:h, styles:{halign: der[i]?"right":"left"}}))], body: (t.body.length ? t.body : [[{content:"Sin movimientos en el mes", colSpan:nCol}]]).map(r=>Array.isArray(r) ? r.map((c,i)=>typeof c==="object" ? c : {content:String(c), styles:{halign: der[i]?"right":"left"}}) : r), foot: t.tot ? [t.tot.map((c,i)=>({content:c, styles:{halign: der[i]?"right":"left", fontStyle:"bold"}}))] : undefined, footStyles:{fillColor:[245,238,241], textColor:[20,20,20]}});
+      yy = doc.lastAutoTable.finalY + 22; }
+    doc.setFontSize(8); doc.setTextColor(140); const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.text(`Página ${i} de ${n}`, W-M, doc.internal.pageSize.getHeight()-20, {align:"right"}); }
+    const nombre = `Papel de trabajo ${P.titulo} ${empresaNombre} ${ABR[m-1]} ${y}.pdf`.replace(/[\\/:*?"<>|]/g,"");
+    const blob = doc.output("blob"); if(soloBlob) return {nombre, blob}; await guardarArchivo(nombre, blob);
+  }
+  function modeloPapel(cl, y, m){
+    const P = datosPapel(cl, y, m), e = empActual();
+    const tabla = t => ({id: t.titulo, titulo: t.titulo, resumen: "", nueva: false, visible: true, head: t.head.slice(), der: t.head.map((h,i)=>i>=t.head.length-3 && i>0 && !/fecha|rfc|folio|proveedor|cliente|empleado/i.test(h) ? i : -1).filter(i=>i>=0),
+      filas: [...t.body.map(r=>({cells: r.map(c=>typeof c==="object" ? String(c.content||"") : String(c))})), ...(t.tot ? [{cells: t.tot.map(String), bold: true, fondo: true}] : [])]});
+    return {empresa: empresaNombre, titulo: `Papel de trabajo · ${P.titulo}`, datos: `Periodo: ${MESES[m-1]} ${y}${e.rfc?`    RFC: ${e.rfc}`:""}    Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`,
+      logo: "derecha", orient: "portrait", letra: 8.5, nota: P.notas.join(" "), nombreArchivo: `Papel de trabajo ${P.titulo} ${empresaNombre} ${ABR[m-1]} ${y}.pdf`.replace(/[\\/:*?"<>|]/g,""),
+      secciones: [{id:"calc", titulo:"Cálculo", resumen:"", nueva:true, visible:true, head:["Concepto","Importe"], der:[1], filas: P.resumen.map(([t,v,b])=>({cells:[t, String(v)], bold: !!b, fondo: !!b}))}, ...P.tablas.map(tabla)]};
+  }
+  async function papelEditar(cl, y, m){
+    const M = await abrirEditorPdf(null, modeloPapel(cl, y, m)); if(!M) return;
+    await loadLibs("pdf"); const doc = new (window.jspdf.jsPDF)({orientation: M.orient, unit:"pt", format:"letter"}); pdfDesdeModelo(doc);
+    await guardarArchivo(M.nombreArchivo || "Papel de trabajo.pdf", doc.output("blob"));
+  }
+  async function papelesTodos(y, m){
+    const k = calcMes(y, m), claves = OBLIG.filter(o=>{ const d = declDe(y, m, o.clave); return o.clave==="imss" ? !!d : o.clave==="diot" ? (k.diot.rows||[]).length : Math.abs(k.montos[o.clave]||0) > 0.004 || (d && d.presentada) || o.clave==="iva" || o.clave==="isr-pm"; }).map(o=>o.clave);
+    await loadLibs("zip"); const zip = new JSZip(), raiz = zip.folder(`Papeles de trabajo ${empresaNombre} ${MESES[m-1]} ${y}`);
+    let n = 0; for(const cl of claves){ n++; setSaving(`Papel ${n} de ${claves.length}…`); try{ const p = await papelTrabajo(cl, y, m, true); raiz.file(p.nombre, p.blob); }catch(e){ console.error(e); } }
+    setSaving(""); await guardarArchivo(`Papeles de trabajo ${empresaNombre} ${ABR[m-1]} ${y}.zip`, await zip.generateAsync({type:"blob"}));
+    toast(`Listo: ${claves.length} papeles de trabajo (uno por impuesto).`);
+  }
 
   async function exportImpuestos(fmt){
     const k = calcMes(year, iMes);
@@ -10221,7 +10308,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   function abrirDocCfg(){
     const e = empActual(), c = e.docCfg || {}; logoTemp = e.logo || null;
     $("dcPrev").innerHTML = logoTemp ? `<img src="${logoTemp}" alt="Logo" style="max-height:70px;max-width:100%">` : '<span class="fsub">Sin logo</span>';
-    $("dcLogoApp").checked = c.logoApp !== false; $("dcLogoPdf").checked = c.logoPdf !== false; $("dcPie").value = c.pie || "";
+    $("dcLogoApp").checked = c.logoApp !== false; $("dcLogoPdf").checked = c.logoPdf !== false; $("dcLogoXls").checked = c.logoExcel !== false; $("dcPie").value = c.pie || "";
     const F = c.firmas || [{rol:"Elaboró",nombre:""},{rol:"Revisó",nombre:""},{rol:"Autorizó",nombre:""}];
     document.querySelectorAll("[data-dcrol]").forEach((x,i)=>{ x.value = (F[i]||{}).rol || ""; }); document.querySelectorAll("[data-dcnom]").forEach((x,i)=>{ x.value = (F[i]||{}).nombre || ""; });
     $("dcFirmas").checked = !!c.firmasPdf; $("docCfgDlg").showModal();
@@ -10231,12 +10318,24 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("dcCancel").onclick = () => $("docCfgDlg").close();
   $("dcOk").onclick = async () => {
     const firmas = [...document.querySelectorAll("[data-dcrol]")].map((x,i)=>({rol: x.value.trim(), nombre: (document.querySelectorAll("[data-dcnom]")[i]||{}).value.trim()})).filter(f=>f.rol||f.nombre);
-    const docCfg = {logoApp: $("dcLogoApp").checked, logoPdf: $("dcLogoPdf").checked, pie: $("dcPie").value.trim(), firmas, firmasPdf: $("dcFirmas").checked};
+    const docCfg = {logoApp: $("dcLogoApp").checked, logoPdf: $("dcLogoPdf").checked, logoExcel: $("dcLogoXls").checked, pie: $("dcPie").value.trim(), firmas, firmasPdf: $("dcFirmas").checked};
     const e = empActual(); e.logo = logoTemp; e.docCfg = docCfg;
     try{ await db.doc(`empresas/${empresa}`).update({logo: logoTemp, docCfg}); }catch(err){ handleWriteError(err); }
     $("docCfgDlg").close(); pintarLogo(); toast("Listo: logo y formato guardados.");
   };
   // Estampa logo, pie de página, nota y firmas en todos los PDF que arma la app
+  // Logo en los Excel: se pone arriba a la derecha de cada hoja, a un lado de la tabla (no tapa datos)
+  function parcharExcel(){
+    const X = window.ExcelJS; if(!X || !X.Workbook || X.Workbook.__logoOk) return; const Orig = X.Workbook;
+    class ConLogo extends Orig { constructor(...a){ super(...a); const wb = this, x = wb.xlsx, ow = x.writeBuffer.bind(x); x.writeBuffer = async (...args) => { try{ estamparExcel(wb); }catch(e){ console.error(e); } return ow(...args); }; } }
+    ConLogo.__logoOk = true; X.Workbook = ConLogo;
+  }
+  function estamparExcel(wb){
+    const e = empActual(), c = e.docCfg || {}; if(wb.__sinLogo || wb.__logoPuesto || !e.logo || c.logoExcel === false) return; wb.__logoPuesto = true;
+    const id = wb.addImage({base64: e.logo, extension: "png"}), img = new Image(); img.src = e.logo;
+    const ratio = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 3, alto = 44, ancho = Math.min(170, Math.round(alto * ratio));
+    wb.eachSheet(ws => { const col = Math.max(1, ws.columnCount || (ws.columns||[]).length || 1); ws.addImage(id, {tl: {col: col + 0.3, row: 0.15}, ext: {width: ancho, height: Math.round(ancho / ratio)}, editAs: "oneCell"}); });
+  }
   function parcharJsPDF(){
     const J = window.jspdf && window.jspdf.jsPDF; if(!J || J.__estampaOk) return;
     // Cada documento nuevo envuelve su output() para estampar logo, pie, nota y firmas antes de guardarse
