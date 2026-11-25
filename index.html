@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 129 · Arreglos y comprobantes de pago</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 130 · IVA de facturas RESICO y pagos sin IVA</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1809,8 +1809,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       // Si algún reporte guardó la forma de pago ("99 - Por definir") en lugar del método, se corrige a PPD/PUE
       // Si una factura se guardó sin el desglose de IVA pero su total sí lo trae, se calcula con el total
       const sinIva = facturas.filter(f=>!(+f.iva) && +f.total>0 && +f.subtotal>0 && !(+f.iva0Base) && !(+f.ivaExBase));
-      sinIva.forEach(f=>{ const base = r2((+f.subtotal||0) - (+f.descuento||0)), dif = r2((+f.total||0) - base + (+f.ivaRet||0) + (+f.isrRet||0) - (+f.impLoc||0) * 0), tasa = base ? dif/base : 0;
-        if(Math.abs(tasa-0.16) < 0.006 || Math.abs(tasa-0.08) < 0.006){ f.iva = dif; f.ivaBase = base; f.ivaDerivado = true; if(canWrite) db.doc(`empresas/${empresa}/facturas/${f.id}`).update({iva: dif, ivaBase: base, ivaDerivado: true}).catch(()=>{}); } });
+      sinIva.forEach(f=>{ const base = r2((+f.subtotal||0) - (+f.descuento||0)); if(!(base>0)) return;
+        // Se prueba IVA 16% u 8%, con o sin retenciones típicas (RESICO 1.25%, honorarios/arrendamiento 10% + IVA 2/3, fletes 4%)
+        const yaRet = (+f.ivaRet||0) + (+f.isrRet||0);
+        const opciones = []; for(const t of [0.16, 0.08]) for(const ri of yaRet ? [0] : [0, 0.0125, 0.10]) for(const rv of yaRet ? [0] : [0, t*2/3, 0.04]) opciones.push({t, ri, rv});
+        const ok = opciones.find(o=>Math.abs(r2(base*(1+o.t) - base*o.ri - base*o.rv - yaRet) - (+f.total||0)) <= 0.6);
+        if(ok){ const d = {iva: r2(base*ok.t), ivaBase: base, ivaDerivado: true}; if(!yaRet){ if(ok.ri) d.isrRet = r2(base*ok.ri); if(ok.rv) d.ivaRet = r2(base*ok.rv); }
+          Object.assign(f, d); if(canWrite) db.doc(`empresas/${empresa}/facturas/${f.id}`).update(d).catch(()=>{}); } });
       const malas = facturas.filter(f=>f.metodo && f.metodo!=="PPD" && f.metodo!=="PUE");
       malas.forEach(f=>{ f.metodo = normMetodo(f.metodo); });
       if(malas.length && canWrite) malas.filter(f=>f.metodo==="PPD"||f.metodo==="PUE").forEach(f=>db.doc(`empresas/${empresa}/facturas/${f.id}`).update({metodo: f.metodo}).catch(()=>{}));
@@ -3703,6 +3708,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
 
   // --- cálculo ---
+  // Si la factura no tiene IVA guardado pero sus complementos sí, el IVA de un pago se saca con la proporción de los complementos
+  function ivaPorComp(f, cs, monto){
+    if(+f.iva > 0 || !cs || !cs.length) return {};
+    const pag = cs.reduce((s,c)=>s+(+c.impPagado||0),0), iv = cs.reduce((s,c)=>s+(+c.iva||0),0), bs = cs.reduce((s,c)=>s+(+c.ivaBase||0),0);
+    if(!(pag > 0) || !(iv > 0)) return {};
+    return {iva: r2(monto * iv / pag), ivaBase: r2(monto * bs / pag), deComp: true};
+  }
   function calcMes(y, m, memo = {}){
     const key = `${y}-${m}`; if(memo[key]) return memo[key];
     const cfg = cfgAnio(y), enMes = f => f.anio===y && f.mes===m;
@@ -3736,7 +3748,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const cobrosMes = [];
     emit.filter(f=>f.metodo==="PPD" && +f.total>0).forEach(f=>{
       const abs = memo.__idxC.ab[f.uuid];
-      if(abs && abs.length) abs.filter(a=>String(a.fecha).slice(0,7)===mesKey(y,m)).forEach(a=>cobrosMes.push({f, p:(+a.monto||0)/f.total}));
+      if(abs && abs.length) abs.filter(a=>String(a.fecha).slice(0,7)===mesKey(y,m)).forEach(a=>cobrosMes.push({f, p:(+a.monto||0)/f.total, ...ivaPorComp(f, memo.__idxC.cp[f.uuid], +a.monto||0)}));
       else (memo.__idxC.cp[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mesKey(y,m)).forEach(c=>cobrosMes.push({f, p:(+c.impPagado||0)/f.total, ...(+c.iva>0 ? {iva:+c.iva, ivaBase:+c.ivaBase||0, deComp:true} : {})}));
     });
     for(let i=cobrosMes.length-1;i>=0;i--) if(EXC.has(cobrosMes[i].f.uuid)) cobrosMes.splice(i,1);
@@ -3748,7 +3760,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const pagosMes = []; // {f, p}
     reci.filter(f=>f.metodo==="PPD" && +f.total>0).forEach(f=>{
       const abs = abIdx[f.uuid];
-      if(abs && abs.length) abs.filter(a=>String(a.fecha).slice(0,7)===mk).forEach(a=>pagosMes.push({f, p:(+a.monto||0)/f.total}));
+      if(abs && abs.length) abs.filter(a=>String(a.fecha).slice(0,7)===mk).forEach(a=>pagosMes.push({f, p:(+a.monto||0)/f.total, ...ivaPorComp(f, cpIdx[f.uuid], +a.monto||0)}));
       else (cpIdx[f.uuid]||[]).filter(c=>String(c.fechaPago).slice(0,7)===mk).forEach(c=>pagosMes.push({f, p:(+c.impPagado||0)/f.total, ...(+c.iva>0 ? {iva:+c.iva, ivaBase:+c.ivaBase||0, deComp:true} : {})}));
     });
     for(let i=pagosMes.length-1;i>=0;i--) if(EXC.has(pagosMes[i].f.uuid)) pagosMes.splice(i,1);
