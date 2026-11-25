@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 120 · Facturas pagadas por un tercero</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 122 · Revisión de balanza más clara y modo sin internet</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1043,6 +1043,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const m = document.createElement("div"); m.id = "sbMenu";
     m.innerHTML = `<button type="button" aria-haspopup="true">⋯ Cuenta</button><div><small>${(s.user.email||"").replace(/</g,"")}</small>
       ${window.GOOGLE_CLIENT_ID || window.DRIVE_SCRIPT_URL ? `<button type="button" data-a="gd">${(()=>{ try{ return localStorage.getItem("gdConectado")==="1"; }catch(_){ return false; } })() ? "Google Drive conectado ✓" : "Conectar Google Drive"}</button><button type="button" data-a="gdoff">Dejar de guardar en Drive</button>` : ""}
+      <button type="button" data-a="offline">Guardar todo para ver sin internet</button>
       <button type="button" data-a="imp">Importar respaldo (.zip)</button><button type="button" data-a="out">Cerrar sesión</button></div>
       <input type="file" accept=".zip" hidden>`;
     document.body.appendChild(m);
@@ -1051,33 +1052,61 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     panel.onclick = async e => { const a = e.target.dataset.a; panel.style.display = "none";
       if(a==="out"){ await sb.auth.signOut(); location.reload(); }
       if(a==="imp") inp.click();
+      if(a==="offline") prepararSinRed();
       if(a==="gd"){ if(window.DRIVE_SCRIPT_URL){ try{ localStorage.setItem("gdConectado","1"); }catch(_){} gdAviso("Google Drive activado: tus descargas se guardarán también ahí."); } else gdConectar(); }
       if(a==="gdoff"){ try{ localStorage.removeItem("gdConectado"); }catch(_){} GD.token = null; gdAviso("Listo: ya no se guardará en Drive."); } };
     inp.onchange = () => { const f = inp.files[0]; inp.value = ""; if(f) importarRespaldo(f); };
   }
   document.addEventListener("DOMContentLoaded", async () => {
-    const {data:{session}} = await sb.auth.getSession();
-    if(session) listo(session); else pintarLogin();
+    let session = null; try{ ({data:{session}} = await sb.auth.getSession()); }catch(_){}
+    if(session){ try{ localStorage.setItem("sbUltimo", JSON.stringify({id: session.user.id, email: session.user.email})); }catch(_){} listo(session); return; }
+    // Sin internet: si ya habías entrado antes en este aparato, se abre tu copia en modo lectura
+    let ult = null; try{ ult = JSON.parse(localStorage.getItem("sbUltimo")||"null"); }catch(_){}
+    if(!navigator.onLine && ult){ sinRed = true; listo({user: ult}); return; }
+    pintarLogin();
   });
+
+  // ---------- Modo sin internet: copia local de lo último que se vio (solo lectura) ----------
+  const IDB = (() => { let dbp = null; const abrir = () => dbp ||= new Promise((res, rej) => { const q = indexedDB.open("cierre-offline", 1); q.onupgradeneeded = () => q.result.createObjectStore("docs"); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    const tx = async (modo, fn) => { const d = await abrir(); return new Promise((res, rej) => { const t = d.transaction("docs", modo), st = t.objectStore("docs"); const r = fn(st); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); }); };
+    return { get: k => tx("readonly", st => st.get(k)).catch(()=>undefined), set: (k, v) => tx("readwrite", st => st.put(v, k)).catch(()=>{}), keys: () => tx("readonly", st => st.getAllKeys()).catch(()=>[]), all: () => tx("readonly", st => st.getAll()).catch(()=>[]) }; })();
+  let sinRed = !navigator.onLine;
+  const esFallaRed = e => !navigator.onLine || /fetch|network|Failed|Load failed|NetworkError|TypeError/i.test(String((e && (e.message || e)) || ""));
+  function avisoRed(){ let el = document.getElementById("sbOffline");
+    if(!sinRed){ if(el) el.remove(); return; }
+    if(!el){ el = document.createElement("div"); el.id = "sbOffline"; el.style.cssText = "position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:9997;background:#412402;color:#FAEEDA;font:600 13px 'IBM Plex Sans',system-ui,sans-serif;padding:7px 14px;border-radius:999px;box-shadow:0 2px 10px rgba(0,0,0,.25)"; document.body.appendChild(el); }
+    el.textContent = "Sin internet: estás viendo tu última copia. Solo lectura."; }
+  function marcarRed(off){ if(sinRed === off) return; sinRed = off; avisoRed(); }
+  window.addEventListener("online", () => { marcarRed(false); (subsTodos||[]).forEach(f=>f()); });
+  window.addEventListener("offline", () => marcarRed(true));
+  document.addEventListener("DOMContentLoaded", avisoRed);
+  const soloLectura = () => Object.assign(new Error("Sin internet: no se puede guardar. Vuelve a intentarlo cuando tengas conexión."), {code: "unavailable"});
 
   // ---------- Base de datos (misma forma que usaba la app en Claude) ----------
   const padre = p => p.split("/").slice(0,-1).join("/"), ultimo = p => p.split("/").pop();
   const error = e => Object.assign(new Error(e.message || "Error"), {code: /permission|policy|42501|JWT/i.test((e.message||"")+(e.code||"")) ? "invalid_argument" : "unavailable"});
   const subsDoc = new Map(), subsCol = new Map();
-  const agregar = (m, k, f) => { if(!m.has(k)) m.set(k, new Set()); m.get(k).add(f); return () => m.get(k).delete(f); };
+  const subsTodos = new Set();
+  const agregar = (m, k, f) => { if(!m.has(k)) m.set(k, new Set()); m.get(k).add(f); subsTodos.add(f); return () => { m.get(k).delete(f); subsTodos.delete(f); }; };
   const avisar = path => { (subsDoc.get(path)||[]).forEach(f=>f()); (subsCol.get(padre(path))||[]).forEach(f=>f()); };
   const conPausa = fn => { let t = null; return () => { clearTimeout(t); t = setTimeout(fn, 120); }; };
-  async function leerDoc(path){ const {data, error:e} = await sb.from("docs").select("data").eq("path", path).maybeSingle(); if(e) throw error(e); return data; }
-  async function leerCol(path){ const out = []; for(let de = 0;; de += 1000){ const {data, error:e} = await sb.from("docs").select("id,data").eq("parent", path).range(de, de+999); if(e) throw error(e); out.push(...data); if(data.length < 1000) break; } return out; }
+  async function leerDocRed(path){ const {data, error:e} = await sb.from("docs").select("data").eq("path", path).maybeSingle(); if(e) throw error(e); return data; }
+  async function leerDoc(path){
+    if(!sinRed){ try{ const d = await leerDocRed(path); IDB.set("d:"+path, d || null); marcarRed(false); return d; }catch(e){ if(!esFallaRed(e)) throw e; marcarRed(true); } }
+    const c = await IDB.get("d:"+path); return c === undefined ? null : c; }
+  async function leerColRed(path){ const out = []; for(let de = 0;; de += 1000){ const {data, error:e} = await sb.from("docs").select("id,data").eq("parent", path).range(de, de+999); if(e) throw error(e); out.push(...data); if(data.length < 1000) break; } return out; }
+  async function leerCol(path){
+    if(!sinRed){ try{ const rows = await leerColRed(path); IDB.set("c:"+path, rows); marcarRed(false); return rows; }catch(e){ if(!esFallaRed(e)) throw e; marcarRed(true); } }
+    return (await IDB.get("c:"+path)) || []; }
   let canal = null;
   function tiempoReal(){ if(canal) return; canal = sb.channel("docs").on("postgres_changes", {event:"*", schema:"public", table:"docs"}, p => { const path = (p.new && p.new.path) || (p.old && p.old.path); if(path) avisar(path); }).subscribe(); }
   function doc(path){
     return {
       id: ultimo(path), path,
       async get(){ const r = await leerDoc(path); return {id: ultimo(path), exists: !!r, data: () => r ? r.data : undefined}; },
-      async set(data){ const {error:e} = await sb.from("docs").upsert({path, parent: padre(path), id: ultimo(path), data, updated_at: new Date().toISOString()}); if(e) throw error(e); avisar(path); return {version: 1}; },
-      async update(patch){ const {error:e} = await sb.rpc("merge_doc", {p_path: path, p_parent: padre(path), p_id: ultimo(path), p_patch: patch}); if(e) throw error(e); avisar(path); return {version: 1}; },
-      async delete(){ const {error:e} = await sb.from("docs").delete().eq("path", path); if(e) throw error(e); avisar(path); },
+      async set(data){ if(sinRed || !navigator.onLine) throw soloLectura(); const {error:e} = await sb.from("docs").upsert({path, parent: padre(path), id: ultimo(path), data, updated_at: new Date().toISOString()}); if(e) throw error(e); avisar(path); return {version: 1}; },
+      async update(patch){ if(sinRed || !navigator.onLine) throw soloLectura(); const {error:e} = await sb.rpc("merge_doc", {p_path: path, p_parent: padre(path), p_id: ultimo(path), p_patch: patch}); if(e) throw error(e); avisar(path); return {version: 1}; },
+      async delete(){ if(sinRed || !navigator.onLine) throw soloLectura(); const {error:e} = await sb.from("docs").delete().eq("path", path); if(e) throw error(e); avisar(path); },
       onSnapshot(cb, onErr){ const correr = conPausa(async () => { try{ const r = await leerDoc(path); cb({id: ultimo(path), exists: !!r, data: () => r ? r.data : undefined, metadata:{}}); }catch(e){ onErr && onErr(e); } });
         const quitar = agregar(subsDoc, path, correr); tiempoReal(); correr(); return quitar; },
       collection: sub => coleccion(`${path}/${sub}`)
@@ -1101,7 +1130,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   window.fetch = async (u, o) => {
     const url = typeof u === "string" ? u : (u && u.url) || "";
     const m = url.match(/\/_blob\/([0-9a-f]{32})/);
-    if(m){ const {data, error:e} = await sb.storage.from("archivos").download(m[1]); return e ? new Response(null, {status: 404}) : new Response(data, {status: 200}); }
+    if(m){ const key = "https://cierre-offline/archivos/" + m[1];
+      let cache = null; try{ cache = await caches.open("cierre-archivos"); }catch(_){}
+      if(!sinRed && navigator.onLine){ try{ const {data, error:e} = await sb.storage.from("archivos").download(m[1]); if(!e && data){ if(cache) cache.put(key, new Response(data.slice(0, data.size, data.type), {headers: {"Content-Type": data.type || "application/octet-stream"}})).catch(()=>{}); return new Response(data, {status: 200}); } if(e && !esFallaRed(e)) return new Response(null, {status: 404}); }catch(e){ if(!esFallaRed(e)) return new Response(null, {status: 404}); marcarRed(true); } }
+      const c = cache && await cache.match(key); return c ? new Response(await c.blob(), {status: 200}) : new Response(null, {status: 404, statusText: "Sin internet y este archivo no se guardó para verlo sin conexión"}); }
     return fetchOriginal(u, o);
   };
 
@@ -1209,6 +1241,32 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       return null;
     }
   };
+
+  // ---------- Guardar todo (datos y archivos) para verlo sin internet ----------
+  async function prepararSinRed(){
+    if(!navigator.onLine){ gdAviso("Necesitas internet para preparar la copia."); return; }
+    const aviso = document.createElement("div"); aviso.style.cssText = "position:fixed;inset:0;z-index:9998;display:grid;place-items:center;background:rgba(10,20,14,.45);font-family:system-ui";
+    aviso.innerHTML = '<div style="background:#fff;color:#151515;border-radius:12px;padding:22px 26px;min-width:300px;max-width:90vw"><b>Guardando para ver sin internet…</b><div id="sbProg2" style="margin-top:8px;color:#66665F">Datos</div><button id="sbProgOk" style="margin-top:12px;display:none;font:inherit;font-weight:600;padding:8px 14px;border-radius:8px;border:none;background:#7A1F3D;color:#fff;cursor:pointer">Listo</button></div>';
+    document.body.appendChild(aviso); const prog = t => { const el = document.getElementById("sbProg2"); if(el) el.textContent = t; };
+    try{
+      // Todos los registros de tus empresas
+      const rows = []; for(let de = 0;; de += 1000){ const {data, error:e} = await sb.from("docs").select("path,parent,id,data").range(de, de+999); if(e) throw e; rows.push(...data); prog(`Datos: ${rows.length}`); if(data.length < 1000) break; }
+      const porPadre = {}; rows.forEach(r=>{ (porPadre[r.parent] ||= []).push({id: r.id, data: r.data}); IDB.set("d:"+r.path, {data: r.data}); });
+      for(const [p, xs] of Object.entries(porPadre)) await IDB.set("c:"+p, xs);
+      // Archivos (PDF, Excel, fotos) que aparecen en tus registros
+      const ids = new Set(); const buscar = v => { if(!v || typeof v !== "object") return; if(Array.isArray(v)){ v.forEach(buscar); return; } for(const [k, x] of Object.entries(v)){ if(k==="id" && typeof x==="string" && /^[0-9a-f]{32}$/.test(x)) ids.add(x); else buscar(x); } };
+      rows.forEach(r=>buscar(r.data));
+      const cache = await caches.open("cierre-archivos"); let n = 0, ok = 0;
+      for(const id of ids){ n++; const key = "https://cierre-offline/archivos/" + id; if(await cache.match(key)){ ok++; continue; }
+        prog(`Archivos: ${n} de ${ids.size}`); try{ const {data, error:e} = await sb.storage.from("archivos").download(id); if(!e && data){ await cache.put(key, new Response(data, {headers: {"Content-Type": data.type || "application/octet-stream"}})); ok++; } }catch(_){} }
+      try{ localStorage.setItem("sbCopia", new Date().toISOString()); }catch(_){}
+      prog(`Listo: ${rows.length} registros y ${ok} archivos guardados en este aparato. Sin internet, abre la app como siempre y verás esta copia.`);
+    }catch(e){ prog("No se pudo terminar: " + (e.message || e)); }
+    const b = document.getElementById("sbProgOk"); b.style.display = "inline-block"; b.onclick = () => aviso.remove();
+  }
+
+  // ---------- La app se abre aunque no haya internet (service worker) ----------
+  if("serviceWorker" in navigator && location.protocol === "https:") window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
 
   // ---------- Importar el respaldo que descargaste en Claude ----------
   async function importarRespaldo(file){
@@ -1850,6 +1908,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("ppQuitar").onclick = () => guardarPolPick(null);
   $("ppCancel").onclick = () => $("polPickDlg").close();
   // Pago o cobro encontrado en tus pólizas de CONTPAQi para una factura con saldo
+  // Saldo de una factura a una fecha, para compararlo con la contabilidad: cuenta tus pagos registrados, los complementos
+  // y el pago que ya está en tus pólizas de CONTPAQi (aunque no lo hayas registrado en la app)
+  function saldoAl(f, idx, fin){
+    const c = cuentaDe(f, idx, fin), tot = +f.total||0; if(c.saldo <= 0.5) return {saldo: 0, por: "pagos"};
+    const comp = r2((idx.cp[f.uuid]||[]).filter(x=>!fin || String(x.fechaPago).slice(0,10) <= fin).reduce((s,x)=>s+(+x.impPagado||0),0));
+    if(f.metodo==="PPD" && comp > c.abonado + 0.5){ const s = r2(Math.max(0, tot - comp)); return {saldo: s <= 0.5 ? 0 : s, por: "complementos"}; }
+    if(!c.abs.length){ let pp = null; try{ pp = pagoEnPolizas(f); }catch(_){} if(pp && pp.fecha && (!fin || pp.fecha <= fin)) return {saldo: 0, por: `póliza ${pp.id}`}; }
+    return {saldo: c.saldo, por: ""};
+  }
   function pagoEnPolizas(f){
     const tipo = f.tipo==="emitida" ? "Ingresos" : "Egresos", mk = String(f.fecha).slice(0,7), [y,m] = mk.split("-").map(Number);
     const meses = Array.from({length:4},(_,i)=>{ const mm = m+i; return mesKey(mm>12?y+1:y, mm>12?mm-12:mm); });
@@ -2346,7 +2413,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("cstats").innerHTML = `
       <div class="stat"><b>${money.format(sum(conSaldo))}</b><span>${ctSel==="emitida"?"Por cobrar":"Por pagar"} en ${conSaldo.length} ${conSaldo.length===1?"factura":"facturas"}</span></div>
       <div class="stat ${venc.length?"alert":""}"><b>${money.format(sum(venc))}</b><span>Vencido en ${venc.length} ${venc.length===1?"factura":"facturas"}</span></div>
-      <div class="stat ${faltaComp.length?"alert":""}"><b>${faltaComp.length}</b><span>${faltaComp.length===1?"Pago":"Pagos"} sin complemento</span></div>`;
+      <button class="stat ${faltaComp.length?"alert":""}" id="kpiSinComp" style="text-align:left;cursor:pointer;font:inherit;background:none;border:none;padding:0" title="Toca para ver cuáles son"><b>${faltaComp.length}</b><span>${faltaComp.length===1?"Pago":"Pagos"} sin complemento ${soloSinComp?"· mostrando solo esos (toca para quitar)":"· ver cuáles"}</span></button>`;
     $("statusLine").innerHTML = venc.length ? `Tienes <strong>${venc.length} ${venc.length===1?"factura vencida":"facturas vencidas"}</strong> ${ctSel==="emitida"?"por cobrar":"por pagar"}.` : `Nada vencido ${ctSel==="emitida"?"por cobrar":"por pagar"}.`;
     $("chipTercero").textContent = ctSel==="emitida" ? "Por cliente" : "Por proveedor";
     if(filSel==="tercero"){ renderPorTercero(quien, verbo); return; }
@@ -4593,7 +4660,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const hijos = p => cs.filter(c=>c.cuenta.startsWith(p+"-") && !c.cuenta.endsWith("-00-000"));
     const fin = new Date(Date.UTC(y, m, 0)).toISOString().slice(0,10);
     const idx = indices();
-    const saldoApp = tipo => r2(facturas.filter(f=>f.tipo===tipo && vigente(f) && f.fecha<=fin).map(f=>cuentaDe(f, idx, fin).saldo).reduce((s,x)=>s+x,0));
+    const saldoApp = tipo => r2(facturas.filter(f=>f.tipo===tipo && vigente(f) && f.fecha<=fin).map(f=>saldoAl(f, idx, fin).saldo).reduce((s,x)=>s+x,0));
     const out = [];
     const add = (grupo, concepto, bal, app, nota) => out.push({grupo, concepto, bal, app, dif: bal==null||app==null ? null : r2(bal - app), nota});
     // Cuadre interno
@@ -4663,7 +4730,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const ctaEn = (bb, code) => bb ? bb.cuentas.find(x=>x.cuenta===code) : null;
     const historia = code => { const out = []; for(let mm=m; mm>=1; mm--){ const bb = balDe(mm); if(!bb) break; const x = ctaEn(bb, code); if(!x) break; out.push(x); } return out; };
     // IVA pendiente de pago (119) e IVA trasladado no cobrado (209) contra facturas PPD con saldo
-    const ivaPend = tipo => r2(facturas.filter(fx=>fx.tipo===tipo && vigente(fx) && fx.metodo==="PPD" && fx.fecha<=fin && +fx.total>0).reduce((s,fx)=>{ const cc = cuentaDe(fx, idx, fin); return s + (cc.saldo>0 ? (+fx.iva||0)*cc.saldo/fx.total : 0); },0));
+    const ivaPend = tipo => r2(facturas.filter(fx=>fx.tipo===tipo && vigente(fx) && fx.metodo==="PPD" && fx.fecha<=fin && +fx.total>0).reduce((s,fx)=>{ const sa = saldoAl(fx, idx, fin).saldo; return s + (sa>0 ? (+fx.iva||0)*sa/fx.total : 0); },0));
     const c119 = pref("119"), c209 = pref("209");
     if(c119) add("Saldos acumulados", "IVA pendiente de pago (119)", r2(c119.sf), ivaPend("recibida"), "IVA de facturas de proveedores PPD que aún no pagas");
     if(c209) add("Saldos acumulados", "IVA trasladado no cobrado (209)", r2(-c209.sf) || 0, ivaPend("emitida"), "IVA de facturas a clientes PPD que aún no cobras");
@@ -4695,13 +4762,83 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   let bTab = "bal";
   document.querySelectorAll("[data-btab]").forEach(b=>b.onclick = () => { bTab = b.dataset.btab; document.querySelectorAll("[data-btab]").forEach(x=>x.setAttribute("aria-pressed", x===b)); renderBalanza(); });
+  // ---------- Revisión de balanza, versión fácil: qué compara, de dónde sale cada número, por qué no cuadra y qué hacer ----------
+  const BAL_GUIA = [
+    [/^Cargos contra abonos/, {que:"Que en tu balanza la suma de cargos sea igual a la suma de abonos.", bal:"Cargos de las cuentas de mayor", app:"Abonos de las cuentas de mayor", causas:["Una póliza descuadrada en CONTPAQi (revisa el reporte de pólizas descuadradas)."], ir:null}],
+    [/^Saldos deudores/, {que:"Que la suma de saldos deudores sea igual a la de acreedores.", bal:"Saldos deudores", app:"Saldos acreedores", causas:["Una póliza descuadrada o una cuenta afectable mal configurada en CONTPAQi."], ir:null}],
+    [/^Ingresos facturados del mes/, {que:"Lo que registraste como ingreso en el mes (cuentas 401) contra las facturas que emitiste en el mes.", bal:"Abonos menos cargos de 401 en el mes", app:"Subtotal de tus facturas emitidas vigentes del mes", causas:["Una factura emitida que no registraste en CONTPAQi, o que registraste en otro mes.","Una factura cancelada que sigue registrada (o al revés).","Notas de crédito o descuentos registrados en 401.","Ingresos sin factura (por ejemplo, ventas en plataformas) registrados en 401."], ir:["facturas","Ver facturas emitidas"]}],
+    [/^IVA trasladado cobrado/, {que:"El IVA que pasaste a cobrado en el mes (cuentas 208) contra el IVA de tus facturas PUE del mes y de los cobros de PPD.", bal:"Abonos a 208 en el mes", app:"IVA de PUE emitidas + IVA de cobros y complementos del mes", causas:["Un cobro registrado en CONTPAQi en otro mes que en la app (o con otro importe).","Un complemento de cobro que falta subir a la app.","Una PPD cobrada que en CONTPAQi no se pasó de 209 a 208."], ir:["impuestos","Ver qué suma la app (Impuestos)"]}],
+    [/^IVA acreditable pagado/, {que:"El IVA que pasaste a pagado en el mes (cuentas 118) contra el IVA de tus facturas PUE recibidas del mes y de los pagos de PPD.", bal:"Cargos a 118 en el mes, sin IVA retenido", app:"IVA de PUE recibidas + IVA de pagos y complementos del mes", causas:["Una factura recibida registrada en otro mes, o que no está en la app.","Un pago de PPD que en CONTPAQi no se pasó de 119 a 118, o se pasó con otro importe.","Facturas no deducibles (la app no las suma).","Un complemento de pago que falta subir a la app."], ir:["impuestos","Ver qué suma la app (Impuestos)"]}],
+    [/^IVA a cargo/, {que:"El IVA por pagar que registraste (213-01) contra el IVA a cargo que calcula la app.", bal:"Abonos a 213-01 (y compensaciones)", app:"IVA trasladado − acreditable − retenciones", causas:["Las diferencias de IVA trasladado o acreditable de arriba.","Una compensación de saldo a favor registrada distinta."], ir:["impuestos","Ver el cálculo de IVA"]}],
+    [/^ISR retenido por sueldos/, {que:"El ISR que retuviste en nómina (216) contra el ISR de tus recibos de nómina del mes.", bal:"Abonos a ISR retenido por sueldos y asimilados", app:"ISR de los recibos de nómina del mes", causas:["Recibos de nómina que faltan subir a la app.","Finiquitos o recibos de otro periodo registrados en este mes.","Subsidio al empleo registrado neto."], ir:["nominas","Ver nóminas"]}],
+    [/^IMSS obrero/, {que:"Las cuotas obreras retenidas contra el IMSS de tus recibos de nómina.", bal:"Abonos a IMSS obrero retenido", app:"IMSS de los recibos de nómina del mes", causas:["Recibos que faltan subir.","Cuotas obreras registradas con la línea de captura (no con la nómina)."], ir:["nominas","Ver nóminas"]}],
+    [/^Sueldos y salarios/, {que:"El gasto de sueldos (601) contra las percepciones de tus recibos con IMSS.", bal:"Cargos a sueldos y días festivos", app:"Sueldo de tus recibos (o todas las percepciones si no tienen detalle)", causas:["Recibos sin detalle por concepto: sube sus XML para separar el sueldo.","Prima vacacional, aguinaldo, finiquitos o bonos registrados en otras cuentas.","Recibos que faltan subir."], ir:["nominas","Ver nóminas"]}],
+    [/^Provisión de ISN/, {que:"El impuesto sobre nómina provisionado contra el que calcula la app.", bal:"Abonos a ISN por pagar", app:"ISN calculado con tus nóminas", causas:["Base distinta (conceptos que sí o no causan ISN).","Una complementaria o un ajuste."], ir:["impuestos","Ver el ISN"]}],
+    [/^Provisión IMSS patronal/, {que:"Las cuotas patronales provisionadas contra la línea de captura del SUA.", bal:"Abonos a IMSS por pagar", app:"Total de la línea de captura", causas:["Falta subir la línea de captura del mes.","Recargos o actualizaciones registrados aparte."], ir:["impuestos","Ver el IMSS"]}],
+    [/^Ingresos acumulados/, {que:"Tus ingresos del año (401) contra todas tus facturas emitidas de enero al mes.", bal:"Saldo de 401", app:"Subtotal de facturas emitidas del año", causas:["Facturas de meses anteriores que faltan subir a la app.","Las mismas causas que en Ingresos del mes, acumuladas."], ir:["facturas","Ver facturas emitidas"]}],
+    [/^Clientes/, {que:"Lo que te deben tus clientes (105) contra el saldo de tus facturas emitidas.", bal:"Saldo de 105", app:"Saldo de facturas emitidas (cuenta cobros registrados, complementos y cobros en tus pólizas)", causas:["Un cobro que no está en tus pólizas ni en la app.","Una factura que no registraste en CONTPAQi.","Anticipos o notas de crédito."], ir:["facturas","Ver cuentas por cobrar"]}],
+    [/^Proveedores/, {que:"Lo que debes a tus proveedores (201) contra el saldo de tus facturas recibidas.", bal:"Saldo de 201", app:"Saldo de facturas recibidas (cuenta pagos registrados, complementos y pagos en tus pólizas)", causas:["Una factura que no está registrada en CONTPAQi o no está en la app.","Un pago que no está en tus pólizas ni en la app.","Facturas pagadas por terceros registradas en acreedores diversos."], ir:["facturas","Ver cuentas por pagar"]}],
+    [/^Banco /, {que:"El saldo del banco en tu balanza contra el auxiliar que subiste en la conciliación.", bal:"Saldo final de la cuenta de bancos", app:"Saldo final del auxiliar", causas:["Pólizas registradas después de exportar el auxiliar: vuelve a subirlo."], ir:["bancos","Ver la conciliación"]}],
+    [/^IVA pendiente de pago/, {que:"El IVA de proveedores PPD que aún no pagas (119) contra el IVA de tus facturas PPD con saldo.", bal:"Saldo de 119", app:"IVA de la parte no pagada de tus PPD recibidas", causas:["Un pago de PPD que en CONTPAQi no pasó el IVA de 119 a 118.","Una PPD registrada como PUE en CONTPAQi (o al revés)."], ir:["facturas","Ver facturas PPD"]}],
+    [/^IVA trasladado no cobrado/, {que:"El IVA de clientes PPD que aún no cobras (209) contra el IVA de tus facturas PPD con saldo.", bal:"Saldo de 209", app:"IVA de la parte no cobrada de tus PPD emitidas", causas:["Un cobro de PPD que en CONTPAQi no pasó el IVA de 209 a 208.","Una PPD registrada como PUE en CONTPAQi (o al revés)."], ir:["facturas","Ver facturas PPD"]}],
+  ];
+  const guiaBal = c => (BAL_GUIA.find(([re])=>re.test(c))||[])[1] || {que:"", bal:"Balanza", app:"App", causas:[], ir:null};
+  function filaBalanzaV2(r, rev, det, abierto){
+    const g = guiaBal(r.concepto), f = money.format, dif = r.dif;
+    const quien = dif > 0 ? `La <strong>balanza</strong> tiene ${f(Math.abs(dif))} más que la app` : `La <strong>app</strong> tiene ${f(Math.abs(dif))} más que la balanza`;
+    return `<div class="bpanel" style="margin-bottom:12px;border-left:5px solid ${rev?"var(--done)":"#E24B4A"}">
+      <div style="padding:12px 14px">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start"><div><strong style="font-size:16px">${esc(r.concepto)}</strong>${g.que?`<div class="fsub" style="max-width:none;white-space:normal">${esc(g.que)}</div>`:""}</div>
+          <span class="st ${rev?"pagado":"vencido"}">${rev?"Explicada":"No cuadra"}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px">
+          <div style="background:var(--group);border-radius:10px;padding:8px 10px"><div class="fsub">Balanza · ${esc(g.bal)}</div><strong style="font-size:18px">${f(r.bal)}</strong></div>
+          <div style="background:var(--group);border-radius:10px;padding:8px 10px"><div class="fsub">App · ${esc(g.app)}</div><strong style="font-size:18px">${f(r.app)}</strong>${r.nota?`<div class="fsub" style="max-width:none;white-space:normal">${esc(r.nota)}</div>`:""}</div>
+          <div style="background:${rev?"var(--group)":"#FCEBEB"};border-radius:10px;padding:8px 10px;color:${rev?"inherit":"#791F1F"}"><div class="fsub" style="color:inherit">Diferencia</div><strong style="font-size:18px">${f(Math.abs(dif))}</strong><div style="font-size:12px">${quien}</div></div>
+        </div>
+        ${rev && rev.nota ? `<div style="margin-top:8px;font-size:13px"><strong>Tu explicación:</strong> ${esc(rev.nota)}</div>` : ""}
+        ${!rev && g.causas.length ? `<div style="margin-top:10px;font-size:13px"><strong>Por qué suele pasar:</strong><ul style="margin:4px 0 0 18px;padding:0">${g.causas.map(c=>`<li>${esc(c)}</li>`).join("")}</ul></div>` : ""}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          ${det?`<button class="btn sm" data-bldet="${esc(r.concepto)}">${abierto?"Ocultar el detalle":"Ver el detalle uno por uno"}</button>`:""}
+          ${g.ir?`<button class="btn sm" data-blir="${g.ir[0]}">${esc(g.ir[1])}</button>`:""}
+          ${canWrite?(rev?`<button class="linkbtn" data-balrev="${esc(r.concepto)}">Quitar explicación</button>`:`<button class="btn sm" data-balexp="${esc(r.concepto)}">Ya sé por qué: explicar</button>`):""}
+        </div>
+        ${det && abierto ? `<div style="margin-top:10px;padding:10px;border-radius:10px;background:var(--surface);border:1px solid var(--line)">${det}</div>` : ""}
+      </div></div>`;
+  }
+
+  // Detalle uno por uno para los movimientos del mes: tus pólizas de CONTPAQi contra lo que suma la app
+  function detalleMovimientos(concepto, y, m){
+    const cfg = [[/^Ingresos facturados del mes/, /^401/, 1, "ingresos"], [/^IVA trasladado cobrado/, /^208/, 1, "tras"], [/^IVA acreditable pagado/, /^118/, -1, "acr"]].find(([re])=>re.test(concepto)); if(!cfg) return "";
+    const [, reCta, signo, que] = cfg, f = money.format, P = ((polCQ[mesKey(y, m)]||{}).polizas)||[];
+    if(!P.length) return `<div style="font-size:13px">Para ver el detalle uno por uno, sube tus <strong>pólizas de ${MESES[m-1].toLowerCase()}</strong> (el Excel de Diarios y pólizas de CONTPAQi) con "Subir balanza o pólizas de CONTPAQi".</div>`;
+    const lp = P.map(p=>({p, monto: r2(signo * (p.movs||[]).filter(mv=>reCta.test(String(mv.c||"").replace(/\s/g,""))).reduce((s,mv)=>s + (+mv.ab||0) - (+mv.ca||0), 0))})).filter(x=>Math.abs(x.monto) > 0.004);
+    const k = calcMes(y, m), F = k.fuentes || {}, la = [];
+    if(que==="ingresos") (F.ingresos||[]).forEach(x=>la.push({f:x, monto: r2((+x.subtotal||0) - (+x.descuento||0)), txt:"Factura emitida"}));
+    if(que==="tras"){ (F.ePUE||[]).forEach(x=>la.push({f:x, monto: r2(+x.iva||0), txt:"PUE emitida"})); (F.cobrosMes||[]).forEach(x=>la.push({f:x.f, monto: r2(x.iva ?? (+x.f.iva||0)*x.p), txt: x.deComp?"Cobro (complemento)":"Cobro de PPD"})); (F.huerfE||[]).forEach(c=>la.push({f:c, monto: r2(+c.iva||0), txt:"Complemento sin factura"})); }
+    if(que==="acr"){ (F.rPUE||[]).filter(x=>!x.noDed).forEach(x=>la.push({f:x, monto: r2(+x.iva||0), txt:"PUE recibida"})); (F.pagosMes||[]).filter(x=>!x.f.noDed).forEach(x=>la.push({f:x.f, monto: r2(x.iva ?? (+x.f.iva||0)*x.p), txt: x.deComp?"Pago (complemento)":"Pago de PPD"})); (F.huerfanos||[]).forEach(c=>la.push({f:c, monto: r2(+c.iva||0), txt:"Complemento sin factura"})); }
+    const appL = la.filter(x=>Math.abs(x.monto) > 0.004), usadosP = new Set(), pares = [];
+    // Empareja por importe (±$1), primero si el nombre se parece
+    appL.forEach(a=>{ const tk = tokens(a.f.nombre||""); const cands = lp.map((x,i)=>({x,i})).filter(({x,i})=>!usadosP.has(i) && Math.abs(x.monto - a.monto) <= 1);
+      const best = cands.sort((u,v)=>inter(tk, tokens(v.x.p.concepto||"")) - inter(tk, tokens(u.x.p.concepto||"")))[0]; if(best){ usadosP.add(best.i); pares.push(a); a.par = best.x.p; } });
+    const soloApp = appL.filter(a=>!a.par), soloPol = lp.filter((x,i)=>!usadosP.has(i));
+    const sA = r2(soloApp.reduce((s,a)=>s+a.monto,0)), sP = r2(soloPol.reduce((s,x)=>s+x.monto,0));
+    return `<div style="font-size:13px;line-height:1.5"><div>Comparé <strong>${lp.length} pólizas</strong> que mueven la cuenta contra <strong>${appL.length} documentos</strong> que suma la app. <strong>${pares.length} coinciden</strong> por importe.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:8px">
+        <div><strong>Solo en tus pólizas</strong> <span class="fsub">(${soloPol.length} · ${f(sP)})</span><div class="fsub" style="max-width:none">Están en CONTPAQi pero no encontré un documento igual en la app: puede ser de otro mes, sin factura o con otro importe.</div>
+          ${soloPol.length ? soloPol.map(x=>`<div style="padding:4px 0;border-bottom:1px solid var(--line)"><strong>${esc(x.p.tipo)} ${esc(x.p.num)}</strong> · ${fechaCorta(x.p.fecha)} · ${esc(String(x.p.concepto||"").slice(0,60))} <span style="float:right">${f(x.monto)}</span></div>`).join("") : '<div class="fsub">Ninguna ✓</div>'}</div>
+        <div><strong>Solo en la app</strong> <span class="fsub">(${soloApp.length} · ${f(sA)})</span><div class="fsub" style="max-width:none">La app los suma pero no encontré una póliza con ese importe: falta registrarlos, están en otro mes o con otro importe.</div>
+          ${soloApp.length ? soloApp.map(a=>`<div style="padding:4px 0;border-bottom:1px solid var(--line)">${esc(a.txt)} · ${fechaCorta(String(a.f.fecha||a.f.fechaPago||"").slice(0,10))} · ${esc(String(a.f.nombre||"").slice(0,40))}${a.f.folio?` · ${esc(a.f.folio)}`:""} <span style="float:right">${f(a.monto)}</span>${botonesCfdi(a.f.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(a.f.uuid)}</div>`:""}</div>`).join("") : '<div class="fsub">Ninguno ✓</div>'}</div>
+      </div>
+      <div class="fsub" style="max-width:none;margin-top:6px">Diferencia que explican estas listas: ${f(r2(sP - sA))}.</div></div>`;
+  }
+
   // ---------- Explicación de diferencias en la revisión de la balanza ----------
   let blAbiertos = new Set();
   function detalleDiferencia(concepto, y, m, b){
     const f = money.format, fin = new Date(Date.UTC(y, m, 0)).toISOString().slice(0,10), idx = indices(), cs = b.cuentas;
     const porTercero = (pref3, tipo, signo) => {
       const hojas = cs.filter(c=>c.cuenta.startsWith(pref3+"-") && !/-000$/.test(c.cuenta) && Math.abs(+c.sf||0)>0.004);
-      const facs = facturas.filter(x=>x.tipo===tipo && vigente(x) && x.fecha<=fin).map(x=>({x, s: cuentaDe(x, idx, fin).saldo})).filter(z=>z.s>0.5);
+      const facs = facturas.filter(x=>x.tipo===tipo && vigente(x) && x.fecha<=fin).map(x=>({x, s: saldoAl(x, idx, fin).saldo})).filter(z=>z.s>0.5);
       const grupos = {}; facs.forEach(z=>{ const k = z.x.rfc && !/^X[AE]XX/.test(z.x.rfc) ? z.x.rfc : z.x.nombre; (grupos[k] ||= {nombre:z.x.nombre, rfc:z.x.rfc, facs:[], app:0}); grupos[k].facs.push(z); grupos[k].app = r2(grupos[k].app + z.s); });
       const G = Object.values(grupos), usadas = new Set(), filas = [];
       for(const g of G){ const tk = tokens(g.nombre), h = hojas.filter(c=>!usadas.has(c.cuenta)).map(c=>({c, sc: inter(tk, tokens(c.nombre))})).sort((a,b)=>b.sc-a.sc)[0];
@@ -4709,18 +4846,19 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       hojas.filter(c=>!usadas.has(c.cuenta)).forEach(c=>filas.push({nombre:c.nombre, cuenta:c, bal:r2(signo*(+c.sf||0)), app:0, facs:[]}));
       const conDif = filas.filter(r=>Math.abs(r.bal - r.app) > 1).sort((a,b)=>Math.abs(b.bal-b.app)-Math.abs(a.bal-a.app));
       const verbo = tipo==="emitida" ? "cobro" : "pago";
-      return `<div style="font-size:13px;line-height:1.5"><strong>Diferencias por ${tipo==="emitida"?"cliente":"proveedor"}</strong> (${conDif.length} de ${filas.length}). <span class="fsub">Balanza = saldo de su subcuenta; App = facturas vigentes hasta el ${fechaCorta(fin)} menos ${verbo}s registrados.</span>
+      return `<div style="font-size:13px;line-height:1.5"><strong>Diferencias por ${tipo==="emitida"?"cliente":"proveedor"}</strong> (${conDif.length} de ${filas.length}). <span class="fsub">Balanza = saldo de su subcuenta; App = facturas vigentes hasta el ${fechaCorta(fin)} menos sus ${verbo}s (registrados en la app, complementos o encontrados en tus pólizas).</span>
         ${conDif.length ? `<table class="decl" style="width:100%;margin-top:6px"><thead><tr><th>${tipo==="emitida"?"Cliente":"Proveedor"}</th><th class="num">Balanza</th><th class="num">App</th><th class="num">Diferencia</th><th>Qué puede ser</th></tr></thead><tbody>${conDif.map(r=>{ const d = r2(r.bal - r.app);
           const porque = !r.cuenta ? `No encontré su subcuenta en la balanza: falta registrar la provisión en CONTPAQi o tiene otro nombre.` : !r.facs.length ? `En la app no tiene facturas con saldo: ¿falta subir una factura, o en CONTPAQi falta registrar un ${verbo}?` : d < 0 ? `La app tiene más saldo: ¿ya se hizo el ${verbo} y falta registrarlo en la app? Toca la factura para registrarlo.` : `La balanza tiene más saldo: ¿falta registrar el ${verbo} en CONTPAQi, o hay una factura que no está en la app?`;
           return `<tr><td>${esc(r.nombre)}${r.cuenta?`<div class="fsub">${esc(r.cuenta.cuenta)}</div>`:""}${r.facs.length?`<div style="margin-top:3px">${r.facs.map(z=>`<div class="fsub" style="max-width:none">${fechaCorta(z.x.fecha)} ${z.x.folio?`folio ${esc(z.x.folio)} `:""}saldo ${f(z.s)}${canWrite?` <button class="linkbtn" data-blab="${esc(z.x.id)}" style="font-size:11px">registrar ${verbo}</button>`:""}</div>`).join("")}</div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num late">${f(d)}</td><td style="white-space:normal;font-size:12px">${porque}</td></tr>`; }).join("")}</tbody></table>` : `<div class="fsub">Por tercero cuadra; la diferencia viene de cuentas sin subcuenta por tercero o de redondeos.</div>`}</div>`;
     };
     const ivaPendiente = (tipo, codigo) => {
-      const facs = facturas.filter(x=>x.tipo===tipo && vigente(x) && x.metodo==="PPD" && x.fecha<=fin && +x.total>0).map(x=>{ const s = cuentaDe(x, idx, fin).saldo; return {x, s, iva: s>0 ? r2((+x.iva||0)*s/x.total) : 0}; }).filter(z=>z.iva>0.004).sort((a,b)=>b.iva-a.iva);
+      const facs = facturas.filter(x=>x.tipo===tipo && vigente(x) && x.metodo==="PPD" && x.fecha<=fin && +x.total>0).map(x=>{ const s = saldoAl(x, idx, fin).saldo; return {x, s, iva: s>0 ? r2((+x.iva||0)*s/x.total) : 0}; }).filter(z=>z.iva>0.004).sort((a,b)=>b.iva-a.iva);
       const verbo = tipo==="emitida" ? "cobro" : "pago";
       return `<div style="font-size:13px;line-height:1.5"><strong>Facturas PPD que forman la cifra de la app</strong> <span class="fsub">(IVA de la parte aún no ${tipo==="emitida"?"cobrada":"pagada"} al ${fechaCorta(fin)}). En la balanza, la ${codigo} debe bajar cuando registras el ${verbo} en CONTPAQi.</span>
         <table class="decl" style="width:100%;margin-top:6px"><thead><tr><th>${tipo==="emitida"?"Cliente":"Proveedor"}</th><th>Fecha · folio</th><th class="num">Saldo de la factura</th><th class="num">IVA pendiente</th><th></th></tr></thead><tbody>${facs.map(z=>`<tr><td>${esc(z.x.nombre)}</td><td>${fechaCorta(z.x.fecha)} ${String(z.x.fecha).slice(0,4)} ${esc(z.x.folio||"")}</td><td class="num">${f(z.s)}</td><td class="num">${f(z.iva)}</td><td>${canWrite?`<button class="linkbtn" data-blab="${esc(z.x.id)}" style="font-size:12px">registrar ${verbo}</button>`:""}</td></tr>`).join("") || `<tr><td colspan="5" class="fsub">Ninguna.</td></tr>`}</tbody></table>
         <div class="fsub" style="max-width:none;white-space:normal;margin-top:4px">Si una de estas ya está ${tipo==="emitida"?"cobrada":"pagada"}, regístralo aquí y la diferencia baja. Si la balanza tiene menos, revisa en CONTPAQi si al registrar el ${verbo} pasaste el IVA de ${codigo} a ${tipo==="emitida"?"208 (cobrado)":"118 (acreditable)"} por un monto mayor.</div></div>`;
     };
+    const dm = detalleMovimientos(concepto, y, m); if(dm) return dm;
     if(concepto==="Proveedores") return porTercero("201", "recibida", -1);
     if(concepto==="Clientes") return porTercero("105", "emitida", 1);
     if(concepto==="IVA pendiente de pago (119)") return ivaPendiente("recibida", "119");
@@ -4742,17 +4880,22 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const x = meses[blMes-1];
     if(!x){ $("blbody").innerHTML = `<div class="empty">No hay balanza de ${MESES[blMes-1].toLowerCase()}. Usa <strong>Subir balanza de CONTPAQi</strong> con el PDF de la balanza de comprobación.</div>`; return; }
     const f = v => v==null ? "—" : money.format(v);
-    let t = `<div class="bpanel"><h3>Revisión de la balanza al cierre de ${MESES[blMes-1].toLowerCase()}<small>Compara tu balanza contra lo que hay en la app: movimientos del mes y saldos acumulados del año.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Concepto</th><th class="num">Balanza</th><th class="num">App</th><th class="num">Diferencia</th><th>Estatus</th></tr></thead><tbody>`;
-    let grupo = "";
-    for(const r of x.r.filas){
-      if(r.grupo!==grupo){ grupo = r.grupo; t += `<tr class="grp"><td colspan="5" style="background:var(--group);font-weight:700;color:var(--muted);font-size:13px">${grupo}</td></tr>`; }
-      const rev = revDe(nmDe(year, blMes).balRev||{}, r.concepto);
-      const st = r.dif==null ? `<span class="st na">Sin dato</span>` : Math.abs(r.dif)<=1 ? `<span class="st pagado">Cuadra</span>` : rev ? `<span class="st pagado">Revisado</span>${canWrite?`<div><button class="linkbtn" data-balrev="${esc(r.concepto)}" style="font-size:12px">Quitar</button></div>`:""}` : `<span class="st vencido">Revisar</span>${canWrite?`<div><button class="linkbtn" data-balrev="${esc(r.concepto)}" style="font-size:12px">Marcar revisado</button></div>`:""}`;
-      const det = r.dif!=null && Math.abs(r.dif)>1 ? detalleDiferencia(r.concepto, year, blMes, x.b) : "", abierto = blAbiertos.has(r.concepto);
-      t += `<tr><td><strong>${esc(r.concepto)}</strong>${r.nota?`<div class="fsub" style="white-space:normal;max-width:none">${esc(r.nota)}</div>`:""}${rev && rev.nota?`<div class="fsub" style="white-space:normal;max-width:none">Tu nota: ${esc(rev.nota)}</div>`:""}${det?`<div><button class="linkbtn" data-bldet="${esc(r.concepto)}" style="font-size:12px">${abierto?"Ocultar explicación":"Ver de dónde sale la diferencia"}</button></div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num">${r.dif==null?"—":Math.abs(r.dif)<=1?"":f(r.dif)}</td><td>${st}</td></tr>`;
-      if(det && abierto) t += `<tr><td colspan="5" style="background:var(--surface);padding:10px 14px">${det}</td></tr>`;
-    }
-    t += `</tbody></table></div>`;
+    // Primero lo que no cuadra (con explicación y qué hacer), luego lo explicado, y al final lo que cuadra
+    const filasR = x.r.filas.map(r=>({r, rev: revDe(nmDe(year, blMes).balRev||{}, r.concepto)}));
+    const noCuadra = filasR.filter(({r,rev})=>r.dif!=null && Math.abs(r.dif)>1 && !rev), explicadas = filasR.filter(({r,rev})=>r.dif!=null && Math.abs(r.dif)>1 && rev),
+      cuadran = filasR.filter(({r})=>r.dif!=null && Math.abs(r.dif)<=1), sinDato = filasR.filter(({r})=>r.dif==null);
+    let t = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+      <div style="border-radius:12px;padding:10px 12px;background:#FCEBEB;color:#791F1F"><div style="font-size:22px;font-weight:700">${noCuadra.length}</div>no cuadran</div>
+      <div style="border-radius:12px;padding:10px 12px;background:#FAEEDA;color:#633806"><div style="font-size:22px;font-weight:700">${explicadas.length}</div>explicadas por ti</div>
+      <div style="border-radius:12px;padding:10px 12px;background:#E1F5EE;color:#085041"><div style="font-size:22px;font-weight:700">${cuadran.length}</div>cuadran</div>
+      ${sinDato.length?`<div style="border-radius:12px;padding:10px 12px;background:#F1EFE8;color:#444441"><div style="font-size:22px;font-weight:700">${sinDato.length}</div>sin dato para comparar</div>`:""}</div>`;
+    if(noCuadra.length) t += `<h3 style="margin:6px 0 8px;font-size:16px">No cuadran: empieza por aquí</h3>` + noCuadra.map(({r,rev})=>{ const det = detalleDiferencia(r.concepto, year, blMes, x.b); return filaBalanzaV2(r, rev, det, blAbiertos.has(r.concepto)); }).join("");
+    else t += `<div class="bpanel" style="padding:14px;margin-bottom:12px"><strong>✓ Todo cuadra o ya está explicado</strong> en ${MESES[blMes-1].toLowerCase()}.</div>`;
+    if(explicadas.length) t += `<h3 style="margin:14px 0 8px;font-size:16px">Explicadas por ti</h3>` + explicadas.map(({r,rev})=>{ const det = detalleDiferencia(r.concepto, year, blMes, x.b); return filaBalanzaV2(r, rev, det, blAbiertos.has(r.concepto)); }).join("");
+    t += `<details class="bpanel" style="margin-bottom:12px"><summary style="padding:12px 14px;cursor:pointer;font-weight:600">${cuadran.length} ${cuadran.length===1?"concepto cuadra":"conceptos cuadran"}${sinDato.length?` · ${sinDato.length} sin dato`:""} <span class="fsub">(toca para verlos)</span></summary>
+      <div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Concepto</th><th class="num">Balanza</th><th class="num">App</th><th>Estatus</th></tr></thead><tbody>
+      ${[...cuadran, ...sinDato].map(({r})=>`<tr><td><strong>${esc(r.concepto)}</strong>${r.nota?`<div class="fsub" style="white-space:normal;max-width:none">${esc(r.nota)}</div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td>${r.dif==null?`<span class="st na">Sin dato</span>`:`<span class="st pagado">Cuadra</span>`}</td></tr>`).join("")}</tbody></table></div></details>`;
+    t += `<div class="bpanel">`;
     const okA = nmDe(year, blMes).avisosOk || {}, avP = x.r.avisos.filter(a=>!okA[claveAviso(a)]), avR = x.r.avisos.filter(a=>okA[claveAviso(a)]);
     if(x.r.avisos.length) t += `<div style="padding:12px 14px;border-top:1px solid var(--line)"><strong>Para revisar también</strong>${avP.length ? `<ul style="margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)">${avP.map(a=>`<li>${esc(a)}${canWrite?` <button class="linkbtn" data-avok="${esc(claveAviso(a))}" style="font-size:12px">Ya lo revisé</button>`:""}</li>`).join("")}</ul>` : `<div class="fsub" style="max-width:none">Ya revisaste todos los avisos.</div>`}
       ${avR.length ? `<details style="margin-top:6px"><summary class="fsub" style="cursor:pointer;max-width:none">${avR.length} ${avR.length===1?"aviso revisado":"avisos revisados"}</summary><ul style="margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)">${avR.map(a=>`<li>${esc(a)}${canWrite?` <button class="linkbtn" data-avok="${esc(claveAviso(a))}" style="font-size:12px">Volver a mostrar</button>`:""}</li>`).join("")}</ul></details>` : ""}</div>`;
@@ -4767,6 +4910,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("blbody").addEventListener("click", e => {
     const bd = e.target.closest("[data-bldet]"); if(bd){ blAbiertos.has(bd.dataset.bldet) ? blAbiertos.delete(bd.dataset.bldet) : blAbiertos.add(bd.dataset.bldet); renderBalanza(); return; }
     const ba = e.target.closest("[data-blab]"); if(ba){ abrirAbono(ba.dataset.blab); return; }
+    const bx = e.target.closest("[data-balexp]"); if(bx){ const c = bx.dataset.balexp, nota = prompt(`¿Por qué no cuadra "${c}"? Escribe tu explicación (por ejemplo: "la factura X se registró en octubre" o "es la nota de crédito de Y").`); if(nota==null) return;
+      const rev = {...(nmDe(year, blMes).balRev||{})}; rev[c] = {fecha: hoyISO, nota: nota.trim()}; guardarNM(year, blMes, {balRev: rev}).then(renderBalanza); return; }
+    const bi = e.target.closest("[data-blir]"); if(bi){ const v = bi.dataset.blir; if(v==="impuestos") iMes = blMes; if(v==="bancos") bMes = blMes; if(v==="facturas") mesSel = blMes; const b = document.querySelector(`.view[data-view="${v}"]`); if(b) b.click(); return; }
     const br = e.target.closest("[data-balrev]");
     if(br){ const rev = {...(nmDe(year, blMes).balRev||{})}, c = br.dataset.balrev;
       if(revDe(rev, c)){ delete rev[c]; for(const [re, viejo] of ALIAS_BAL) if(re.test(c)) delete rev[c.replace(re, viejo)]; } else rev[c] = {fecha: hoyISO}; guardarNM(year, blMes, {balRev: rev}).then(renderBalanza); return; }
@@ -6904,6 +7050,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   // ---------- Cuentas por cliente o proveedor ----------
   const abiertosT = new Set();
+  let soloSinComp = false;
+  document.addEventListener("click", e => { if(!e.target.closest("#kpiSinComp")) return;
+    if(filSel==="tercero"){ soloSinComp = !soloSinComp; renderCuentas(); return; }
+    // En la vista de lista: filtro "Falta complemento" de todo el año
+    soloSinComp = false; fFiltro = fFiltro==="comp" ? "todas" : "comp"; if(fFiltro==="comp") fPeriodo = "anio"; render(); });
   function renderPorTercero(quien, verbo){
     const idx = indices(), qC = normTxt(($("cBuscar")||{}).value||""), f = money.format;
     const fs = facturas.filter(x=>x.tipo===ctSel && vigente(x) && (x.anio===year || cuentaDe(x, idx).saldo>0)).map(x=>({f:x, c:cuentaDe(x, idx)}));
@@ -6912,17 +7063,18 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     let lista = Object.values(grupos).map(g=>{ const delAnio = g.items.filter(x=>x.f.anio===year);
       const ultimo = g.items.flatMap(x=>x.c.abs||[]).map(a=>String(a.fecha)).sort().pop();
       return {...g, n: delAnio.length, facturado: delAnio.reduce((s,x)=>s+(+x.f.total||0),0), pagado: g.items.reduce((s,x)=>s+x.c.abonado,0), saldo: g.items.reduce((s,x)=>s+x.c.saldo,0),
-        vencido: g.items.filter(x=>x.c.saldo>0 && x.c.dias<0).reduce((s,x)=>s+x.c.saldo,0), nPend: g.items.filter(x=>x.c.saldo>0).length, ultimo}; });
+        vencido: g.items.filter(x=>x.c.saldo>0 && x.c.dias<0).reduce((s,x)=>s+x.c.saldo,0), nPend: g.items.filter(x=>x.c.saldo>0).length, nSinComp: g.items.filter(x=>x.c.comp==="falta").length, ultimo}; });
+    if(soloSinComp) lista = lista.filter(g=>g.nSinComp);
     if(qC) lista = lista.filter(g=>normTxt(`${g.nombre} ${g.rfc} ${g.items.map(x=>x.f.folio).join(" ")}`).includes(qC));
     lista.sort((a,b)=>b.saldo-a.saldo || b.facturado-a.facturado);
     if(!lista.length){ $("csheet").innerHTML = `<div class="empty">No hay ${quien.toLowerCase()}s con facturas en ${year}.</div>`; return; }
-    let t = `<table class="ft ct"><thead><tr><th>${quien}</th><th class="num">Facturas ${year}</th><th class="num">Facturado ${year}</th><th class="num">${verbo==="cobro"?"Cobrado":"Pagado"}</th><th class="num">Saldo</th><th class="num">Vencido</th><th>Último ${verbo}</th></tr></thead><tbody>`;
+    let t = `<table class="ft ct"><thead><tr><th>${quien}</th><th class="num">Facturas ${year}</th><th class="num">Facturado ${year}</th><th class="num">${verbo==="cobro"?"Cobrado":"Pagado"}</th><th class="num">Saldo</th><th class="num">Vencido</th><th>Sin complemento</th><th>Último ${verbo}</th></tr></thead><tbody>`;
     for(const g of lista){
       const ab = abiertosT.has(g.k);
       t += `<tr class="row" data-ter="${esc(g.k)}" aria-expanded="${ab}" style="cursor:pointer"><td><div class="fname" title="${esc(g.nombre)}">${ab?"▾":"▸"} ${esc(g.nombre||"—")}</div><div class="fsub">${esc(g.rfc||"")}${g.nPend?` · ${g.nPend} con saldo`:""}</div></td>
-        <td class="num">${g.n}</td><td class="num">${f(g.facturado)}</td><td class="num">${f(g.pagado)}</td><td class="num"><strong>${f(g.saldo)}</strong></td><td class="num ${g.vencido?"late":""}">${g.vencido?f(g.vencido):""}</td><td>${g.ultimo?`${fechaCorta(g.ultimo)} ${g.ultimo.slice(0,4)}`:"—"}</td></tr>`;
+        <td class="num">${g.n}</td><td class="num">${f(g.facturado)}</td><td class="num">${f(g.pagado)}</td><td class="num"><strong>${f(g.saldo)}</strong></td><td class="num ${g.vencido?"late":""}">${g.vencido?f(g.vencido):""}</td><td>${g.nSinComp?`<span class="st falta">${g.nSinComp} ${g.nSinComp===1?"pago":"pagos"} sin complemento</span>`:""}</td><td>${g.ultimo?`${fechaCorta(g.ultimo)} ${g.ultimo.slice(0,4)}`:"—"}</td></tr>`;
       if(ab){
-        t += `<tr class="detail"><td colspan="7"><table class="decl" style="width:100%"><thead><tr><th>Fecha</th><th>Folio</th><th>Método</th><th class="num">Total</th><th class="num">${verbo==="cobro"?"Cobrado":"Pagado"}</th><th class="num">Saldo</th><th>Vence</th><th>Estatus</th></tr></thead><tbody>
+        t += `<tr class="detail"><td colspan="8"><table class="decl" style="width:100%"><thead><tr><th>Fecha</th><th>Folio</th><th>Método</th><th class="num">Total</th><th class="num">${verbo==="cobro"?"Cobrado":"Pagado"}</th><th class="num">Saldo</th><th>Vence</th><th>Estatus</th></tr></thead><tbody>
           ${g.items.sort((a,b)=>String(b.f.fecha).localeCompare(String(a.f.fecha))).map(({f:x, c})=>`<tr><td>${fechaCorta(x.fecha)} ${String(x.fecha).slice(0,4)}</td><td>${esc(x.folio||"—")}${uuidHTML(x.uuid)}${x.metodo==="PPD"?complementosHTML(x):""}${botonesCfdi(x.uuid) ? `<div style="display:flex;gap:4px;margin-top:3px">${botonesCfdi(x.uuid)}</div>` : ""}</td><td>${esc(x.metodo||"")}</td><td class="num">${f(+x.total||0)}</td><td class="num">${f(c.abonado)}${(c.abs||[]).length?`<div class="fsub">${c.abs.map(a=>fechaCorta(a.fecha)).join(", ")}</div>`:""}</td><td class="num"><strong>${f(c.saldo)}</strong></td><td class="${c.saldo>0&&c.dias<0?"late":""}">${fechaCorta(c.vence)}</td><td><span class="st ${c.estatus}">${EST_TXT[c.estatus]}</span></td></tr>`).join("")}
           <tr><td colspan="3"><strong>Total</strong></td><td class="num"><strong>${f(g.items.reduce((s,x)=>s+(+x.f.total||0),0))}</strong></td><td class="num"><strong>${f(g.pagado)}</strong></td><td class="num"><strong>${f(g.saldo)}</strong></td><td colspan="2"></td></tr></tbody></table></td></tr>`;
       }
