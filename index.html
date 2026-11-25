@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 128 · Logo también en los Excel</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 129 · Arreglos y comprobantes de pago</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -957,6 +957,8 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <input id="abFecha" type="date">
   <label for="abNota">Nota (opcional)</label>
   <input id="abNota" autocomplete="off">
+  <label for="abComp">Comprobante de pago (opcional)</label>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="abComp" type="file" accept="application/pdf,image/*,.pdf,.jpg,.jpeg,.png,.heic" style="width:auto"><span class="fsub" id="abCompActual" style="max-width:none"></span></div>
   <div class="dlg-actions">
     <button class="btn" id="cancelAb">Cancelar</button>
     <button class="btn primary" id="confirmAb">Guardar</button>
@@ -1072,7 +1074,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const tx = async (modo, fn) => { const d = await abrir(); return new Promise((res, rej) => { const t = d.transaction("docs", modo), st = t.objectStore("docs"); const r = fn(st); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); }); };
     return { get: k => tx("readonly", st => st.get(k)).catch(()=>undefined), set: (k, v) => tx("readwrite", st => st.put(v, k)).catch(()=>{}), keys: () => tx("readonly", st => st.getAllKeys()).catch(()=>[]), all: () => tx("readonly", st => st.getAll()).catch(()=>[]) }; })();
   let sinRed = !navigator.onLine;
-  const esFallaRed = e => !navigator.onLine || /fetch|network|Failed|Load failed|NetworkError|TypeError/i.test(String((e && (e.message || e)) || ""));
+  // Solo se considera "sin internet" si el navegador lo dice o si la petición ni siquiera llegó (no por cualquier error)
+  const esFallaRed = e => !navigator.onLine || /Failed to fetch|Load failed|NetworkError|Network request failed|ERR_INTERNET|ERR_NETWORK|ERR_NAME_NOT_RESOLVED/i.test(String((e && (e.message || e)) || ""));
   function avisoRed(){ let el = document.getElementById("sbOffline");
     if(!sinRed){ if(el) el.remove(); return; }
     if(!el){ el = document.createElement("div"); el.id = "sbOffline"; el.style.cssText = "position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:9997;background:#412402;color:#FAEEDA;font:600 13px 'IBM Plex Sans',system-ui,sans-serif;padding:7px 14px;border-radius:999px;box-shadow:0 2px 10px rgba(0,0,0,.25)"; document.body.appendChild(el); }
@@ -1093,21 +1096,22 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   const conPausa = fn => { let t = null; return () => { clearTimeout(t); t = setTimeout(fn, 120); }; };
   async function leerDocRed(path){ const {data, error:e} = await sb.from("docs").select("data").eq("path", path).maybeSingle(); if(e) throw error(e); return data; }
   async function leerDoc(path){
-    if(!sinRed){ try{ const d = await leerDocRed(path); IDB.set("d:"+path, d || null); marcarRed(false); return d; }catch(e){ if(!esFallaRed(e)) throw e; marcarRed(true); } }
-    const c = await IDB.get("d:"+path); return c === undefined ? null : c; }
+    if(navigator.onLine){ try{ const d = await leerDocRed(path); IDB.set("d:"+path, d || null); marcarRed(false); return d; }catch(e){ if(!esFallaRed(e)) throw e; marcarRed(true); const c = await IDB.get("d:"+path); if(c === undefined) throw e; return c; } }
+    marcarRed(true); const c = await IDB.get("d:"+path); if(c === undefined) throw Object.assign(new Error("Sin internet y esto no está guardado en este aparato."), {code:"unavailable"}); return c; }
   async function leerColRed(path){ const out = []; for(let de = 0;; de += 1000){ const {data, error:e} = await sb.from("docs").select("id,data").eq("parent", path).range(de, de+999); if(e) throw error(e); out.push(...data); if(data.length < 1000) break; } return out; }
   async function leerCol(path){
-    if(!sinRed){ try{ const rows = await leerColRed(path); IDB.set("c:"+path, rows); marcarRed(false); return rows; }catch(e){ if(!esFallaRed(e)) throw e; marcarRed(true); } }
-    return (await IDB.get("c:"+path)) || []; }
+    if(navigator.onLine){ try{ const rows = await leerColRed(path); IDB.set("c:"+path, rows); marcarRed(false); return rows; }catch(e){ if(!esFallaRed(e)) throw e; marcarRed(true); const c = await IDB.get("c:"+path); if(c === undefined) throw e; return c; } }
+    // Sin internet: la copia guardada; si no hay copia, error (nunca una lista vacía, para que la app no crea que faltan datos)
+    marcarRed(true); const c = await IDB.get("c:"+path); if(c === undefined) throw Object.assign(new Error("Sin internet y esto no está guardado en este aparato."), {code:"unavailable"}); return c; }
   let canal = null;
   function tiempoReal(){ if(canal) return; canal = sb.channel("docs").on("postgres_changes", {event:"*", schema:"public", table:"docs"}, p => { const path = (p.new && p.new.path) || (p.old && p.old.path); if(path) avisar(path); }).subscribe(); }
   function doc(path){
     return {
       id: ultimo(path), path,
       async get(){ const r = await leerDoc(path); return {id: ultimo(path), exists: !!r, data: () => r ? r.data : undefined}; },
-      async set(data){ if(sinRed || !navigator.onLine) throw soloLectura(); const {error:e} = await sb.from("docs").upsert({path, parent: padre(path), id: ultimo(path), data, updated_at: new Date().toISOString()}); if(e) throw error(e); avisar(path); return {version: 1}; },
-      async update(patch){ if(sinRed || !navigator.onLine) throw soloLectura(); const {error:e} = await sb.rpc("merge_doc", {p_path: path, p_parent: padre(path), p_id: ultimo(path), p_patch: patch}); if(e) throw error(e); avisar(path); return {version: 1}; },
-      async delete(){ if(sinRed || !navigator.onLine) throw soloLectura(); const {error:e} = await sb.from("docs").delete().eq("path", path); if(e) throw error(e); avisar(path); },
+      async set(data){ if(!navigator.onLine) throw soloLectura(); const {error:e} = await sb.from("docs").upsert({path, parent: padre(path), id: ultimo(path), data, updated_at: new Date().toISOString()}); if(e) throw error(e); avisar(path); return {version: 1}; },
+      async update(patch){ if(!navigator.onLine) throw soloLectura(); const {error:e} = await sb.rpc("merge_doc", {p_path: path, p_parent: padre(path), p_id: ultimo(path), p_patch: patch}); if(e) throw error(e); avisar(path); return {version: 1}; },
+      async delete(){ if(!navigator.onLine) throw soloLectura(); const {error:e} = await sb.from("docs").delete().eq("path", path); if(e) throw error(e); avisar(path); },
       onSnapshot(cb, onErr){ const correr = conPausa(async () => { try{ const r = await leerDoc(path); cb({id: ultimo(path), exists: !!r, data: () => r ? r.data : undefined, metadata:{}}); }catch(e){ onErr && onErr(e); } });
         const quitar = agregar(subsDoc, path, correr); tiempoReal(); correr(); return quitar; },
       collection: sub => coleccion(`${path}/${sub}`)
@@ -1133,7 +1137,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const m = url.match(/\/_blob\/([0-9a-f]{32})/);
     if(m){ const key = "https://cierre-offline/archivos/" + m[1];
       let cache = null; try{ cache = await caches.open("cierre-archivos"); }catch(_){}
-      if(!sinRed && navigator.onLine){ try{ const {data, error:e} = await sb.storage.from("archivos").download(m[1]); if(!e && data){ if(cache) cache.put(key, new Response(data.slice(0, data.size, data.type), {headers: {"Content-Type": data.type || "application/octet-stream"}})).catch(()=>{}); return new Response(data, {status: 200}); } if(e && !esFallaRed(e)) return new Response(null, {status: 404}); }catch(e){ if(!esFallaRed(e)) return new Response(null, {status: 404}); marcarRed(true); } }
+      if(navigator.onLine){ try{ const {data, error:e} = await sb.storage.from("archivos").download(m[1]); if(!e && data){ if(cache) cache.put(key, new Response(data.slice(0, data.size, data.type), {headers: {"Content-Type": data.type || "application/octet-stream"}})).catch(()=>{}); return new Response(data, {status: 200}); } if(e && !esFallaRed(e)) return new Response(null, {status: 404}); }catch(e){ if(!esFallaRed(e)) return new Response(null, {status: 404}); marcarRed(true); } }
       const c = cache && await cache.match(key); return c ? new Response(await c.blob(), {status: 200}) : new Response(null, {status: 404, statusText: "Sin internet y este archivo no se guardó para verlo sin conexión"}); }
     return fetchOriginal(u, o);
   };
@@ -2037,7 +2041,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(abiertoF && v){
         const c = cF;
         let d = `<div class="det-list"><div class="h">${tipoSel==="emitida"?"Cobros":"Pagos"} registrados</div>`;
-        d += c.abs.length ? c.abs.map(a=>`<div><span>${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}</span><strong>${money.format(+a.monto||0)}</strong>${a.nota?`<span class="fsub">${esc(a.nota)}</span>`:""}${canWrite?`<button class="linkbtn" data-editab="${esc(a.id)}">Editar</button> <button class="linkbtn" data-delab="${esc(a.id)}">Quitar</button>`:""}</div>`).join("") : `<div class="fsub">Ninguno todavía.${canWrite && c.saldo>0.5 ? ` <button class="linkbtn" data-abonar="${esc(f.id)}">Registrar ${verboF}</button>` : ""}</div>`;
+        d += c.abs.length ? c.abs.map(a=>`<div><span>${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}</span><strong>${money.format(+a.monto||0)}</strong>${a.nota?`<span class="fsub">${esc(a.nota)}</span>`:""}${a.comprobante?`<button class="doc" data-abcomp="${esc(a.id)}" title="Ver comprobante de pago">Comprobante</button>${anMarca(a.comprobante.id, true)}`:canWrite?`<button class="linkbtn" data-editab="${esc(a.id)}" style="font-size:12px">+ comprobante</button>`:""}${canWrite?`<button class="linkbtn" data-editab="${esc(a.id)}">Editar</button> <button class="linkbtn" data-delab="${esc(a.id)}">Quitar</button>`:""}</div>`).join("") : `<div class="fsub">Ninguno todavía.${canWrite && c.saldo>0.5 ? ` <button class="linkbtn" data-abonar="${esc(f.id)}">Registrar ${verboF}</button>` : ""}</div>`;
         d += `<div class="h">Vencimiento</div><div><span>${c.vence?`${fechaCorta(c.vence)} ${String(c.vence).slice(0,4)}`:"—"}</span><span class="fsub">${f.metodo==="PPD"?`complementos pagados: ${money.format(c.compPagado||0)}`:"PUE: se paga al facturar"}</span></div></div>`;
         t += `<tr class="det"><td colspan="9">${d}</td></tr>`;
       }
@@ -2243,6 +2247,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       for(const c of comps){
         i++; setSaving(`Subiendo ${i} de ${totalW}…`);
         const id = `${c.uuid}_${c.doc}`, e = compById[id];
+        // Nunca se pierde un dato que ya estaba: si el archivo nuevo (por ejemplo un XML sin desglose) trae IVA o RFC vacíos, se conserva lo anterior
+        if(e){ for(const k of ["iva","ivaBase","ivaRet","isrRet"]) if(!(+c[k]) && +e[k]) c[k] = e[k]; for(const k of ["rfc","nombre","regimen"]) if(!c[k] && e[k]) c[k] = e[k]; }
         // Solo se salta si ya está igual; si antes se guardó sin IVA o sin RFC, se actualiza
         if(e && e.estadoSAT===c.estadoSAT && +e.impPagado===c.impPagado && e.iva!=null && Math.abs((+e.iva||0)-(+c.iva||0)) < 0.01 && (!c.rfc || e.rfc===c.rfc)) continue;
         if(e && !/cancel/i.test(e.estadoSAT||"") && /cancel/i.test(c.estadoSAT||"")) canceladas.push({clase: c.tipo==="emitida" ? "Complemento emitido" : "Complemento recibido", x:{...e}});
@@ -2252,6 +2258,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         i++; setSaving(`Subiendo ${i} de ${totalW}…`);
         const ref = db.doc(`empresas/${empresa}/facturas/${d.uuid}`);
         const e = byId[d.uuid];
+        // No se pierde lo que ya estaba: si el archivo nuevo trae vacíos el IVA, las retenciones, el método o el folio, se conservan
+        if(e){ for(const k of ["iva","ivaBase","ivaRet","isrRet","iva0Base","ivaExBase"]) if(!(+d[k]) && +e[k]) d[k] = e[k]; if(!/^(PPD|PUE)$/.test(d.metodo||"") && /^(PPD|PUE)$/.test(e.metodo||"")) d.metodo = e.metodo; for(const k of ["folio","regimen","nombre"]) if(!d[k] && e[k]) d[k] = e[k]; }
         if(!e){ await conReintento(()=>ref.set({...d, prov: d.metodo==="PUE" ? "na" : "", ctrl: ""})); nuevas++; }
         else if(["estadoSAT","total","fecha","metodo","nombre","folio","subtotal","iva","isrRet","ivaRet","impLoc","regimen","iva0Base","ivaExBase"].some(k => typeof d[k]==="number" ? Math.abs((+e[k]||0) - d[k]) > 0.001 : String(e[k]??"") !== String(d[k]??""))){ if(vigente(e) && /cancel/i.test(d.estadoSAT||"")){ canceladas.push({clase: e.tipo==="emitida" ? "Factura emitida" : "Factura recibida", x:{...e}}); d.canceladaDetectada = hoyISO; } await conReintento(()=>ref.update(d)); cambios++; }
       }
@@ -2441,7 +2449,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
             return `${pp ? `<div style="margin-bottom:4px"><span class="st parcial" title="Encontrado en tus pólizas de CONTPAQi">En póliza ${esc(pp.id)}${pp.fecha?` · ${fechaCorta(pp.fecha)}`:""}</span>${canWrite?` <button class="linkbtn" data-abpol="${esc(f.id)}" style="font-size:12px">registrar ${verbo} con la póliza</button> · <button class="linkbtn" data-nopol="${esc(f.id)}" style="font-size:12px">no es esta</button>`:""}</div>` : ""}${canWrite ? `<button class="btn sm" data-abonar="${esc(f.id)}">Registrar ${verbo}</button>` : ""}`; })()}</td></tr>`;
         if(abierto){
           let d = `<div class="det-list"><div class="h">${ctSel==="emitida"?"Cobros":"Pagos"} registrados</div>`;
-          d += c.abs.length ? c.abs.map(a=>`<div><span>${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}</span><strong>${money.format(+a.monto||0)}</strong>${a.nota?`<span class="fsub">${esc(a.nota)}</span>`:""}${canWrite?`<button class="linkbtn" data-editab="${esc(a.id)}">Editar</button> <button class="linkbtn" data-delab="${esc(a.id)}">Quitar</button>`:""}</div>`).join("") : `<div class="fsub">Ninguno todavía.</div>`;
+          d += c.abs.length ? c.abs.map(a=>`<div><span>${fechaCorta(a.fecha)} ${String(a.fecha).slice(0,4)}</span><strong>${money.format(+a.monto||0)}</strong>${a.nota?`<span class="fsub">${esc(a.nota)}</span>`:""}${a.comprobante?`<button class="doc" data-abcomp="${esc(a.id)}" title="Ver comprobante de pago">Comprobante</button>${anMarca(a.comprobante.id, true)}`:canWrite?`<button class="linkbtn" data-editab="${esc(a.id)}" style="font-size:12px">+ comprobante</button>`:""}${canWrite?`<button class="linkbtn" data-editab="${esc(a.id)}">Editar</button> <button class="linkbtn" data-delab="${esc(a.id)}">Quitar</button>`:""}</div>`).join("") : `<div class="fsub">Ninguno todavía.</div>`;
           if(f.metodo==="PPD"){
             d += `<div class="h">Complementos de pago</div>`;
             d += c.cs.length ? c.cs.map(x=>`<div style="flex-wrap:wrap"><span>${fechaCorta(x.fechaPago)} ${String(x.fechaPago).slice(0,4)}</span><strong>${money.format(+x.impPagado||0)}</strong><span class="fsub">Parcialidad ${x.parcialidad||1} · saldo ${money.format(+x.saldoInsoluto||0)}</span><div style="width:100%">${uuidHTML(x.uuid)}${botonesCfdi(x.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(x.uuid)}</div>`:""}</div></div>`).join("") : `<div class="fsub">No hay complementos cargados para esta factura.</div>`;
@@ -2482,6 +2490,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("abTitle").textContent = f.tipo==="emitida" ? `Registrar cobro de ${f.nombre}` : `Registrar pago a ${f.nombre}`;
     $("abSub").textContent = `Factura del ${fechaCorta(f.fecha)} ${f.anio} por ${money.format(+f.total||0)}. Saldo: ${money.format(c.saldo)}.`;
     $("abMonto").value = (editA ? +editA.monto : c.saldo).toFixed(2); $("abFecha").value = editA ? String(editA.fecha).slice(0,10) : hoyISO; $("abNota").value = editA ? (editA.nota||"") : "";
+    $("abComp").value = ""; $("abCompActual").textContent = editA && editA.comprobante ? `Ya tiene: ${editA.comprobante.nombre} (si eliges otro, lo reemplaza)` : "Transferencia, depósito, ticket o captura del pago.";
     if(editA) $("abTitle").textContent = `Corregir ${f.tipo==="emitida"?"cobro":"pago"} de ${f.nombre}`;
     $("abDlg").showModal(); $("abMonto").select();
   }
@@ -2495,7 +2504,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const btn = $("confirmAb"); btn.disabled = true;
     try{
       setSaving("Guardando…");
-      await db.doc(`empresas/${empresa}/abonos/${id}`).set({tipo: f.tipo==="emitida"?"cobro":"pago", uuid: f.uuid, fecha, monto, nota: $("abNota").value.trim(), nombre: f.nombre});
+      let comprobante = abEdit && abEdit.comprobante || null; const archivo = $("abComp").files[0];
+      if(archivo){ if(!assets){ toast("No se pueden guardar archivos en esta vista."); } else { setSaving("Subiendo comprobante…"); const up = await assets.upload(archivo); comprobante = {id: up.id, nombre: archivo.name}; } }
+      const base = abEdit ? (({id: _i, ...x}) => x)(abEdit) : {};
+      await db.doc(`empresas/${empresa}/abonos/${id}`).set({...base, tipo: f.tipo==="emitida"?"cobro":"pago", uuid: f.uuid, fecha, monto, nota: $("abNota").value.trim(), nombre: f.nombre, ...(comprobante ? {comprobante} : {})});
       setSaving("Guardado"); $("abDlg").close();
       toast(`${f.tipo==="emitida"?"Cobro":"Pago"} registrado: ${money.format(monto)}.`);
     }catch(err){ handleWriteError(err); }
@@ -7899,6 +7911,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     toast("Te descargué el PDF y el XML para que los adjuntes.");
   }
   document.addEventListener("click", e => { const s = e.target.closest("[data-cfshare]"); if(s){ e.stopPropagation(); compartirCfdi(s.dataset.cfshare); } }, true);
+  document.addEventListener("click", e => { const b = e.target.closest("[data-abcomp]"); if(!b) return; e.stopPropagation(); const a = abonos.find(x=>x.id===b.dataset.abcomp); if(a && a.comprobante) descargarAsset(a.comprobante, true); });
   document.addEventListener("click", e => { const b = e.target.closest("[data-cfdl]"); if(!b) return; e.stopPropagation(); const c = cfdiMap[String(b.dataset.cfdl).toUpperCase()]; const a = c && c[b.dataset.t]; if(a) descargarAsset(a, true); }, true);
   $("folderBtn").onclick = () => { if(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1)){ toast("En el iPad: en Archivos mantén presionada la carpeta → Comprimir, y sube el .zip con 'Subir reporte'."); return; } $("folderFile").click(); };
   // Subir una carpeta completa (en computadora)
