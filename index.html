@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 124 · Expediente: qué falta en cada mes</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 125 · Arreglo del Expediente</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -5299,8 +5299,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!eMes) eMes = year===now.getFullYear() ? Math.max(1, now.getMonth()) : 12;
     $("emonths").innerHTML = Array.from({length:12},(_,i)=>{ const s = estadoExp(i+1), n = [s.pol, s.inv, s.drive].filter(Boolean).length;
       const cls = n===3 ? "ok" : n ? "pend" : "vacio"; return `<button class="mchip ${cls}" data-emes="${i+1}" aria-current="${eMes===i+1}"><b>${ABR[i]}</b><small>${n===3?"Completo":n?`${n} de 3`:"—"}</small></button>`; }).join("");
-    $("statusLine").innerHTML = `${MESES[eMes-1]}: ${s.pol?"✓":"✗"} pólizas impresas · ${s.inv?"✓":"✗"} invoices de licencias${s.invT?` (${s.invN} de ${s.invT})`:""} · ${s.drive?"✓":"✗"} carpeta subida a Drive. Los 3 juntos dan el mes completo.`;
     const e = expDe(eMes), s = estadoExp(eMes), f = money.format;
+    $("statusLine").innerHTML = `${MESES[eMes-1]}: ${s.pol?"✓":"✗"} pólizas impresas · ${s.inv?"✓":"✗"} invoices de licencias${s.invT?` (${s.invN} de ${s.invT})`:""} · ${s.drive?"✓":"✗"} carpeta subida a Drive. Los 3 juntos dan el mes completo.`;
     const docBtn = (a, ctx, ix) => `<span class="doc" style="display:inline-flex;gap:6px;align-items:center"><button class="linkbtn" data-edl="${ctx}" data-ix="${ix}" style="color:var(--ink);text-decoration:none">${esc(a.nombre)}</button>${canWrite?`<button class="linkbtn" data-equitar="${ctx}" data-ix="${ix}" aria-label="Quitar ${esc(a.nombre)}">×</button>`:""}</span>`;
     let html = `<div class="dgrid">`;
     // Pólizas
@@ -7759,7 +7759,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ${hist ? `<div style="padding:8px 14px"><strong>${TIPOS_DF[hist]} anteriores</strong>${docsEmp.filter(x=>x.tipo===hist).slice(1).map(d=>`<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${d.fecha?fechaCorta(d.fecha)+" "+d.fecha.slice(0,4):d.nombre}${d.sentido?` · ${d.sentido}`:""}</span><span><button class="btn sm" data-dfdl="${esc(d.id)}">Descargar</button>${canWrite?` <button class="linkbtn" data-dfdel="${esc(d.id)}">borrar</button>`:""}</span></div>`).join("")}</div>` : ""}
       <div class="pairbar" style="padding:12px 14px 0;flex-wrap:wrap;gap:6px"><span class="fsub" style="max-width:none">Sácalas en:</span><a class="btn sm" href="https://www.sat.gob.mx" target="_blank" rel="noopener">SAT</a><a class="btn sm" href="https://www.imss.gob.mx" target="_blank" rel="noopener">IMSS</a><a class="btn sm" href="https://empresarios.infonavit.org.mx" target="_blank" rel="noopener">INFONAVIT</a></div>
       ${canWrite?`<div class="pairbar" style="padding:12px 14px"><button class="btn sm primary" id="dfSubir">Subir constancia u opinión (PDF)</button><input type="file" id="dfFile" accept="application/pdf" multiple hidden><span class="fsub" style="max-width:none">La app reconoce el tipo, la fecha y si la opinión es positiva o negativa.</span></div>`:""}</div>`;
-    const oscura = docsEmp.filter(d=>d.tipo.startsWith("op-")).find(d=>venceDF(d) && venceDF(d) < hoyISO && d===ultimo(d.tipo));
+    const oscura = docsEmp.filter(d=>String(d.tipo||"").startsWith("op-")).find(d=>venceDF(d) && venceDF(d) < hoyISO && d===ultimo(d.tipo));
     if(oscura && vista==="documentos" && !$("statusLine").innerHTML.includes("opiniones de cumplimiento vencidas")) $("statusLine").innerHTML += ` · <strong style="color:var(--late-ink)">Tienes opiniones de cumplimiento vencidas</strong>`;
   }
   $("docfiscal").addEventListener("click", async e => {
