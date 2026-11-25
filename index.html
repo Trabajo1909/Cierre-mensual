@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 123 · Carpetas de cierre del mes y del año completas</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 124 · Expediente: qué falta en cada mes</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -5299,7 +5299,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(!eMes) eMes = year===now.getFullYear() ? Math.max(1, now.getMonth()) : 12;
     $("emonths").innerHTML = Array.from({length:12},(_,i)=>{ const s = estadoExp(i+1), n = [s.pol, s.inv, s.drive].filter(Boolean).length;
       const cls = n===3 ? "ok" : n ? "pend" : "vacio"; return `<button class="mchip ${cls}" data-emes="${i+1}" aria-current="${eMes===i+1}"><b>${ABR[i]}</b><small>${n===3?"Completo":n?`${n} de 3`:"—"}</small></button>`; }).join("");
-    $("statusLine").innerHTML = `Pólizas impresas, invoices de licencias y carpeta final de <strong>${MESES[eMes-1].toLowerCase()}</strong>.`;
+    $("statusLine").innerHTML = `${MESES[eMes-1]}: ${s.pol?"✓":"✗"} pólizas impresas · ${s.inv?"✓":"✗"} invoices de licencias${s.invT?` (${s.invN} de ${s.invT})`:""} · ${s.drive?"✓":"✗"} carpeta subida a Drive. Los 3 juntos dan el mes completo.`;
     const e = expDe(eMes), s = estadoExp(eMes), f = money.format;
     const docBtn = (a, ctx, ix) => `<span class="doc" style="display:inline-flex;gap:6px;align-items:center"><button class="linkbtn" data-edl="${ctx}" data-ix="${ix}" style="color:var(--ink);text-decoration:none">${esc(a.nombre)}</button>${canWrite?`<button class="linkbtn" data-equitar="${ctx}" data-ix="${ix}" aria-label="Quitar ${esc(a.nombre)}">×</button>`:""}</span>`;
     let html = `<div class="dgrid">`;
@@ -5328,9 +5328,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ["Cálculo de impuestos y DIOT", "PDF del cálculo y archivo .txt de la DIOT"],
       ["Acuses, líneas de captura y comprobantes", docsImp.length ? `${docsImp.length} documentos` : null],
       ["Resumen de cuentas por cobrar y por pagar", "PDF"],
-      ["Facturas emitidas y recibidas del mes", "Excel"],
+      ["Facturas emitidas y recibidas del mes", (()=>{ const fs = facturas.filter(fx=>fx.anio===year && fx.mes===eMes), conArch = fs.filter(fx=>{ const c = cfdiMap[String(fx.uuid).toUpperCase()]||{}; return c.xml||c.pdf; }).length; return fs.length ? `Excel${conArch?` + XML y PDF de ${conArch}`:""}` : null; })()],
       ["Revisión de balanza", balanzas[mesKey(year,eMes)] ? "PDF" : null],
       ["Dashboard del mes", balanzas[mesKey(year,eMes)] ? "PDF" : null],
+      ["Estados financieros", balanzas[mesKey(year,eMes)] ? "PDF y Excel" : null],
+      ["Nómina y recibos", nominas.some(n=>n.anio===year && n.mes===eMes) ? `${nominas.filter(n=>n.anio===year && n.mes===eMes).length} recibos` : null],
+      ["Activo fijo", activos.length ? "PDF" : null],
+      ["Presupuesto contra real", presup[mesKey(year,eMes)] ? "Excel" : null],
+      ["Documentos subidos (estados de cuenta, auxiliares…)", archivosGen.some(a=>a.anio===year && a.mes===eMes) ? `${archivosGen.filter(a=>a.anio===year && a.mes===eMes).length} archivos` : null],
+      ["Notas, pendientes y reembolsos a terceros", "Texto"],
       ["Invoices de licencias", s.invN ? `${Object.values(e.invoices||{}).flat().length} archivos` : null],
     ];
     html += `<div class="bpanel"><h3>Carpeta final para Drive<small>Todo lo del mes en un solo .zip, ordenado en carpetas, listo para subirlo al Drive de la empresa.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><tbody>
