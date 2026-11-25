@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 130 · IVA de facturas RESICO y pagos sin IVA</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 131 · Elegir qué papeles de trabajo descargar</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -704,6 +704,15 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="ptSelDlg" style="width:min(460px,94vw)">
+  <h2>¿Qué papeles de trabajo quieres?</h2>
+  <p class="fsub" id="ptSelSub" style="max-width:none;margin:0 0 8px"></p>
+  <div style="display:flex;gap:10px;margin-bottom:6px"><button class="linkbtn" id="ptSelTodos" type="button">Todos</button><button class="linkbtn" id="ptSelNinguno" type="button">Ninguno</button></div>
+  <div id="ptSelLista" style="display:grid;gap:4px"></div>
+  <label class="check" style="margin-top:8px"><input type="checkbox" id="ptSelJuntos"><span>Todos en un solo PDF (si no, un PDF por impuesto)</span></label>
+  <div class="dlg-actions"><button class="btn" id="ptSelCancel">Cancelar</button><button class="btn primary" id="ptSelOk">Descargar</button></div>
 </dialog>
 
 <dialog id="terceroDlg" style="width:min(480px,94vw)">
@@ -4267,7 +4276,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(m%3===0){ filasIng += `<tr style="background:var(--group)"><td><strong>Trimestre ${m/3}</strong></td><td class="num"><strong>${f(trim)}</strong></td><td></td><td></td></tr>`; trim = 0; }
     }
     const tablaIng = `<div class="bpanel"><h3>Ingresos nominales ${year}<small>Facturas emitidas vigentes, por mes, acumulado y por trimestre, comparadas con la cuenta 401 de tu balanza.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><thead><tr><th>Mes</th><th class="num">Ingresos del mes</th><th class="num">Acumulado</th><th class="num">Balanza (401)</th></tr></thead><tbody>${filasIng}<tr><td><strong>Total del año</strong></td><td class="num"><strong>${f(acum)}</strong></td><td></td><td></td></tr></tbody></table></div></div>`;
-    $("ibody").innerHTML = `${downloads ? `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="fsub" style="max-width:none">Papeles de trabajo para anexar a tus pólizas:</span><button class="btn sm" data-ptall="1">Todos los impuestos de ${MESES[iMes-1].toLowerCase()} (un PDF por impuesto, .zip)</button><button class="btn sm" data-ptmes="1">Cálculo completo del mes (PDF)</button></div>` : ""}<div class="imp-grid">${calc}${ctl}</div>${htmlFuentesCalculo(k)}${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}${htmlIMSSEmpleados()}`;
+    $("ibody").innerHTML = `${downloads ? `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="fsub" style="max-width:none">Papeles de trabajo para anexar a tus pólizas:</span><button class="btn sm" data-ptall="1">Elegir cuáles descargar (${MESES[iMes-1].toLowerCase()})</button><button class="btn sm" data-ptmes="1">Cálculo completo del mes (PDF)</button></div>` : ""}<div class="imp-grid">${calc}${ctl}</div>${htmlFuentesCalculo(k)}${htmlComparaCalculo(k)}${notaImp}${pz}<div class="dgrid" style="margin-top:16px">${tablaFav}${tablaIng}</div>${dt}${htmlPendientes()}${htmlCuotasIMSS()}${htmlIMSSEmpleados()}`;
   }
 
   $("imonths").addEventListener("click", e => { const b = e.target.closest("[data-imes]"); if(b){ iMes = +b.dataset.imes; renderImpuestos(); } });
@@ -4290,7 +4299,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("ibody").addEventListener("click", async e => {
     const pe = e.target.closest("[data-pted]"); if(pe){ try{ await papelEditar(pe.dataset.pted, year, iMes); }catch(err){ console.error(err); toast("No se pudo abrir el editor."); } return; }
     const pt = e.target.closest("[data-pt]"); if(pt){ try{ await papelTrabajo(pt.dataset.pt, year, iMes); }catch(err){ console.error(err); toast("No se pudo armar el papel de trabajo."); } return; }
-    if(e.target.closest("[data-ptall]")){ try{ await papelesTodos(year, iMes); }catch(err){ console.error(err); toast("No se pudieron armar los papeles de trabajo."); } return; }
+    if(e.target.closest("[data-ptall]")){ const s = await elegirPapeles(year, iMes); if(!s) return;
+      try{ if(s.juntos && s.claves.length > 1){ setSaving("Armando el PDF…"); await papelesJuntos(s.claves, year, iMes); setSaving(""); toast(`Listo: ${s.claves.length} papeles de trabajo en un solo PDF.`); } else await papelesTodos(year, iMes, s.claves); }
+      catch(err){ setSaving(""); console.error(err); toast("No se pudieron armar los papeles de trabajo."); } return; }
     if(e.target.closest("[data-ptmes]")){ await exportImpuestos("pdf"); return; }
     const at = e.target.closest("[data-archtipo]");
     if(at){ const cl = at.dataset.archtipo, id = declId(year, iMes, cl), prev = declDe(year, iMes, cl); if(!prev) return; const ix = +at.dataset.ix, a = (prev.archivos||[])[ix]; if(!a) return;
@@ -4647,8 +4658,25 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     await loadLibs("pdf"); const doc = new (window.jspdf.jsPDF)({orientation: M.orient, unit:"pt", format:"letter"}); pdfDesdeModelo(doc);
     await guardarArchivo(M.nombreArchivo || "Papel de trabajo.pdf", doc.output("blob"));
   }
-  async function papelesTodos(y, m){
-    const k = calcMes(y, m), claves = OBLIG.filter(o=>{ const d = declDe(y, m, o.clave); return o.clave==="imss" ? !!d : o.clave==="diot" ? (k.diot.rows||[]).length : Math.abs(k.montos[o.clave]||0) > 0.004 || (d && d.presentada) || o.clave==="iva" || o.clave==="isr-pm"; }).map(o=>o.clave);
+  // Elegir cuáles papeles de trabajo descargar
+  function elegirPapeles(y, m){ return new Promise(res=>{
+    const k = calcMes(y, m), conDatos = cl => { const d = declDe(y, m, cl); return cl==="imss" ? !!d : cl==="diot" ? (k.diot.rows||[]).length>0 : Math.abs(k.montos[cl]||0) > 0.004 || (d && d.presentada) || cl==="iva" || cl==="isr-pm"; };
+    $("ptSelSub").textContent = `${MESES[m-1]} ${y} · ${empresaNombre}. Ya vienen marcados los que tienen datos este mes.`;
+    $("ptSelLista").innerHTML = OBLIG.map(o=>`<label class="check" style="margin:0"><input type="checkbox" value="${o.clave}" ${conDatos(o.clave)?"checked":""}><span>${esc(o.nombre)}${conDatos(o.clave)?"":' <span class="fsub">(sin datos este mes)</span>'}</span></label>`).join("");
+    const dlg = $("ptSelDlg"), sel = () => [...document.querySelectorAll("#ptSelLista input:checked")].map(x=>x.value), fin = v => { dlg.close(); res(v); };
+    $("ptSelTodos").onclick = () => document.querySelectorAll("#ptSelLista input").forEach(x=>x.checked = true);
+    $("ptSelNinguno").onclick = () => document.querySelectorAll("#ptSelLista input").forEach(x=>x.checked = false);
+    $("ptSelOk").onclick = () => { const s = sel(); if(!s.length){ toast("Elige al menos uno."); return; } fin({claves: s, juntos: $("ptSelJuntos").checked}); };
+    $("ptSelCancel").onclick = () => fin(null); dlg.showModal(); }); }
+  // Un solo PDF con varios papeles de trabajo, uno tras otro
+  async function papelesJuntos(claves, y, m){
+    await loadLibs("pdflib"); const {PDFDocument} = window.PDFLib, out = await PDFDocument.create();
+    for(const cl of claves){ const p = await papelTrabajo(cl, y, m, true); const src = await PDFDocument.load(await p.blob.arrayBuffer()); (await out.copyPages(src, src.getPageIndices())).forEach(pg=>out.addPage(pg)); }
+    await guardarArchivo(`Papeles de trabajo ${empresaNombre} ${ABR[m-1]} ${y}.pdf`, new Blob([await out.save()], {type:"application/pdf"}));
+  }
+  async function papelesTodos(y, m, elegidos){
+    if(elegidos){ if(elegidos.length===1) return papelTrabajo(elegidos[0], y, m); }
+    const k = calcMes(y, m), claves = elegidos || OBLIG.filter(o=>{ const d = declDe(y, m, o.clave); return o.clave==="imss" ? !!d : o.clave==="diot" ? (k.diot.rows||[]).length : Math.abs(k.montos[o.clave]||0) > 0.004 || (d && d.presentada) || o.clave==="iva" || o.clave==="isr-pm"; }).map(o=>o.clave);
     await loadLibs("zip"); const zip = new JSZip(), raiz = zip.folder(`Papeles de trabajo ${empresaNombre} ${MESES[m-1]} ${y}`);
     let n = 0; for(const cl of claves){ n++; setSaving(`Papel ${n} de ${claves.length}…`); try{ const p = await papelTrabajo(cl, y, m, true); raiz.file(p.nombre, p.blob); }catch(e){ console.error(e); } }
     setSaving(""); await guardarArchivo(`Papeles de trabajo ${empresaNombre} ${ABR[m-1]} ${y}.zip`, await zip.generateAsync({type:"blob"}));
