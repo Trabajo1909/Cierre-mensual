@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 142 · Índice que se renumera y lista de impresión ligada</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 143 · El logo ya no tapa las tablas</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -5139,9 +5139,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         await guardarArchivo(`${nombre}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
       } else {
         await loadLibs("pdf"); const { jsPDF } = window.jspdf; const doc = new jsPDF({orientation:"portrait", unit:"pt", format:"letter"});
-        doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.text(titulo, 40, 44);
-        doc.autoTable({startY:60, head:[["Concepto","Balanza","App","Diferencia","Estatus"]], body: filas.map(x=>[`${x[1]}`, ...[x[2],x[3],x[4]].map(v=>({content: v==null?"—":money.format(v), styles:{halign:"right"}})), x[5]]),
-          theme:"grid", margin:{left:40,right:40}, styles:{fontSize:8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:[252,228,200],textColor:[40,40,40]},
+        const W = doc.internal.pageSize.getWidth(), e0 = empActual();
+        doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(empresaNombre, 40, 46);
+        doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(`Revisión de la balanza · ${MESES[blMes-1]} ${year}`, 40, 64);
+        doc.setFontSize(8.5); doc.setTextColor(120); doc.text(`${e0.rfc?`RFC: ${e0.rfc}    `:""}Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`, 40, 80);
+        doc.setDrawColor(122,31,61); doc.setLineWidth(1.2); doc.line(40, 90, W-40, 90); doc.setLineWidth(.5); doc.setTextColor(20);
+        doc.autoTable({startY:104, head:[["Concepto","Balanza","App","Diferencia","Estatus"]], body: filas.map(x=>[`${x[1]}`, ...[x[2],x[3],x[4]].map(v=>({content: v==null?"—":money.format(v), styles:{halign:"right"}})), x[5]]),
+          theme:"grid", margin:{left:40,right:40,top:84}, styles:{fontSize:8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:[122,31,61],textColor:[255,255,255]},
           didParseCell: d => { if(d.section==="body" && d.column.index===4) d.cell.styles.fillColor = d.cell.raw==="Revisar" ? [244,204,204] : d.cell.raw==="Cuadra" ? [217,234,211] : [237,237,237]; } });
         if(r.avisos.length){ doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.text("Para revisar también", 40, doc.lastAutoTable.finalY+22); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
           let yy = doc.lastAutoTable.finalY+36; r.avisos.forEach(a=>{ const ls = doc.splitTextToSize("• "+a, 530); doc.text(ls, 40, yy); yy += ls.length*11; }); }
@@ -10590,7 +10594,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const Envuelto = function(...args){ const doc = new J(...args), outOrig = doc.output.bind(doc);
       // Si hay logo, las tablas que siguen en otra hoja empiezan debajo de él (no encima)
       if(typeof doc.autoTable==="function"){ const atOrig = doc.autoTable.bind(doc); doc.autoTable = (o, ...rest) => { const e = empActual(), conLogo = e.logo && (e.docCfg||{}).logoPdf !== false;
-        if(o && typeof o==="object" && conLogo){ const mg = typeof o.margin==="number" ? {left:o.margin, right:o.margin, bottom:o.margin} : (o.margin||{}); if(mg.top==null) o.margin = {...mg, top: 84}; } return atOrig(o, ...rest); }; }
+        if(o && typeof o==="object" && conLogo){ const mg = typeof o.margin==="number" ? {left:o.margin, right:o.margin, bottom:o.margin} : (o.margin||{}); if(mg.top==null) o.margin = {...mg, top: 84};
+          // Si una tabla empieza muy arriba, se baja para que el logo no quede encima de ella
+          if(typeof o.startY==="number" && o.startY < 86) o.startY = 86; } return atOrig(o, ...rest); }; }
       doc.output = function(...a){ if(!doc.__estampado){ doc.__estampado = true; try{ estamparPdf(doc); }catch(e){ console.error(e); } } return outOrig(...a); };
       return doc; };
     Object.assign(Envuelto, J); Envuelto.API = J.API; Envuelto.prototype = J.prototype; Envuelto.__estampaOk = true;
