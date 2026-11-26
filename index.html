@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 136 · Resumen de CxC y CxP desde Facturas</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 137 · Balanza: por qué una factura se da por pagada</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1938,10 +1938,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   // Saldo de una factura a una fecha, para compararlo con la contabilidad: cuenta tus pagos registrados, los complementos
   // y el pago que ya está en tus pólizas de CONTPAQi (aunque no lo hayas registrado en la app)
   function saldoAl(f, idx, fin){
-    const c = cuentaDe(f, idx, fin), tot = +f.total||0; if(c.saldo <= 0.5) return {saldo: 0, por: "pagos"};
+    const c = cuentaDe(f, idx, fin), tot = +f.total||0; if(c.saldo <= 0.5) return {saldo: 0, por: "pagos", abs: c.abs};
     const comp = r2((idx.cp[f.uuid]||[]).filter(x=>!fin || String(x.fechaPago).slice(0,10) <= fin).reduce((s,x)=>s+(+x.impPagado||0),0));
     if(f.metodo==="PPD" && comp > c.abonado + 0.5){ const s = r2(Math.max(0, tot - comp)); return {saldo: s <= 0.5 ? 0 : s, por: "complementos"}; }
-    if(!c.abs.length){ let pp = null; try{ pp = pagoEnPolizas(f); }catch(_){} if(pp && pp.fecha && (!fin || pp.fecha <= fin)) return {saldo: 0, por: `póliza ${pp.id}`}; }
+    if(!c.abs.length){ let pp = null; try{ pp = pagoEnPolizas(f); }catch(_){} if(pp && pp.fecha && (!fin || pp.fecha <= fin)) return {saldo: 0, por: `póliza ${pp.id}`, pol: pp}; }
     return {saldo: c.saldo, por: ""};
   }
   function pagoEnPolizas(f){
@@ -4996,7 +4996,12 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const verbo = tipo==="emitida" ? "cobro" : "pago";
       return `<div style="font-size:13px;line-height:1.5"><strong>Diferencias por ${tipo==="emitida"?"cliente":"proveedor"}</strong> (${conDif.length} de ${filas.length}). <span class="fsub">Balanza = saldo de su subcuenta; App = facturas vigentes hasta el ${fechaCorta(fin)} menos sus ${verbo}s (registrados en la app, complementos o encontrados en tus pólizas).</span>
         ${conDif.length ? `<table class="decl" style="width:100%;margin-top:6px"><thead><tr><th>${tipo==="emitida"?"Cliente":"Proveedor"}</th><th class="num">Balanza</th><th class="num">App</th><th class="num">Diferencia</th><th>Qué puede ser</th></tr></thead><tbody>${conDif.map(r=>{ const d = r2(r.bal - r.app);
-          const porque = !r.cuenta ? `No encontré su subcuenta en la balanza: falta registrar la provisión en CONTPAQi o tiene otro nombre.` : !r.facs.length ? `En la app no tiene facturas con saldo: ¿falta subir una factura, o en CONTPAQi falta registrar un ${verbo}?` : d < 0 ? `La app tiene más saldo: ¿ya se hizo el ${verbo} y falta registrarlo en la app? Toca la factura para registrarlo.` : `La balanza tiene más saldo: ¿falta registrar el ${verbo} en CONTPAQi, o hay una factura que no está en la app?`;
+          // Facturas de este tercero que la app da por pagadas al cierre, y por qué
+          const tkR = tokens(r.nombre), pagadas = !r.facs.length ? facturas.filter(x=>x.tipo===tipo && vigente(x) && x.fecha<=fin && inter(tkR, tokens(x.nombre||""))>=1).map(x=>({x, s: saldoAl(x, idx, fin)})).filter(z=>z.s.saldo<=0.5).sort((a,b)=>String(b.x.fecha).localeCompare(String(a.x.fecha))).slice(0,6) : [];
+          const motivo = z => z.s.por==="pagos" ? `tiene ${verbo}s registrados en la app (${(z.s.abs||[]).map(a=>`${fechaCorta(a.fecha)} ${f(+a.monto||0)}`).join(", ")})` : z.s.por==="complementos" ? `tiene complementos de ${verbo} hasta esa fecha` : `encontré su ${verbo} en tu ${z.s.por} (${fechaCorta(z.s.pol && z.s.pol.fecha || "")})`;
+          const accion = z => !canWrite ? "" : z.s.por==="pagos" ? ` <button class="linkbtn" data-blquitar="${esc(z.x.id)}" style="font-size:11px">no se ha ${tipo==="emitida"?"cobrado":"pagado"}: quitar</button>` : z.s.por.startsWith("póliza") ? ` <button class="linkbtn" data-blnopol="${esc(z.x.id)}" data-pol="${esc(z.s.pol && z.s.pol.id || "")}" style="font-size:11px">esa póliza no es su ${verbo}</button>` : "";
+          const listaPag = pagadas.length ? `<div style="margin-top:4px">${pagadas.map(z=>`<div class="fsub" style="max-width:none;white-space:normal">• ${fechaCorta(z.x.fecha)} ${String(z.x.fecha).slice(0,4)} ${z.x.folio?`folio ${esc(z.x.folio)} `:""}${f(+z.x.total||0)}: la app la da por ${tipo==="emitida"?"cobrada":"pagada"} porque ${motivo(z)}.${accion(z)}</div>`).join("")}</div>` : "";
+          const porque = !r.cuenta ? `No encontré su subcuenta en la balanza: falta registrar la provisión en CONTPAQi o tiene otro nombre.` : !r.facs.length ? `En la app no tiene facturas con saldo${pagadas.length ? `. Si en realidad no se ha ${tipo==="emitida"?"cobrado":"pagado"}, corrige la que corresponda:${listaPag}` : `: ¿falta subir una factura, o en CONTPAQi falta registrar un ${verbo}?`}` : d < 0 ? `La app tiene más saldo: ¿ya se hizo el ${verbo} y falta registrarlo en la app? Toca la factura para registrarlo.` : `La balanza tiene más saldo: ¿falta registrar el ${verbo} en CONTPAQi, o hay una factura que no está en la app?`;
           return `<tr><td>${esc(r.nombre)}${r.cuenta?`<div class="fsub">${esc(r.cuenta.cuenta)}</div>`:""}${r.facs.length?`<div style="margin-top:3px">${r.facs.map(z=>`<div class="fsub" style="max-width:none">${fechaCorta(z.x.fecha)} ${z.x.folio?`folio ${esc(z.x.folio)} `:""}saldo ${f(z.s)}${canWrite?` <button class="linkbtn" data-blab="${esc(z.x.id)}" style="font-size:11px">registrar ${verbo}</button>`:""}</div>`).join("")}</div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num late">${f(d)}</td><td style="white-space:normal;font-size:12px">${porque}</td></tr>`; }).join("")}</tbody></table>` : `<div class="fsub">Por tercero cuadra; la diferencia viene de cuentas sin subcuenta por tercero o de redondeos.</div>`}</div>`;
     };
     const ivaPendiente = (tipo, codigo) => {
@@ -5058,6 +5063,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   $("blbody").addEventListener("click", e => {
     const bd = e.target.closest("[data-bldet]"); if(bd){ blAbiertos.has(bd.dataset.bldet) ? blAbiertos.delete(bd.dataset.bldet) : blAbiertos.add(bd.dataset.bldet); renderBalanza(); return; }
     const ba = e.target.closest("[data-blab]"); if(ba){ abrirAbono(ba.dataset.blab); return; }
+    const bq = e.target.closest("[data-blquitar]"); if(bq){ const fx = facturas.find(x=>x.id===bq.dataset.blquitar); if(!fx) return; const abs = abonos.filter(a=>a.uuid===fx.uuid);
+      (async () => { if(!await confirmar(`¿Quitar ${abs.length===1?"el pago registrado":`los ${abs.length} pagos registrados`} de ${fx.nombre} (${abs.map(a=>`${fechaCorta(a.fecha)} ${money.format(+a.monto||0)}`).join(", ")})? La factura vuelve a quedar pendiente.`)) return;
+      try{ for(const a of abs) await db.doc(`empresas/${empresa}/abonos/${a.id}`).delete(); toast("Listo: la factura quedó pendiente."); setTimeout(renderBalanza, 400); }catch(err){ handleWriteError(err); } })(); return; }
+    const bn = e.target.closest("[data-blnopol]"); if(bn){ const fx = facturas.find(x=>x.id===bn.dataset.blnopol); if(!fx) return; const no = [...new Set([...(fx.polPagoNo||[]), bn.dataset.pol].filter(Boolean))];
+      db.doc(`empresas/${empresa}/facturas/${fx.id}`).update({polPagoNo: no}).then(()=>{ fx.polPagoNo = no; toast(`Listo: ${bn.dataset.pol} ya no cuenta como el pago de esa factura.`); renderBalanza(); }).catch(handleWriteError); return; }
     const bx = e.target.closest("[data-balexp]"); if(bx){ const c = bx.dataset.balexp, nota = prompt(`¿Por qué no cuadra "${c}"? Escribe tu explicación (por ejemplo: "la factura X se registró en octubre" o "es la nota de crédito de Y").`); if(nota==null) return;
       const rev = {...(nmDe(year, blMes).balRev||{})}; rev[c] = {fecha: hoyISO, nota: nota.trim()}; guardarNM(year, blMes, {balRev: rev}).then(renderBalanza); return; }
     const bi = e.target.closest("[data-blir]"); if(bi){ const v = bi.dataset.blir; if(v==="impuestos") iMes = blMes; if(v==="bancos") bMes = blMes; if(v==="facturas") mesSel = blMes; const b = document.querySelector(`.view[data-view="${v}"]`); if(b) b.click(); return; }
