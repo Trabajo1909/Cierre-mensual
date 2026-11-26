@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 137 · Balanza: por qué una factura se da por pagada</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 140 · IVA retenido en la 119</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -705,6 +705,13 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   </div>
   <div id="dCsfInfo" class="fsub" style="max-width:none;margin-top:6px"></div>
   <div class="dlg-actions"><button class="linkbtn" id="dirBorrar" style="margin-right:auto">Borrar</button><button class="btn" id="dirCancel">Cancelar</button><button class="btn primary" id="dirOk">Guardar</button></div>
+</dialog>
+
+<dialog id="polVerDlg" style="width:min(640px,94vw)">
+  <h2 id="pvTitulo">Póliza</h2>
+  <div class="fsub" id="pvSub" style="max-width:none;margin-bottom:8px"></div>
+  <div id="pvBody" style="max-height:60vh;overflow:auto"></div>
+  <div class="dlg-actions"><button class="btn primary" id="pvOk">Cerrar</button></div>
 </dialog>
 
 <dialog id="camDlg" style="width:min(400px,92vw)">
@@ -4880,7 +4887,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     // IVA pendiente de pago (119) e IVA trasladado no cobrado (209) contra facturas PPD con saldo
     const ivaPend = tipo => r2(facturas.filter(fx=>fx.tipo===tipo && vigente(fx) && fx.metodo==="PPD" && fx.fecha<=fin && +fx.total>0).reduce((s,fx)=>{ const sa = saldoAl(fx, idx, fin).saldo; return s + (sa>0 ? (+fx.iva||0)*sa/fx.total : 0); },0));
     const c119 = pref("119"), c209 = pref("209");
-    if(c119) add("Saldos acumulados", "IVA pendiente de pago (119)", r2(c119.sf), ivaPend("recibida"), "IVA de facturas de proveedores PPD que aún no pagas");
+    if(c119){ // Si tu IVA retenido se queda en 119 hasta que lo enteras, se suma el retenido del mes (se entera al mes siguiente)
+      const conRet = !!((empActual().balCfg||{}).retEn119), retMes = conRet ? r2((calcMes(y, m).ret||{}).iva || 0) : 0;
+      add("Saldos acumulados", "IVA pendiente de pago (119)", r2(c119.sf), r2(ivaPend("recibida") + retMes), conRet ? `IVA de PPD que aún no pagas + IVA que retuviste en el mes y enteras en tu declaración (${money.format(retMes)})` : "IVA de facturas de proveedores PPD que aún no pagas"); }
     if(c209) add("Saldos acumulados", "IVA trasladado no cobrado (209)", r2(-c209.sf) || 0, ivaPend("emitida"), "IVA de facturas a clientes PPD que aún no cobras");
     // Provisiones que se acumulan sin pagarse (211)
     for(const c of cs.filter(x=>/^211-\d\d-000$/.test(x.cuenta) && !/-00-000$/.test(x.cuenta))){
@@ -4910,6 +4919,24 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
 
   let bTab = "bal";
   document.querySelectorAll("[data-btab]").forEach(b=>b.onclick = () => { bTab = b.dataset.btab; document.querySelectorAll("[data-btab]").forEach(x=>x.setAttribute("aria-pressed", x===b)); renderBalanza(); });
+  // Lo que subiste de CONTPAQi para el mes (balanza y pólizas), con opción de borrarlo
+  function barraArchivosBal(){
+    const mk = mesKey(year, blMes), b = balanzas[mk], p = polCQ[mk], f = x => x ? `${fechaCorta(x)} ${String(x).slice(0,4)}` : "";
+    if(!b && !p) return "";
+    return `<div class="pairbar" style="margin-bottom:12px;flex-wrap:wrap;gap:12px;font-size:13px">
+      ${b ? `<span>📄 <strong>Balanza de ${MESES[blMes-1].toLowerCase()}</strong>${b.archivo?` · ${esc(b.archivo)}`:""}${b.subido?` · subida el ${f(b.subido)}`:""}${canWrite?` <button class="linkbtn" data-blbor="balanza">borrar</button>`:""}</span>` : ""}
+      ${p ? `<span>🧾 <strong>Pólizas de ${MESES[blMes-1].toLowerCase()}</strong> · ${(p.polizas||[]).length} pólizas${p.subido?` · subidas el ${f(p.subido)}`:""}${canWrite?` <button class="linkbtn" data-blbor="polizas">borrar</button>`:""}</span>` : ""}
+      <span class="fsub" style="max-width:none">Para cambiarlas no necesitas borrar: si vuelves a subir las de este mes, se reemplazan.</span></div>`;
+  }
+  // Muestra una póliza tal como la tiene guardada la app (de tus archivos de CONTPAQi)
+  function verPolizaApp(id, fecha){
+    const [tp, num] = String(id).split(" "), mk = String(fecha||"").slice(0,7);
+    const lst = Object.entries(polCQ).flatMap(([m, x])=>(x.polizas||[]).map(p=>({...p, mk:m}))).filter(p=>p.tipo===tp && String(p.num)===String(num));
+    const p = lst.find(x=>x.mk===mk) || lst[0], f = money.format;
+    $("pvTitulo").textContent = id; $("pvSub").innerHTML = p ? `${fechaCorta(p.fecha)} ${String(p.fecha).slice(0,4)} · ${esc(p.concepto||"")} · viene del archivo de pólizas de ${MESES[+p.mk.slice(5,7)-1]} que subiste a la app${(polCQ[p.mk]||{}).subido?` el ${fechaCorta((polCQ[p.mk]||{}).subido)}`:""}. Si en CONTPAQi ya no existe o cambió, vuelve a subir tus pólizas de ese mes.` : "No encontré esa póliza en los archivos de pólizas que subiste.";
+    $("pvBody").innerHTML = p ? `<table class="decl" style="width:100%"><thead><tr><th>Cuenta</th><th>Nombre / referencia</th><th class="num">Cargo</th><th class="num">Abono</th></tr></thead><tbody>${(p.movs||[]).map(m=>`<tr><td>${esc(m.c||"")}</td><td>${esc([m.n, m.r].filter(Boolean).join(" · "))}</td><td class="num">${+m.ca?f(+m.ca):""}</td><td class="num">${+m.ab?f(+m.ab):""}</td></tr>`).join("")}</tbody></table>` : "";
+    $("pvOk").onclick = () => $("polVerDlg").close(); $("polVerDlg").showModal();
+  }
   // ---------- Revisión de balanza, versión fácil: qué compara, de dónde sale cada número, por qué no cuadra y qué hacer ----------
   const BAL_GUIA = [
     [/^Cargos contra abonos/, {que:"Que en tu balanza la suma de cargos sea igual a la suma de abonos.", bal:"Cargos de las cuentas de mayor", app:"Abonos de las cuentas de mayor", causas:["Una póliza descuadrada en CONTPAQi (revisa el reporte de pólizas descuadradas)."], ir:null}],
@@ -4927,7 +4954,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     [/^Clientes/, {que:"Lo que te deben tus clientes (105) contra el saldo de tus facturas emitidas.", bal:"Saldo de 105", app:"Saldo de facturas emitidas (cuenta cobros registrados, complementos y cobros en tus pólizas)", causas:["Un cobro que no está en tus pólizas ni en la app.","Una factura que no registraste en CONTPAQi.","Anticipos o notas de crédito."], ir:["facturas","Ver cuentas por cobrar"]}],
     [/^Proveedores/, {que:"Lo que debes a tus proveedores (201) contra el saldo de tus facturas recibidas.", bal:"Saldo de 201", app:"Saldo de facturas recibidas (cuenta pagos registrados, complementos y pagos en tus pólizas)", causas:["Una factura que no está registrada en CONTPAQi o no está en la app.","Un pago que no está en tus pólizas ni en la app.","Facturas pagadas por terceros registradas en acreedores diversos."], ir:["facturas","Ver cuentas por pagar"]}],
     [/^Banco /, {que:"El saldo del banco en tu balanza contra el auxiliar que subiste en la conciliación.", bal:"Saldo final de la cuenta de bancos", app:"Saldo final del auxiliar", causas:["Pólizas registradas después de exportar el auxiliar: vuelve a subirlo."], ir:["bancos","Ver la conciliación"]}],
-    [/^IVA pendiente de pago/, {que:"El IVA de proveedores PPD que aún no pagas (119) contra el IVA de tus facturas PPD con saldo.", bal:"Saldo de 119", app:"IVA de la parte no pagada de tus PPD recibidas", causas:["Un pago de PPD que en CONTPAQi no pasó el IVA de 119 a 118.","Una PPD registrada como PUE en CONTPAQi (o al revés)."], ir:["facturas","Ver facturas PPD"]}],
+    [/^IVA pendiente de pago/, {que:"El IVA de proveedores PPD que aún no pagas (119) contra el IVA de tus facturas PPD con saldo.", bal:"Saldo de 119", app:"IVA de la parte no pagada de tus PPD recibidas", causas:["IVA que retuviste a proveedores (honorarios, arrendamiento, fletes): si lo dejas en 119 hasta enterarlo, marca la casilla de abajo.","Un pago de PPD que en CONTPAQi no pasó el IVA de 119 a 118.","Una PPD registrada como PUE en CONTPAQi (o al revés)."], ir:["facturas","Ver facturas PPD"]}],
     [/^IVA trasladado no cobrado/, {que:"El IVA de clientes PPD que aún no cobras (209) contra el IVA de tus facturas PPD con saldo.", bal:"Saldo de 209", app:"IVA de la parte no cobrada de tus PPD emitidas", causas:["Un cobro de PPD que en CONTPAQi no pasó el IVA de 209 a 208.","Una PPD registrada como PUE en CONTPAQi (o al revés)."], ir:["facturas","Ver facturas PPD"]}],
   ];
   const guiaBal = c => (BAL_GUIA.find(([re])=>re.test(c))||[])[1] || {que:"", bal:"Balanza", app:"App", causas:[], ir:null};
@@ -4948,6 +4975,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           ${det?`<button class="btn sm" data-bldet="${esc(r.concepto)}">${abierto?"Ocultar el detalle":"Ver el detalle uno por uno"}</button>`:""}
           ${g.ir?`<button class="btn sm" data-blir="${g.ir[0]}">${esc(g.ir[1])}</button>`:""}
+          ${/^IVA pendiente de pago/.test(r.concepto) && canWrite ? `<label class="check inline" style="margin:0;font-size:13px" title="Para quienes dejan el IVA retenido en 119 hasta enterarlo en la declaración"><input type="checkbox" data-blret119 ${(empActual().balCfg||{}).retEn119?"checked":""}> Mi IVA retenido se queda en 119 hasta que lo entero</label>` : ""}
           ${canWrite?(rev?`<button class="linkbtn" data-balrev="${esc(r.concepto)}">Quitar explicación</button>`:`<button class="btn sm" data-balexp="${esc(r.concepto)}">Ya sé por qué: explicar</button>`):""}
         </div>
         ${det && abierto ? `<div style="margin-top:10px;padding:10px;border-radius:10px;background:var(--surface);border:1px solid var(--line)">${det}</div>` : ""}
@@ -4999,7 +5027,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           // Facturas de este tercero que la app da por pagadas al cierre, y por qué
           const tkR = tokens(r.nombre), pagadas = !r.facs.length ? facturas.filter(x=>x.tipo===tipo && vigente(x) && x.fecha<=fin && inter(tkR, tokens(x.nombre||""))>=1).map(x=>({x, s: saldoAl(x, idx, fin)})).filter(z=>z.s.saldo<=0.5).sort((a,b)=>String(b.x.fecha).localeCompare(String(a.x.fecha))).slice(0,6) : [];
           const motivo = z => z.s.por==="pagos" ? `tiene ${verbo}s registrados en la app (${(z.s.abs||[]).map(a=>`${fechaCorta(a.fecha)} ${f(+a.monto||0)}`).join(", ")})` : z.s.por==="complementos" ? `tiene complementos de ${verbo} hasta esa fecha` : `encontré su ${verbo} en tu ${z.s.por} (${fechaCorta(z.s.pol && z.s.pol.fecha || "")})`;
-          const accion = z => !canWrite ? "" : z.s.por==="pagos" ? ` <button class="linkbtn" data-blquitar="${esc(z.x.id)}" style="font-size:11px">no se ha ${tipo==="emitida"?"cobrado":"pagado"}: quitar</button>` : z.s.por.startsWith("póliza") ? ` <button class="linkbtn" data-blnopol="${esc(z.x.id)}" data-pol="${esc(z.s.pol && z.s.pol.id || "")}" style="font-size:11px">esa póliza no es su ${verbo}</button>` : "";
+          const accion = z => !canWrite ? "" : z.s.por==="pagos" ? ` <button class="linkbtn" data-blquitar="${esc(z.x.id)}" style="font-size:11px">no se ha ${tipo==="emitida"?"cobrado":"pagado"}: quitar</button>` : z.s.por.startsWith("póliza") ? ` <button class="linkbtn" data-blverpol="${esc(z.s.pol && z.s.pol.id || "")}" data-fecha="${esc(z.s.pol && z.s.pol.fecha || "")}" style="font-size:11px">ver la póliza</button> · <button class="linkbtn" data-blnopol="${esc(z.x.id)}" data-pol="${esc(z.s.pol && z.s.pol.id || "")}" style="font-size:11px">esa póliza no es su ${verbo}</button>` : "";
           const listaPag = pagadas.length ? `<div style="margin-top:4px">${pagadas.map(z=>`<div class="fsub" style="max-width:none;white-space:normal">• ${fechaCorta(z.x.fecha)} ${String(z.x.fecha).slice(0,4)} ${z.x.folio?`folio ${esc(z.x.folio)} `:""}${f(+z.x.total||0)}: la app la da por ${tipo==="emitida"?"cobrada":"pagada"} porque ${motivo(z)}.${accion(z)}</div>`).join("")}</div>` : "";
           const porque = !r.cuenta ? `No encontré su subcuenta en la balanza: falta registrar la provisión en CONTPAQi o tiene otro nombre.` : !r.facs.length ? `En la app no tiene facturas con saldo${pagadas.length ? `. Si en realidad no se ha ${tipo==="emitida"?"cobrado":"pagado"}, corrige la que corresponda:${listaPag}` : `: ¿falta subir una factura, o en CONTPAQi falta registrar un ${verbo}?`}` : d < 0 ? `La app tiene más saldo: ¿ya se hizo el ${verbo} y falta registrarlo en la app? Toca la factura para registrarlo.` : `La balanza tiene más saldo: ¿falta registrar el ${verbo} en CONTPAQi, o hay una factura que no está en la app?`;
           return `<tr><td>${esc(r.nombre)}${r.cuenta?`<div class="fsub">${esc(r.cuenta.cuenta)}</div>`:""}${r.facs.length?`<div style="margin-top:3px">${r.facs.map(z=>`<div class="fsub" style="max-width:none">${fechaCorta(z.x.fecha)} ${z.x.folio?`folio ${esc(z.x.folio)} `:""}saldo ${f(z.s)}${canWrite?` <button class="linkbtn" data-blab="${esc(z.x.id)}" style="font-size:11px">registrar ${verbo}</button>`:""}</div>`).join("")}</div>`:""}</td><td class="num">${f(r.bal)}</td><td class="num">${f(r.app)}</td><td class="num late">${f(d)}</td><td style="white-space:normal;font-size:12px">${porque}</td></tr>`; }).join("")}</tbody></table>` : `<div class="fsub">Por tercero cuadra; la diferencia viene de cuentas sin subcuenta por tercero o de redondeos.</div>`}</div>`;
@@ -5031,7 +5059,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const conDif = meses.map((x,i)=>x&&x.difs?i:-1).filter(i=>i>=0);
     $("statusLine").innerHTML = !meses.some(Boolean) ? "Sube tu balanza de comprobación de CONTPAQi para revisarla." : conDif.length ? `La primera diferencia aparece en <strong>${MESES[conDif[0]].toLowerCase()}</strong>: empieza a revisar las pólizas por ahí.` : `<strong>Todo cuadra</strong> en las balanzas que subiste.`;
     const x = meses[blMes-1];
-    if(!x){ $("blbody").innerHTML = `<div class="empty">No hay balanza de ${MESES[blMes-1].toLowerCase()}. Usa <strong>Subir balanza de CONTPAQi</strong> con el PDF de la balanza de comprobación.</div>`; return; }
+    if(!x){ $("blbody").innerHTML = barraArchivosBal() + `<div class="empty">No hay balanza de ${MESES[blMes-1].toLowerCase()}. Usa <strong>Subir balanza de CONTPAQi</strong> con el PDF de la balanza de comprobación.</div>`; return; }
     const f = v => v==null ? "—" : money.format(v);
     // Primero lo que no cuadra (con explicación y qué hacer), luego lo explicado, y al final lo que cuadra
     const filasR = x.r.filas.map(r=>({r, rev: revDe(nmDe(year, blMes).balRev||{}, r.concepto)}));
@@ -5056,13 +5084,18 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const hecho = (estados.balanza||{})[blMes]==="done";
     if(canWrite && actividades.some(a=>a.id==="balanza")) t += `<div class="pairbar" style="padding:12px 14px"><button class="btn sm ${hecho?"":"primary"}" id="balOk">${hecho?"Balanza revisada ✓":"Marcar balanza revisada"}</button></div>`;
     t += `</div>`;
-    $("blbody").innerHTML = t;
+    $("blbody").innerHTML = barraArchivosBal() + t;
   }
   $("blmonths").addEventListener("click", e => { const b = e.target.closest("[data-blmes]"); if(b){ blMes = +b.dataset.blmes; renderBalanza(); } });
   $("blbody").addEventListener("change", e => { if(e.target.id==="balNota") guardarNM(year, blMes, {balanza: e.target.value}); });
   $("blbody").addEventListener("click", e => {
     const bd = e.target.closest("[data-bldet]"); if(bd){ blAbiertos.has(bd.dataset.bldet) ? blAbiertos.delete(bd.dataset.bldet) : blAbiertos.add(bd.dataset.bldet); renderBalanza(); return; }
     const ba = e.target.closest("[data-blab]"); if(ba){ abrirAbono(ba.dataset.blab); return; }
+    const rt = e.target.closest("[data-blret119]"); if(rt){ const em = empActual(), bc = {...(em.balCfg||{}), retEn119: rt.checked}; em.balCfg = bc; db.doc(`empresas/${empresa}`).update({balCfg: bc}).then(()=>{ toast(rt.checked ? "Listo: el IVA retenido del mes se suma a la 119 de la app." : "Listo: la 119 de la app ya no suma el IVA retenido."); renderBalanza(); }).catch(handleWriteError); return; }
+    const bb = e.target.closest("[data-blbor]"); if(bb){ const mk = mesKey(year, blMes), esPol = bb.dataset.blbor==="polizas";
+      confirmar(`¿Borrar ${esPol?"las pólizas":"la balanza"} de ${MESES[blMes-1].toLowerCase()} ${year} que subiste a la app? En CONTPAQi no se toca nada. Después puedes subir ${esPol?"las":"la"} correcta${esPol?"s":""}.`).then(async ok=>{ if(!ok) return;
+        try{ await db.doc(`empresas/${empresa}/${esPol?"polizasCQ":"balanzas"}/${mk}`).delete(); if(esPol){ const c = {...polCQ}; delete c[mk]; polCQ = c; } else { const c = {...balanzas}; delete c[mk]; balanzas = c; } toast(`Listo: borré ${esPol?"las pólizas":"la balanza"} de ${MESES[blMes-1].toLowerCase()}.`); renderBalanza(); }catch(err){ handleWriteError(err); } }); return; }
+    const bv = e.target.closest("[data-blverpol]"); if(bv){ verPolizaApp(bv.dataset.blverpol, bv.dataset.fecha); return; }
     const bq = e.target.closest("[data-blquitar]"); if(bq){ const fx = facturas.find(x=>x.id===bq.dataset.blquitar); if(!fx) return; const abs = abonos.filter(a=>a.uuid===fx.uuid);
       (async () => { if(!await confirmar(`¿Quitar ${abs.length===1?"el pago registrado":`los ${abs.length} pagos registrados`} de ${fx.nombre} (${abs.map(a=>`${fechaCorta(a.fecha)} ${money.format(+a.monto||0)}`).join(", ")})? La factura vuelve a quedar pendiente.`)) return;
       try{ for(const a of abs) await db.doc(`empresas/${empresa}/abonos/${a.id}`).delete(); toast("Listo: la factura quedó pendiente."); setTimeout(renderBalanza, 400); }catch(err){ handleWriteError(err); } })(); return; }
