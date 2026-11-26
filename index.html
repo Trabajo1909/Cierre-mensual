@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 134 · Comprobantes de pago a la vista</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 136 · Resumen de CxC y CxP desde Facturas</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -479,6 +479,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
       <div class="seg" aria-label="Vista"><button data-fvista="lista" aria-pressed="true">Lista</button><button data-fvista="tercero" aria-pressed="false">Por cliente o proveedor</button><button data-fvista="concppd" aria-pressed="false">PPD vs complementos</button></div>
       <input id="fBuscar" type="search" placeholder="Buscar proveedor o cliente, RFC o folio" style="max-width:280px" aria-label="Buscar factura">
       <button class="btn sm" id="folderBtn" type="button" title="Sube la carpeta de AdminXML con los XML y PDF">Subir carpeta de XML y PDF</button><input type="file" id="folderFile" webkitdirectory multiple hidden>
+      <button class="btn sm" id="cxcxpPdf" type="button" title="Resumen de cuentas por cobrar y por pagar al cierre del mes elegido">Resumen CxC y CxP (PDF)</button>
     </div>
     <div id="fFiltros" class="ftools" style="margin-top:4px"></div>
     <div class="months" id="months"></div>
@@ -4418,6 +4419,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }
     if(e.target.closest("#resumenPdf")) exportResumenCuentas(iMes);
   });
+  $("cxcxpPdf").onclick = async () => { if(!downloads){ toast("Las descargas no están disponibles en esta vista."); return; } const m = mesSel || (year===now.getFullYear() ? now.getMonth()+1 : 12); try{ await exportResumenCuentas(m); }catch(err){ console.error(err); toast("No se pudo armar el resumen."); } };
   async function exportResumenCuentas(m){
     try{
       await loadLibs("pdf"); const { jsPDF } = window.jspdf; const doc = new jsPDF({orientation:"portrait", unit:"pt", format:"letter"});
@@ -5487,7 +5489,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     ];
     html += `<div class="bpanel"><h3>Carpeta final para Drive<small>Todo lo del mes en un solo .zip, ordenado en carpetas, listo para subirlo al Drive de la empresa.</small></h3><div class="sheet" style="border:none;border-radius:0"><table class="decl"><tbody>
       ${items.map(([n,v])=>`<tr><td>${n}</td><td style="text-align:right">${v ? `<span class="fsub" style="max-width:none">${esc(v)}</span> <span class="st pagado">Incluido</span>` : '<span class="st na">No hay todavía</span>'}</td></tr>`).join("")}
-      </tbody></table></div><div class="pairbar" style="padding:12px 14px">${downloads?`<button class="btn primary sm" id="expZip">Descargar carpeta del mes (.zip)</button><button class="btn sm" id="expZipAnual">Descargar cierre anual ${year} (.zip)</button>`:""}
+      </tbody></table></div><div class="pairbar" style="padding:12px 14px">${downloads?`<button class="btn primary sm" id="expZip">Descargar carpeta del mes (.zip)</button><button class="btn sm" id="expZipAnual">Descargar cierre anual ${year} (.zip)</button>`:""}${downloads?`<span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:auto"><span class="fsub">Índice y lista para imprimir:</span><button class="btn sm" data-lista="mes">Del mes (PDF)</button><button class="btn sm" data-lista="mes" data-editar="1">Del mes · editar</button><button class="btn sm" data-lista="anual">Del año (PDF)</button><button class="btn sm" data-lista="anual" data-editar="1">Del año · editar</button></span>`:""}
       ${canWrite?`<button class="btn sm" id="expDrive" aria-pressed="${s.drive}">${s.drive?`Subida a Drive ✓${e.driveFecha?` (${fechaCorta(e.driveFecha)})`:""}`:"Marcar como subida a Drive"}</button>`:""}</div></div>`;
     html += `<div class="bpanel" style="margin-top:16px"><h3>Respaldo completo<small>Todos tus datos de todas las empresas y todos los archivos (acuses, pólizas, invoices) en un .zip. Guárdalo en tu computadora o en Drive; también sirve para pasar la app a otro lugar.</small></h3><div class="pairbar" style="padding:12px 14px">${downloads?`<button class="btn sm" id="respaldoBtn">Descargar respaldo completo (.zip)</button>`:""}</div></div>`;
     $("ebody").innerHTML = html;
@@ -5541,6 +5543,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(e.target.closest("#expDrive")){ const ex = expDe(eMes); try{ await guardarExp(eMes, {drive: !ex.drive, driveFecha: ex.drive ? null : hoyISO}); }catch(err){ handleWriteError(err); } return; }
     if(e.target.closest("#expZip")) armarZip(eMes);
     if(e.target.closest("#expZipAnual")) armarZipAnual();
+    const li = e.target.closest("[data-lista]"); if(li){ try{ await descargarLista(li.dataset.lista==="anual", eMes, !!li.dataset.editar); }catch(err){ console.error(err); toast("No se pudo armar el índice."); } return; }
     if(e.target.closest("#respaldoBtn")) descargarRespaldo();
   });
   // Escanear con la cámara: cada foto se agrega; al terminar se juntan en un solo PDF
@@ -5635,6 +5638,64 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     }catch(e){ console.error(e); toast("No se pudo armar la carpeta."); }
     finally{ ({cuentaSel, bMes, iMes, blMes, dTab, dMes, tipoSel, mesSel, efMes, efModo, nomMes, aMes, preMes} = prev); captura = null; renderExpediente(); }
   }
+  // ---------- Índice y lista de impresión del cierre (mes o año) ----------
+  function listaImpresion(m){
+    const mk = mesKey(year, m), ok = v => v ? "Listo" : "Falta", L = [], add = (doc, donde, listo, imprimir = true) => L.push({doc, donde, listo: listo===null ? null : !!listo, imprimir});
+    const ex = expDe(m), hayBal = !!balanzas[mk], k = calcMes(year, m);
+    add("Pólizas del mes (impresas de CONTPAQi)", "Expediente > Pólizas impresas", (ex.polizas||[]).length);
+    add("Balanza de comprobación", "CONTPAQi (súbela en Balanza)", hayBal);
+    add("Revisión de la balanza", "Balanza > Descargar PDF", hayBal);
+    add("Estados financieros (resultados y balance)", "Estados financieros > Descargar PDF", hayBal);
+    cuentasB.forEach(c=>{ const cc = concDe(c.id, year, m); add(`Conciliación bancaria · ${c.nombre}`, "Bancos > Descargar PDF", cc && (cc.banco||[]).length + (cc.aux||[]).length);
+      add(`Estado de cuenta · ${c.nombre}`, "Bancos > Ver estado de cuenta", cc && ((cc.banco||[]).length || cc.edoSubido));
+      add(`Auxiliar · ${c.nombre}`, "Bancos > Ver auxiliar", cc && ((cc.aux||[]).length || cc.auxSubido)); });
+    add("Cálculo de impuestos del mes", "Impuestos > Cálculo completo del mes (PDF)", k.hayDatos);
+    OBLIG.forEach(o=>{ const d = declDe(year, m, o.clave), con = o.clave==="imss" ? !!d : o.clave==="diot" ? (k.diot.rows||[]).length : Math.abs(k.montos[o.clave]||0)>0.004 || (d && d.presentada); if(!con) return;
+      const arch = (d && d.archivos) || [], t = x => arch.some(a=>(a.tipo||"acuse")===x);
+      add(`Papel de trabajo · ${o.nombre}`, "Impuestos > Papel de trabajo (PDF)", true);
+      add(`Acuse y declaración · ${o.nombre}`, "Impuestos > Subir acuses", t("acuse") || t("declaracion"));
+      if(o.clave!=="diot") add(`Línea de captura y comprobante de pago · ${o.nombre}`, "Impuestos > Adjuntar comprobante", !!(d && (d.pagada || t("comprobante") || (d.presentada && !(+d.aPagar))))); });
+    const nm = nominas.filter(n=>n.anio===year && n.mes===m);
+    if(nm.length){ add("Resumen de nómina del mes", "Nóminas > Descargar PDF", true); add(`Recibos de nómina timbrados (${nm.length})`, "Nóminas > XML · PDF de cada recibo", nm.every(n=>(cfdiMap[String(n.uuid).toUpperCase()]||{}).pdf), false); }
+    add("Cuentas por cobrar y por pagar al cierre", "Facturas y cuentas > Descargar PDF", true);
+    add("Facturas del mes (XML y PDF)", "Facturas y cuentas · van en la carpeta del mes", facturas.some(f=>f.anio===year && f.mes===m), false);
+    licencias.filter(l=>l.activa!==false).forEach(l=>add(`Invoice · ${l.nombre}`, "Expediente > Invoices de licencias", ((ex.invoices||{})[l.id]||[]).length || (ex.noAplica||{})[l.id]));
+    if(activos.length) add("Activo fijo y depreciación", "Activo fijo > Descargar PDF", true, false);
+    add("Notas y pendientes del mes", "Carpeta del mes (14 Notas y pendientes)", true, false);
+    add("Carpeta completa subida a Drive", "Expediente > Marcar como subida a Drive", ex.drive, false);
+    return L;
+  }
+  function listaImpresionAnual(){
+    const L = [], add = (doc, donde, listo, imprimir = true) => L.push({doc, donde, listo: listo===null?null:!!listo, imprimir});
+    const tiene = re => [...archivosGen.filter(a=>a.anio===year), ...docsEmp].some(a=>re.test(`${a.categoria||""} ${a.nombre||""} ${a.tipo||""}`));
+    const nBal = Array.from({length:12},(_,i)=>i+1).filter(m=>balanzas[mesKey(year,m)]).length;
+    add(`Balanzas de los 12 meses (${nBal} de 12)`, "Balanza", nBal===12); add("Balanza de diciembre y póliza de cierre", "CONTPAQi", !!balanzas[mesKey(year,12)]);
+    add("Estados financieros anuales", "Estados financieros (acumulado) > PDF", nBal>0); add("Declaración anual de personas morales y su acuse", "Documentos (categoría Impuestos)", tiene(/anual/i));
+    add("Papeles de trabajo de la anual (ajuste por inflación, deducción de inversiones, PTU)", "Documentos", tiene(/ajuste|inflaci|ptu|papeles/i)); add("Resumen de pagos provisionales del año", "Carpeta anual · 03 Impuestos", true);
+    add("Constancias de retenciones", "Documentos", tiene(/constancia de ret/i)); add("Opinión de cumplimiento SAT e IMSS", "Documentos", tiene(/opini/i));
+    add("Activo fijo con depreciación del año", "Activo fijo > PDF", activos.length>0); add("Cálculo anual de nómina y constancias de sueldos", "Documentos", tiene(/anual.*(sueldo|n[oó]mina)|constancia.*sueldo/i));
+    add("Prima de riesgo de trabajo", "Documentos", tiene(/prima de riesgo/i)); add("Acta constitutiva, poderes y actas de asamblea", "Documentos > Expediente de la empresa", tiene(/acta|poder|asamblea/i));
+    add("Constancia de situación fiscal", "Documentos > Expediente de la empresa", tiene(/situaci[oó]n fiscal|csf/i)); add("Contratos vigentes", "Documentos > Expediente de la empresa", tiene(/contrato/i));
+    add("Resumen del año y presupuesto contra real", "Resumen > PDF", true, false);
+    return L;
+  }
+  function modeloLista(anual, m){
+    const L = anual ? listaImpresionAnual() : listaImpresion(m), e = empActual();
+    const faltan = L.filter(x=>x.listo===false).length, imp = L.filter(x=>x.imprimir).length;
+    return {empresa: empresaNombre, titulo: anual ? `Índice del cierre anual ${year}` : `Índice del cierre de ${MESES[m-1].toLowerCase()} ${year}`,
+      datos: `${e.rfc?`RFC: ${e.rfc}    `:""}Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}    ${L.length} documentos · ${faltan} faltan · ${imp} para imprimir`,
+      logo:"derecha", orient:"portrait", letra:8.5, nota:"", nombreArchivo: `Indice ${anual?`cierre anual ${year}`:`cierre ${ABR[m-1]} ${year}`} ${empresaNombre}.pdf`,
+      secciones: [
+        {id:"indice", titulo:"Índice de la carpeta", resumen:"Todo lo que debe llevar el cierre, dónde sacarlo en la app y si ya lo tienes.", nueva:true, visible:true, head:["#","Documento","Dónde sacarlo","Estatus"], der:[], filas: L.map((x,i)=>({cells:[String(i+1), x.doc, x.donde, x.listo==null?"":x.listo?"Listo":"FALTA"], rojo: x.listo===false}))},
+        {id:"imprimir", titulo:"Lista para imprimir", resumen:"Marca cada hoja conforme la imprimes y la archivas.", nueva:true, visible:true, head:["Impreso","Documento","Estatus"], der:[], filas: L.filter(x=>x.imprimir).map(x=>({cells:["[   ]", x.doc, x.listo==null?"":x.listo?"Listo":"Falta"]}))}
+      ]};
+  }
+  async function descargarLista(anual, m, editar){
+    const M0 = modeloLista(anual, m); const M = editar ? await abrirEditorPdf(null, M0) : M0; if(!M) return;
+    pdfModelo = M; await loadLibs("pdf"); const doc = new (window.jspdf.jsPDF)({orientation: M.orient, unit:"pt", format:"letter"}); pdfDesdeModelo(doc);
+    await guardarArchivo(M.nombreArchivo, doc.output("blob"));
+  }
+
   // ---------- Carpeta de cierre anual (.zip) ----------
   async function armarZipAnual(){
     const btn = $("expZipAnual"); if(btn){ btn.disabled = true; btn.textContent = "Armando el cierre anual…"; }
