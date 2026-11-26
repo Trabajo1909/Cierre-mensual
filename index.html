@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 147 · Pendientes solo con importe</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 149 · DIOT en PDF</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -4254,7 +4254,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         const n = x => x ? Math.round(x).toLocaleString("es-MX") : "";
         dt += `<tr><td class="uuid">${g.rfcOk?esc(g.rfc):'<span class="falta">Sin RFC</span>'}</td><td>${esc(g.nombre||"")}</td><td>${sel}</td><td class="num">${n(g.b16)}</td><td class="num">${n(g.iva)}</td><td class="num">${n(g.b0)}</td><td class="num">${n(g.ex)}</td><td class="num">${n(g.ret)}</td></tr>`;
       }
-      dt += `</tbody></table></div>${manHtml}<div class="pairbar" style="padding:0 14px 14px">${downloads?`<button class="btn primary sm" id="diotTxt">Descargar archivo de carga (.txt)</button><button class="btn sm" id="diotXlsx">Descargar DIOT en Excel</button><button class="btn sm" id="diotSat">Formato del SAT (Excel de carga)</button><button class="btn sm" id="diotVer">Ver archivo de carga</button>`:""}</div></div>`;
+      dt += `</tbody></table></div>${manHtml}<div class="pairbar" style="padding:0 14px 14px">${downloads?`<button class="btn primary sm" id="diotTxt">Descargar archivo de carga (.txt)</button><button class="btn sm" data-pt="diot">Descargar DIOT en PDF</button><button class="btn sm" data-pted="diot">PDF · editar</button><button class="btn sm" id="diotXlsx">Descargar DIOT en Excel</button><button class="btn sm" id="diotSat">Formato del SAT (Excel de carga)</button><button class="btn sm" id="diotVer">Ver archivo de carga</button>`:""}</div></div>`;
     }
     // Pólizas y cierre
     const pol = polizas[mesKey(year, iMes)] || {};
@@ -7223,6 +7223,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(o.clave==="imss" && d.imssDet && e.st==="porpagar") base = r2((+d.aPagar||0) - (+d.imssDet.recargos||0) - (+d.imssDet.actualizacion||0));
         const r = base ? calcRecargos(base, vence, hoy) : {act:0, rec:0, meses:0, aprox:false};
         out.push({m, o, sit, base, vence, atraso: hoy > vence ? -diasEntre(hoy, vence) : 0, ...r, total: base!=null ? r2(base + r.act + r.rec) : null});
+        // Si además de lo declarado (sin pagar) falta una complementaria, va en su propio renglón
+        if(e.st==="porpagar" && fc > 1){ const r2c = calcRecargos(fc, vence, hoy); out.push({m, o, sit: "Falta complementaria (diferencia contra lo declarado)", base: r2(fc), vence, atraso: hoy > vence ? -diasEntre(hoy, vence) : 0, ...r2c, total: r2(fc + r2c.act + r2c.rec)}); }
       }
     }
     return out;
