@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 143 · El logo ya no tapa las tablas</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 144 · PDF de impuestos pendientes</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7327,11 +7327,46 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       .forEach(([l,k])=>{ const r = w.addRow([l, ...C.map(x=>x[k]||null), r2(C.reduce((s,x)=>s+(+x[k]||0),0))]); for(let i=2;i<=C.length+2;i++) r.getCell(i).numFmt = M; if(/^Total/.test(l)) r.font = {bold:true}; });
     await guardarArchivo(`Cuotas IMSS ${empresaNombre} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
   }
+  // ---------- PDF de impuestos pendientes de presentar o pagar ----------
+  async function exportPendientesPdf(){
+    const P = pendientesImpuestos(year), hoy = pendFecha || hoyISO, e = empActual(), f = money.format;
+    if(!P.length){ toast(`No tienes impuestos pendientes en ${year}.`); return; }
+    await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({orientation:"landscape", unit:"pt", format:"letter"}), W = doc.internal.pageSize.getWidth(), Mg = 40, VINO = [122,31,61];
+    const total = r2(P.reduce((s,x)=>s+(+x.total||0),0)), base = r2(P.reduce((s,x)=>s+(+x.base||0),0)), act = r2(P.reduce((s,x)=>s+(+x.act||0),0)), rec = r2(P.reduce((s,x)=>s+(+x.rec||0),0));
+    doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(empresaNombre, Mg, 46);
+    doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(`Impuestos pendientes de presentar o pagar · ${year}`, Mg, 64);
+    doc.setFontSize(8.5); doc.setTextColor(120); doc.text(`${e.rfc?`RFC: ${e.rfc}    `:""}Calculado si pagas el ${fechaCorta(hoy)} ${hoy.slice(0,4)}    Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`, Mg, 80);
+    doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(Mg, 90, W-Mg, 90); doc.setLineWidth(.5);
+    // Resumen en cuadros
+    const cajas = [["Total a pagar", f(total), true], ["Impuestos", f(base)], ["Actualización (INPC)", f(act)], ["Recargos", f(rec)], ["Pendientes", String(P.length)]];
+    const cw = (W - 2*Mg - 4*10) / 5; cajas.forEach(([t, v, fuerte], i)=>{ const x = Mg + i*(cw+10); doc.setFillColor(...(fuerte ? VINO : [245,238,241])); doc.roundedRect(x, 100, cw, 46, 6, 6, "F");
+      doc.setTextColor(...(fuerte ? [255,255,255] : [110,110,110])); doc.setFontSize(8); doc.text(t, x + 10, 116); doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(...(fuerte ? [255,255,255] : [20,20,20])); doc.text(v, x + 10, 136); doc.setFont("helvetica","normal"); });
+    const est = {theme:"grid", margin:{left:Mg, right:Mg, top:84}, styles:{fontSize:8.5, cellPadding:4, lineColor:[215,215,215], lineWidth:.5}, headStyles:{fillColor:VINO, textColor:[255,255,255]}};
+    let y = 166;
+    for(const aut of ["SAT","SATEG","IMSS"]){
+      const xs = P.filter(x=>x.o.aut===aut).sort((a,b)=>a.m-b.m); if(!xs.length) continue;
+      const nom = {SAT:"SAT (federales)", SATEG:"Secretaría de Finanzas de Guanajuato (estatales)", IMSS:"IMSS e INFONAVIT"}[aut];
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...VINO); if(y > doc.internal.pageSize.getHeight() - 110){ doc.addPage(); y = 100; } doc.text(nom, Mg, y); doc.setTextColor(20); doc.setFont("helvetica","normal");
+      const der = {halign:"right"};
+      doc.autoTable({...est, startY: y + 8, head:[["Mes","Impuesto","Situación","Fecha límite","Atraso",{content:"Impuesto",styles:der},{content:"Actualización",styles:der},{content:"Recargos",styles:der},{content:"Total",styles:der}]],
+        body: xs.map(x=>[`${MESES[x.m-1]} ${year}`, x.o.nombre, x.sit==="Sin presentar" && x.base===0 ? "Sin presentar (en ceros)" : x.sit, `${fechaCorta(x.vence)} ${x.vence.slice(0,4)}`, x.atraso ? `${x.atraso} días` : "En plazo", {content: x.base==null ? "Por calcular" : f(x.base), styles:der}, {content: f(+x.act||0), styles:der}, {content: f(+x.rec||0), styles:der}, {content: x.total==null ? "—" : f(x.total), styles:{...der, fontStyle:"bold"}}]),
+        foot:[[{content:`Total ${aut}`, colSpan:5, styles:{fontStyle:"bold"}}, ...["base","act","rec","total"].map(k=>({content: f(r2(xs.reduce((s,x)=>s+(+x[k]||0),0))), styles:{...der, fontStyle:"bold"}}))]], footStyles:{fillColor:[245,238,241], textColor:[20,20,20]},
+        didParseCell: d => { if(d.section==="body" && d.column.index===4 && /días/.test(String(d.cell.raw))) d.cell.styles.textColor = [163,40,63]; } });
+      y = doc.lastAutoTable.finalY + 24;
+    }
+    if(y > doc.internal.pageSize.getHeight() - 70){ doc.addPage(); y = 100; }
+    doc.setFillColor(...VINO); doc.roundedRect(W - Mg - 260, y - 6, 260, 30, 6, 6, "F"); doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.text("TOTAL A PAGAR", W - Mg - 250, y + 13); doc.text(f(total), W - Mg - 10, y + 13, {align:"right"});
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(140); doc.text(doc.splitTextToSize("La actualización y los recargos son una estimación con el INPC y la tasa de recargos configurados en la app; confirma el importe final con la línea de captura de cada autoridad. Los impuestos sin presentar se calculan con tus facturas y nóminas.", W - 2*Mg - 280), Mg, y + 4);
+    const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${i} de ${n}`, W-Mg, doc.internal.pageSize.getHeight()-20, {align:"right"}); }
+    await guardarArchivo(`Impuestos pendientes ${empresaNombre} ${year}.pdf`, doc.output("blob"));
+  }
+
+  document.addEventListener("click", e => { if(e.target.closest("#pendPdf")) exportPendientesPdf().catch(err=>{ console.error(err); toast("No se pudo armar el PDF."); }); });
   function htmlPendientes(){
     const f = money.format, P = pendientesImpuestos(year), hoy = pendFecha || hoyISO;
     const porAut = a => P.filter(x=>x.o.aut===a), sum = (xs, k) => r2(xs.reduce((s,x)=>s+(+x[k]||0),0));
     let h = `<div class="bpanel" style="margin-top:16px"><h3>Pendientes de presentar o pagar en ${year}<small>Impuestos sin presentar, por pagar o con complementaria pendiente, con la actualización (INPC) y los recargos (mora ${((recCfg.tasa||{})[2026] ?? 2.07)}% mensual en 2026) calculados a la fecha de pago que elijas.</small></h3>
-      <div class="pairbar" style="padding:8px 14px;flex-wrap:wrap;gap:10px;align-items:center"><label for="pendFecha" style="margin:0;font-weight:600">Si pago el</label><input type="date" id="pendFecha" value="${hoy}" style="width:auto">${canWrite?`<button class="linkbtn" id="pendCfg">INPC, tasas y días de vencimiento</button>`:""}</div>`;
+      <div class="pairbar" style="padding:8px 14px;flex-wrap:wrap;gap:10px;align-items:center"><label for="pendFecha" style="margin:0;font-weight:600">Si pago el</label><input type="date" id="pendFecha" value="${hoy}" style="width:auto">${canWrite?`<button class="linkbtn" id="pendCfg">INPC, tasas y días de vencimiento</button>`:""}${downloads?`<button class="btn sm primary" id="pendPdf" style="margin-left:auto">Descargar pendientes (PDF)</button>`:""}</div>`;
     if(!P.length) return h + `<div class="empty" style="padding:16px">No tienes impuestos pendientes en ${year}. 🎉</div></div>`;
     h += `<div class="kpis" style="padding:0 14px 10px">${["SAT","SATEG","IMSS"].map(a=>{ const xs = porAut(a); return `<div class="kpi"><span>${a}</span><b>${f(sum(xs,"total"))}</b><small>${xs.length} ${xs.length===1?"pendiente":"pendientes"}${sum(xs,"rec")?` · recargos ${f(sum(xs,"rec"))}`:""}</small></div>`; }).join("")}<div class="kpi"><span>Total</span><b>${f(sum(P,"total"))}</b><small>impuesto ${f(sum(P,"base"))} + act. ${f(sum(P,"act"))} + rec. ${f(sum(P,"rec"))}</small></div></div>`;
     h += `<div class="sheet" style="border:none;border-radius:0"><table class="ft" style="min-width:900px"><thead><tr><th>Mes</th><th>Autoridad</th><th>Impuesto</th><th>Situación</th><th>Vence</th><th class="num">Atraso</th><th class="num">Impuesto</th><th class="num">Actualización</th><th class="num">Recargos</th><th class="num">Total a pagar</th></tr></thead><tbody>`;
