@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 150 · DIOT en PDF con totales</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 151 · Resumen de nómina en PDF</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -1768,6 +1768,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   };
 
   $("pdfBtn").onclick = async () => {
+    if(vista==="nominas") return exportNominasPdf();
     if(vista==="resumen") return exportResumenAnual("pdf");
     if(vista==="estados") return exportEstados("pdf");
     if(vista==="facturas") return exportFacturas("pdf");
@@ -1856,7 +1857,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     $("viewTitle").textContent = {facturas:"Facturas y cuentas", cuentas:"Cuentas", bancos:"Bancos", impuestos:"Impuestos", balanza:"Balanza", dashboard:"Dashboard", expediente:"Expediente", notas:"Notas", activos:"Activo fijo", conta:"Contabilidad", directorio:"Directorio", documentos:"Documentos", resumen:"Resumen", accesos:"Accesos", presupuesto:"Presupuesto", estados:"Estados financieros", ventas:"Ventas en plataformas", nominas:"Nóminas", calendario:"Calendario", prestaciones:"Nómina: calculadora y prestaciones", leyes:"Leyes", finanzas:"Finanzas", noticias:"Noticias fiscales"}[v] || "Cierre";
     $("editBtn").hidden = v!=="tablero" || !canWrite; $("addBtn").hidden = v!=="tablero" || !canWrite;
     $("importBtn").hidden = v==="tablero" || v==="dashboard" || v==="expediente" || v==="notas" || v==="activos" || v==="directorio" || v==="documentos" || v==="resumen" || v==="accesos" || v==="presupuesto" || v==="estados" || v==="ventas" || v==="nominas" || v==="calendario" || v==="prestaciones" || v==="leyes" || v==="finanzas" || v==="noticias" || !canWrite;
-    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","nominas","calendario","prestaciones","leyes","finanzas","noticias"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario","prestaciones","leyes","finanzas","noticias"].includes(v);
+    const sinPdf = ["expediente","notas","conta","directorio","documentos","accesos","presupuesto","ventas","calendario","prestaciones","leyes","finanzas","noticias"].includes(v), sinXls = ["expediente","notas","documentos","accesos","calendario","prestaciones","leyes","finanzas","noticias"].includes(v);
     $("pdfBtn").style.display = $("verPdfBtn").style.display = sinPdf ? "none" : "";
     $("xlsxBtn").style.display = $("verXlsBtn").style.display = sinXls ? "none" : "";
     $("importBtn").textContent = v==="bancos" ? "Subir estado de cuenta o auxiliar" : v==="impuestos" ? "Subir acuses, líneas o nóminas" : v==="balanza" ? "Subir balanza o pólizas de CONTPAQi" : v==="conta" ? "Subir catálogo o pólizas (.txt o Excel)" : "Subir reporte de AdminXML";
@@ -5672,7 +5673,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(balanzas[mesKey(year,m)]){ efMes = m; efModo = "mes"; await capturar("9 Estados financieros", ()=>exportEstados("pdf")); await capturar("9 Estados financieros", ()=>exportEstados("xlsx")); }
       // Nómina: resumen del mes y recibos timbrados
       const nomsM = nominas.filter(n=>n.anio===year && n.mes===m);
-      if(nomsM.length){ nomMes = m; await capturar("10 Nomina", ()=>exportNominas()); for(const n of nomsM) await Promise.all(cf(n.uuid, "10 Nomina/Recibos XML y PDF")); }
+      if(nomsM.length){ nomMes = m; await capturar("10 Nomina", ()=>exportNominasPdf()); await capturar("10 Nomina", ()=>exportNominas()); for(const n of nomsM) await Promise.all(cf(n.uuid, "10 Nomina/Recibos XML y PDF")); }
       // Activo fijo y presupuesto
       if(activos.length){ aMes = m; await capturar("11 Activo fijo", ()=>exportActivos("pdf")); }
       if(presup[mesKey(year,m)]){ preMes = m; await capturar("12 Presupuesto", ()=>exportPresupuesto()); }
@@ -9609,6 +9610,38 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     w.addRow(["Fecha de pago","Empleado","UUID","Estado","Percepciones","ISR","IMSS", ...C.map(([g,k])=>`${g==="perc"?"P":g==="ded"?"D":"OP"} · ${k}`), "Neto"]).font = {bold:true};
     xs.forEach(n=>{ const r = w.addRow([n.fechaPago, n.nombre, n.uuid, n.estadoSAT||"", +n.percepciones||0, +n.isr||0, +n.imss||0, ...C.map(([g,k])=>((n.conceptos||{})[g]||{})[k]||null), n.neto!=null ? +n.neto : null]); for(let i=5;i<=C.length+8;i++) r.getCell(i).numFmt = M; });
     await guardarArchivo(`Nominas ${empresaNombre} ${ABR[nomMes-1]} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()]));
+  }
+
+  // ---------- Resumen de nómina del mes en PDF ----------
+  async function exportNominasPdf(){
+    const xs = nominas.filter(n=>n.anio===year && n.mes===nomMes && vigente(n)).sort((a,b)=>String(a.fechaPago).localeCompare(String(b.fechaPago)) || String(a.nombre).localeCompare(String(b.nombre)));
+    if(!xs.length){ toast("Sin recibos este mes."); return; }
+    await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({orientation:"landscape", unit:"pt", format:"letter"}), W = doc.internal.pageSize.getWidth(), Mg = 40, VINO = [122,31,61], e = empActual(), f = money.format;
+    const sum = k => r2(xs.reduce((s,n)=>s+(+n[k]||0),0)), otrasDed = n => r2(Object.entries((n.conceptos||{}).ded||{}).filter(([k])=>!/^isr$|imss|seguridad social/i.test(k)).reduce((s,[,v])=>s+(+v||0),0)), otrosP = n => r2(Object.values((n.conceptos||{}).otros||{}).reduce((s,v)=>s+(+v||0),0));
+    const neto = n => n.neto!=null ? +n.neto : r2((+n.percepciones||0) + otrosP(n) - (+n.isr||0) - (+n.imss||0) - otrasDed(n));
+    const tot = {perc: sum("percepciones"), isr: sum("isr"), imss: sum("imss"), otras: r2(xs.reduce((s,n)=>s+otrasDed(n),0)), otros: r2(xs.reduce((s,n)=>s+otrosP(n),0)), neto: r2(xs.reduce((s,n)=>s+neto(n),0))};
+    const empleados = new Set(xs.map(n=>n.rfcEmp || n.nombre)).size;
+    doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(empresaNombre, Mg, 46);
+    doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(`Resumen de nómina · ${MESES[nomMes-1]} ${year}`, Mg, 64);
+    doc.setFontSize(8.5); doc.setTextColor(120); doc.text(`${e.rfc?`RFC: ${e.rfc}    `:""}${e.registroPatronal?`Registro patronal: ${e.registroPatronal}    `:""}Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`, Mg, 80);
+    doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(Mg, 90, W-Mg, 90); doc.setLineWidth(.5);
+    const cajas = [["Recibos", String(xs.length)], ["Empleados", String(empleados)], ["Percepciones", f(tot.perc)], ["ISR retenido", f(tot.isr)], ["IMSS obrero", f(tot.imss)], ["Neto pagado", f(tot.neto), true]];
+    const cw = (W - 2*Mg - 5*8) / 6; cajas.forEach(([t, v, fu], i)=>{ const x = Mg + i*(cw+8); doc.setFillColor(...(fu ? VINO : [245,238,241])); doc.roundedRect(x, 100, cw, 44, 6, 6, "F");
+      doc.setFontSize(8); doc.setTextColor(...(fu ? [255,255,255] : [110,110,110])); doc.text(t, x+9, 115); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...(fu ? [255,255,255] : [20,20,20])); doc.text(v, x+9, 134); doc.setFont("helvetica","normal"); });
+    const est = {theme:"grid", margin:{left:Mg, right:Mg, top:84}, styles:{fontSize:8.3, cellPadding:4, lineColor:[215,215,215], lineWidth:.5}, headStyles:{fillColor:VINO, textColor:[255,255,255]}, footStyles:{fillColor:[245,238,241], textColor:[20,20,20], fontStyle:"bold"}};
+    const R = {halign:"right"};
+    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...VINO); doc.text("Recibos del mes", Mg, 166); doc.setTextColor(20); doc.setFont("helvetica","normal");
+    doc.autoTable({...est, startY: 174, head:[["Fecha de pago","Empleado","Tipo",{content:"Percepciones",styles:R},{content:"Otros pagos",styles:R},{content:"ISR",styles:R},{content:"IMSS",styles:R},{content:"Otras deducciones",styles:R},{content:"Neto",styles:R}]],
+      body: xs.map(n=>[`${fechaCorta(n.fechaPago)} ${String(n.fechaPago).slice(0,4)}`, String(n.nombre||"").slice(0,42), +n.imss>0 ? "Sueldos" : "Asimilados", ...[+n.percepciones||0, otrosP(n), +n.isr||0, +n.imss||0, otrasDed(n)].map(v=>({content:f(v), styles:R})), {content:f(neto(n)), styles:{...R, fontStyle:"bold"}}]),
+      foot:[[{content:"Total", colSpan:3}, ...[tot.perc, tot.otros, tot.isr, tot.imss, tot.otras, tot.neto].map(v=>({content:f(v), styles:R}))]]});
+    // Por concepto (si hay detalle de XML)
+    const porC = {perc:{}, ded:{}, otros:{}}; xs.forEach(n=>["perc","ded","otros"].forEach(g=>Object.entries(((n.conceptos||{})[g])||{}).forEach(([k,v])=>{ porC[g][k] = r2((porC[g][k]||0) + (+v||0)); })));
+    const filasC = [...Object.entries(porC.perc).map(([k,v])=>["Percepción", k, v]), ...Object.entries(porC.otros).map(([k,v])=>["Otro pago", k, v]), ...Object.entries(porC.ded).map(([k,v])=>["Deducción", k, v])];
+    if(filasC.length){ let y = doc.lastAutoTable.finalY + 26; if(y > doc.internal.pageSize.getHeight() - 120){ doc.addPage(); y = 100; }
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...VINO); doc.text("Resumen por concepto", Mg, y); doc.setTextColor(20); doc.setFont("helvetica","normal");
+      doc.autoTable({...est, startY: y + 8, tableWidth: 420, head:[["Tipo","Concepto",{content:"Importe",styles:R}]], body: filasC.map(([t,k,v])=>[t, k, {content:f(v), styles:R}])}); }
+    const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${i} de ${n}`, W-Mg, doc.internal.pageSize.getHeight()-20, {align:"right"}); }
+    await guardarArchivo(`Resumen de nomina ${empresaNombre} ${ABR[nomMes-1]} ${year}.pdf`, doc.output("blob"));
   }
 
   // ---------- Calendario / agenda ----------
