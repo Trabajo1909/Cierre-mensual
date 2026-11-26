@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 140 · IVA retenido en la 119</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 141 · Nuevo diseño de estados financieros</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -9011,11 +9011,47 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       const wB = wb.addWorksheet("Balanza"); wB.columns = [{width:14},{width:40},{width:16},{width:16},{width:16},{width:16}]; wB.addRow(["Cuenta","Nombre","Saldo inicial","Cargos","Abonos","Saldo final"]).font = {bold:true};
       E.ctas.forEach(c=>{ const r = wB.addRow([c.cuenta, c.nombre, +c.si||0, +c.cargos||0, +c.abonos||0, +c.sf||0]); [3,4,5,6].forEach(i=>r.getCell(i).numFmt = M); if(esMayor(c)) r.font = {bold:true}; });
       await guardarArchivo(`Estados financieros ${empresaNombre} ${ABR[efMes-1]} ${year}.xlsx`, new Blob([await wb.xlsx.writeBuffer()])); return; }
-    await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt", format:"letter"}), M = v => v==null ? "" : money.format(v);
-    const pagina = (titulo, sub, filas, primera) => { if(!primera) doc.addPage(); doc.setFontSize(14); doc.text(empresaNombre, 40, 44); doc.setFontSize(11); doc.text(`${titulo} · ${sub}`, 40, 62);
-      doc.autoTable({startY:76, body: filas.map(([l,v])=>[l, M(v)]), styles:{fontSize:8.5, cellPadding:3}, columnStyles:{1:{halign:"right"}}, theme:"plain", margin:{left:40, right:40},
-        didParseCell: d => { const l = filas[d.row.index][0]; if(!/^\s/.test(l)) d.cell.styles.fontStyle = "bold"; } }); };
-    pagina("Estado de resultados", per, filasRes.slice(1), true); pagina("Balance general", `al cierre de ${MESES[efMes-1]} ${year}`, filasBal.slice(1)); pagina("Flujo de efectivo", per, filasFlu.slice(1));
+    // Diseño: encabezado ordenado, secciones con su título, subtotales resaltados, totales en color, negativos entre paréntesis y % de referencia
+    await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt", format:"letter"}), W = doc.internal.pageSize.getWidth(), Mg = 44, VINO = [122,31,61], e = empActual();
+    const fmtEF = v => v==null ? "" : (v < 0 ? `(${money.format(Math.abs(v))})` : money.format(v));
+    const pct = (v, base) => v==null || !base ? "" : `${(v/base*100).toFixed(1)}%`;
+    const encabezado = (titulo, sub) => {
+      doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(empresaNombre, Mg, 46);
+      doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(120); doc.text(`${e.rfc?`RFC: ${e.rfc}    `:""}Cifras en pesos mexicanos    Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`, Mg, 62);
+      doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(Mg, 74, W-Mg, 74); doc.setLineWidth(.5);
+      doc.setFont("helvetica","bold"); doc.setFontSize(17); doc.setTextColor(...VINO); doc.text(titulo, W/2, 104, {align:"center"});
+      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(90); doc.text(sub, W/2, 120, {align:"center"}); doc.setTextColor(20);
+    };
+    const GRAN = /^(TOTAL ACTIVO|TOTAL PASIVO Y CAPITAL|Resultado antes de impuestos|Efectivo al final)$/i, SUB = /^(TOTAL |Total |Ingresos$|Utilidad bruta|Gastos de operación|Resultado de operación|Flujo de |Aumento \(disminución\)|Efectivo al inicio|Resultado del periodo)/;
+    const pagina = (titulo, sub, filas, base, encab, primera) => {
+      if(!primera) doc.addPage(); encabezado(titulo, sub);
+      const body = filas.map(([l, v]) => {
+        const nivel = (l.match(/^\s*/)[0].length >= 6) ? 2 : /^\s/.test(l) ? 1 : 0, txt = l.trim();
+        const tipo = v==null ? "sec" : GRAN.test(txt) ? "gran" : nivel===0 && SUB.test(txt) ? "sub" : "det";
+        return {txt, v, nivel, tipo};
+      });
+      doc.autoTable({startY: 136, theme: "plain", margin: {left: Mg, right: Mg, top: 84},
+        head: [[{content:"Concepto"}, {content:"Importe", styles:{halign:"right"}}, ...(base ? [{content:encab, styles:{halign:"right"}}] : [])]],
+        headStyles: {fillColor: VINO, textColor: [255,255,255], fontSize: 8.5, fontStyle: "bold", cellPadding: {top:5, bottom:5, left:8, right:8}},
+        columnStyles: {0: {cellWidth: "auto"}, 1: {cellWidth: 120, halign: "right"}, 2: {cellWidth: 70, halign: "right"}},
+        body: body.map(r => [r.txt, r.tipo==="sec" ? "" : fmtEF(r.v), ...(base ? [r.tipo==="sec" ? "" : pct(r.v, base)] : [])]),
+        styles: {fontSize: 9, cellPadding: {top: 3.5, bottom: 3.5, left: 8, right: 8}, textColor: [30,30,30]},
+        didParseCell: d => { if(d.section !== "body") return; const r = body[d.row.index];
+          if(d.column.index===0) d.cell.styles.cellPadding = {top:3.5, bottom:3.5, left: 8 + (r.tipo==="det" ? 14*r.nivel : 0), right: 8};
+          if(r.tipo==="sec"){ d.cell.styles.fontStyle = "bold"; d.cell.styles.textColor = VINO; d.cell.styles.fontSize = 8.5; d.cell.styles.cellPadding = {top: 9, bottom: 3, left: 8, right: 8}; }
+          else if(r.tipo==="sub"){ d.cell.styles.fontStyle = "bold"; d.cell.styles.fillColor = [245,238,241]; }
+          else if(r.tipo==="gran"){ d.cell.styles.fontStyle = "bold"; d.cell.styles.fillColor = VINO; d.cell.styles.textColor = [255,255,255]; d.cell.styles.fontSize = 10; }
+          else if(r.nivel===2){ d.cell.styles.textColor = [110,110,110]; d.cell.styles.fontSize = 8.3; }
+          if(d.column.index>0 && r.v < 0 && r.tipo!=="gran") d.cell.styles.textColor = [163,40,63]; },
+        didDrawCell: d => { if(d.section!=="body") return; const r = body[d.row.index]; if(r.tipo==="sub"){ doc.setDrawColor(190); doc.setLineWidth(.6); doc.line(d.cell.x, d.cell.y, d.cell.x + d.cell.width, d.cell.y); } },
+        didDrawPage: () => { if(doc.getCurrentPageInfo().pageNumber > 1 && !primera){} } });
+      const yy = doc.lastAutoTable.finalY + 16; doc.setFontSize(7.5); doc.setTextColor(140);
+      doc.text(doc.splitTextToSize("Cifras tomadas de la balanza de comprobación de CONTPAQi. Los importes entre paréntesis son negativos.", W - 2*Mg), Mg, yy); doc.setTextColor(20);
+    };
+    pagina("Estado de resultados", per, filasRes.slice(1), R.ingOp || 0, "% ingresos", true);
+    pagina("Balance general", `Al cierre de ${MESES[efMes-1].toLowerCase()} de ${year}`, filasBal.slice(1), B.activo || 0, "% del total");
+    pagina("Flujo de efectivo", `${per} · método indirecto`, filasFlu.slice(1), 0, "");
+    const nP = doc.getNumberOfPages(); for(let i2=1;i2<=nP;i2++){ doc.setPage(i2); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Página ${i2} de ${nP}`, W-Mg, doc.internal.pageSize.getHeight()-20, {align:"right"}); }
     await guardarArchivo(`Estados financieros ${empresaNombre} ${ABR[efMes-1]} ${year}.pdf`, doc.output("blob"));
   }
 
