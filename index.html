@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 141 · Nuevo diseño de estados financieros</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 142 · Índice que se renumera y lista de impresión ligada</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -3422,7 +3422,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       ].map(s=>op.pol===false && s.head.includes("Póliza") ? {...s, head: s.head.slice(0,4), filas: s.filas.map(r=>({...r, cells: r.cells.slice(0,4)}))} : s)
     };
   }
+  // Mantiene el modelo al día: renumera y arma la lista de impresión con lo que quede en el índice
+  function sincronizarModelo(M){
+    if(!M) return; M.secciones.forEach(s=>{ if(s.numerar){ let n = 0; s.filas.forEach(r=>{ if(r.cells && !r.bold) r.cells[0] = String(++n); }); } });
+    M.secciones.filter(s=>s.derivada).forEach(s=>{ const src = M.secciones.find(x=>x.id===s.derivada); if(!src) return;
+      s.filas = src.filas.filter(r=>r.imp && String(r.cells[1]||"").trim()).map(r=>({cells:["[   ]", r.cells[1], /falta/i.test(r.cells[3]||"") ? "Falta" : (r.cells[3]||"")]})); });
+  }
   function pintarEditorPdf(){
+    sincronizarModelo(pdfModelo);
     const M = pdfModelo, e = empActual(), logoHtml = e.logo && M.logo!=="ninguno" ? `<img src="${e.logo}" alt="" style="max-height:40px;max-width:150px">` : "";
     const ancho = M.orient==="landscape" ? 792 : 612;
     const enc = (s) => `<div class="pe-enc" style="display:flex;justify-content:space-between;gap:12px;flex-direction:${M.logo==="izquierda"?"row-reverse":"row"}">
@@ -3433,8 +3440,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
           <span class="pe-tools" style="display:flex;gap:4px;flex-wrap:wrap;font-size:11px"><button class="btn sm" data-pemov="${si}" data-dir="-1">↑</button><button class="btn sm" data-pemov="${si}" data-dir="1">↓</button><button class="btn sm" data-pevis="${si}">${s.visible?"Ocultar":"Mostrar"}</button>${si?`<label class="check inline" style="margin:0;font-size:11px"><input type="checkbox" data-penueva="${si}" ${s.nueva?"checked":""}> hoja nueva</label>`:""}<select data-peesp="${si}" title="Espacio antes de la sección" style="width:auto;padding:2px 4px;font-size:11px">${[0,10,20,40,60,100].map(v=>`<option value="${v}" ${(+s.espacio||0)===v?"selected":""}>espacio ${v}</option>`).join("")}</select></span></div>
         <div contenteditable="true" data-pes="${si}" data-campo="resumen" style="font-size:11px;color:#777;margin:2px 0 6px">${esc(s.resumen||"")}</div>
         <table style="width:100%;border-collapse:collapse;font-size:${Math.round((M.letra||8.5)*1.3)}px"><thead><tr>${s.head.map((hh,ci)=>`<th contenteditable="true" data-peh="${si}" data-ci="${ci}" style="background:#7A1F3D;color:#fff;text-align:${s.der.includes(ci)?"right":"left"};padding:5px 6px">${esc(hh)}</th>`).join("")}<th style="width:18px"></th></tr></thead>
-        <tbody>${s.filas.map((r,ri)=>`<tr style="background:${r.fondo?"#f5eef1":"#fff"}">${r.cells.map((cv,ci)=>`<td contenteditable="true" data-pec="${si}" data-ri="${ri}" data-ci="${ci}" style="border:1px solid #ddd;padding:4px 6px;text-align:${s.der.includes(ci)?"right":"left"};${r.bold?"font-weight:700;":""}${r.rojo&&ci===s.cells?"":""}${r.rojo && s.der.includes(ci)?"color:#A3283F;":""}">${esc(cv)}</td>`).join("")}<td><button class="linkbtn" data-pedel="${si}" data-ri="${ri}" title="Quitar renglón" style="font-size:13px">×</button></td></tr>`).join("")}</tbody></table>
-        <button class="linkbtn" data-peadd="${si}" style="font-size:12px;margin-top:4px">+ agregar renglón</button></div>`;
+        <tbody>${s.filas.map((r,ri)=>`<tr style="background:${r.fondo?"#f5eef1":"#fff"}">${r.cells.map((cv,ci)=>`<td contenteditable="true" data-pec="${si}" data-ri="${ri}" data-ci="${ci}" style="border:1px solid #ddd;padding:4px 6px;text-align:${s.der.includes(ci)?"right":"left"};${r.bold?"font-weight:700;":""}${r.rojo&&ci===s.cells?"":""}${r.rojo && s.der.includes(ci)?"color:#A3283F;":""}">${esc(cv)}</td>`).join("")}<td style="white-space:nowrap">${s.imprimible?`<button class="linkbtn" data-peimp="${si}" data-ri="${ri}" title="${r.imp?"Se imprime: toca para quitarlo de la lista de impresión":"No se imprime: toca para agregarlo a la lista de impresión"}" style="font-size:13px;opacity:${r.imp?1:.35}">🖨</button>`:""}${s.derivada?"":`<button class="linkbtn" data-pedel="${si}" data-ri="${ri}" title="Quitar renglón" style="font-size:13px">×</button>`}</td></tr>`).join("")}</tbody></table>
+        ${s.derivada ? `<div class="fsub" style="max-width:none;margin-top:4px">Esta lista se arma sola: quita o agrega renglones en el índice, y usa 🖨 para decidir cuáles se imprimen.</div>` : `<button class="linkbtn" data-peadd="${si}" style="font-size:12px;margin-top:4px">+ agregar renglón</button>`}</div>`;
     // Arma las hojas como quedarían
     const hojas = []; M.secciones.forEach((s,si)=>{ if(!hojas.length || (s.nueva && s.visible)) hojas.push([]); hojas[hojas.length-1].push([s,si]); });
     $("peHojas").innerHTML = hojas.map((h,hi)=>`<div class="pe-hoja" style="width:${ancho}px;max-width:100%;min-height:${ancho===612?792:612}px;background:#fff;color:#151515;box-shadow:0 2px 10px rgba(0,0,0,.15);margin:0 auto 18px;padding:36px 40px;box-sizing:border-box;position:relative">
@@ -3450,7 +3457,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     document.querySelectorAll("#peHojas [data-pec]").forEach(x=>{ const r = M.secciones[+x.dataset.pec].filas[+x.dataset.ri]; if(r) r.cells[+x.dataset.ci] = x.innerText.trim(); });
   }
   function pdfDesdeModelo(doc){
-    const M = pdfModelo, W = doc.internal.pageSize.getWidth(), Mg = 40, VINO = [122,31,61], e = empActual();
+    sincronizarModelo(pdfModelo); const M = pdfModelo, W = doc.internal.pageSize.getWidth(), Mg = 40, VINO = [122,31,61], e = empActual();
     const est = {theme:"grid", margin:{left:Mg,right:Mg,top:124}, styles:{fontSize:M.letra||8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:VINO,textColor:[255,255,255]}};
     const izq = M.logo==="izquierda" && e.logo, xT = izq ? Mg + 160 : Mg;
     const enc = () => { doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(M.empresa, xT, 46); doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(M.titulo, xT, 64); doc.setFontSize(8.5); doc.setTextColor(110); doc.text(doc.splitTextToSize(M.datos, W - xT - Mg - (izq?0:160)), xT, 82); doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(Mg, 96, W - Mg, 96); doc.setLineWidth(.5); doc.setTextColor(20); };
@@ -3478,7 +3485,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const mv = t.closest("[data-pemov]"); if(mv){ leerEditorPdf(); const i = +mv.dataset.pemov, j = i + (+mv.dataset.dir); if(j<0||j>=S.length) return; [S[i],S[j]] = [S[j],S[i]]; pintarEditorPdf(); return; }
     const vi = t.closest("[data-pevis]"); if(vi){ leerEditorPdf(); const s = S[+vi.dataset.pevis]; s.visible = !s.visible; pintarEditorPdf(); return; }
     const de = t.closest("[data-pedel]"); if(de){ leerEditorPdf(); S[+de.dataset.pedel].filas.splice(+de.dataset.ri, 1); pintarEditorPdf(); return; }
-    const ad = t.closest("[data-peadd]"); if(ad){ leerEditorPdf(); const s = S[+ad.dataset.peadd]; s.filas.push({cells: s.head.map(()=>"")}); pintarEditorPdf(); return; }
+    const ad = t.closest("[data-peadd]"); if(ad){ leerEditorPdf(); const s = S[+ad.dataset.peadd]; s.filas.push({cells: s.head.map(()=>""), imp: !!s.imprimible}); pintarEditorPdf(); return; }
+    const pi = t.closest("[data-peimp]"); if(pi){ leerEditorPdf(); const rr = S[+pi.dataset.peimp].filas[+pi.dataset.ri]; if(rr){ rr.imp = !rr.imp; } pintarEditorPdf(); return; }
   });
   // Los datos del encabezado se repiten en cada hoja: al escribir en uno se copia a los demás
   $("pdfEdDlg").addEventListener("input", e => { const k = e.target.dataset && e.target.dataset.pe; if(!k || !pdfModelo) return; pdfModelo[k] = e.target.innerText.trim(); document.querySelectorAll(`#peHojas [data-pe="${k}"]`).forEach(x=>{ if(x!==e.target) x.innerText = e.target.innerText; }); });
@@ -5729,8 +5737,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       datos: `${e.rfc?`RFC: ${e.rfc}    `:""}Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}    ${L.length} documentos · ${faltan} faltan · ${imp} para imprimir`,
       logo:"derecha", orient:"portrait", letra:8.5, nota:"", nombreArchivo: `Indice ${anual?`cierre anual ${year}`:`cierre ${ABR[m-1]} ${year}`} ${empresaNombre}.pdf`,
       secciones: [
-        {id:"indice", titulo:"Índice de la carpeta", resumen:"Todo lo que debe llevar el cierre, dónde sacarlo en la app y si ya lo tienes.", nueva:true, visible:true, head:["#","Documento","Dónde sacarlo","Estatus"], der:[], filas: L.map((x,i)=>({cells:[String(i+1), x.doc, x.donde, x.listo==null?"":x.listo?"Listo":"FALTA"], rojo: x.listo===false}))},
-        {id:"imprimir", titulo:"Lista para imprimir", resumen:"Marca cada hoja conforme la imprimes y la archivas.", nueva:true, visible:true, head:["Impreso","Documento","Estatus"], der:[], filas: L.filter(x=>x.imprimir).map(x=>({cells:["[   ]", x.doc, x.listo==null?"":x.listo?"Listo":"Falta"]}))}
+        {id:"indice", titulo:"Índice de la carpeta", resumen:"Todo lo que debe llevar el cierre, dónde sacarlo en la app y si ya lo tienes.", nueva:true, visible:true, numerar:true, imprimible:true, head:["#","Documento","Dónde sacarlo","Estatus"], der:[], filas: L.map((x,i)=>({cells:[String(i+1), x.doc, x.donde, x.listo==null?"":x.listo?"Listo":"FALTA"], rojo: x.listo===false, imp: !!x.imprimir}))},
+        {id:"imprimir", titulo:"Lista para imprimir", resumen:"Marca cada hoja conforme la imprimes y la archivas. Se arma sola con los renglones del índice marcados para imprimir.", nueva:true, visible:true, derivada:"indice", head:["Impreso","Documento","Estatus"], der:[], filas: []}
       ]};
   }
   async function descargarLista(anual, m, editar){
