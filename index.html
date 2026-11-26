@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 145 · Pendientes hasta el mes que elijas</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 147 · Pendientes solo con importe</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7199,6 +7199,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     return {act, rec, meses, factor, tasa: r2(tasa), aprox: !(a && a.real && b && b.real)};
   }
   // Hasta qué mes se consideran pendientes (por ejemplo, el mes en curso todavía no vence)
+  const pendSoloMonto = () => { try{ return localStorage.getItem(`pendSoloMonto-${empresa}`) !== "0"; }catch(_){ return true; } };
+  const pendVisibles = y => { const P = pendientesImpuestos(y); return pendSoloMonto() ? P.filter(x=>(+x.total||0) > 0.5) : P; };
   function pendHastaDe(y){ try{ const v = +localStorage.getItem(`pendHasta-${empresa}-${y}`); if(v) return v; }catch(_){} return y===now.getFullYear() ? Math.max(1, now.getMonth()) : 0; }
   function pendientesImpuestos(y){
     const hoy = pendFecha || hoyISO, out = [], dia = aut => +((recCfg.dias||{})[aut] ?? 17);
@@ -7209,13 +7211,15 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         if(o.info || o.clave==="diot") continue;
         const e = estadoOblig(o, k); if(!e.visible || e.porTablero) continue;
         const fc = e.d && e.d.presentada && !e.d.revisadaOk ? faltaComp(o, e, k) : 0;
+        const sinImporte = e.d && e.d.presentada && !e.d.revisadaOk && o.clave!=="iva" && !o.sinCalculo && !(e.d.versiones||[]).length && e.d.aPagar==null && e.d.impuesto==null && Math.abs(+e.calc||0) > 1;
+        if(sinImporte && e.st!=="porpagar"){ const vm0 = m===12 ? 1 : m+1, vy0 = m===12 ? y+1 : y; out.push({m, o, sit: "Presentada sin importe: captura lo que pagaste", base: null, vence: `${vy0}-${String(vm0).padStart(2,"0")}-${String(dia(o.aut)).padStart(2,"0")}`, atraso: 0, act: 0, rec: 0, meses: 0, aprox: false, total: null, sinImporte: true}); continue; }
         if(!(e.st==="sinpres" || e.st==="porpagar" || fc > 1)) continue;
         const vm = m===12 ? 1 : m+1, vy = m===12 ? y+1 : y, vence = `${vy}-${String(vm).padStart(2,"0")}-${String(dia(o.aut)).padStart(2,"0")}`;
         let sit, base;
         const d = e.d || {};
         if(e.st==="sinpres"){ sit = "Sin presentar"; base = o.clave==="iva" && k.ivaNeto<0 ? 0 : Math.max(0, r2(+e.calc||0)); if(o.clave==="imss") base = null; }
         else if(e.st==="porpagar"){ sit = "Por pagar"; base = d.impuesto!=null && +d.impuesto ? r2(+d.impuesto) : r2((+d.aPagar||0) - (+d.recargos||0) - (+d.actualizacion||0)); }
-        else { sit = "Falta complementaria"; base = r2(faltaComp(o, e, k)); }
+        else { sit = `Falta complementaria (diferencia contra lo declarado)`; base = r2(faltaComp(o, e, k)); }
         if(o.clave==="imss" && d.imssDet && e.st==="porpagar") base = r2((+d.aPagar||0) - (+d.imssDet.recargos||0) - (+d.imssDet.actualizacion||0));
         const r = base ? calcRecargos(base, vence, hoy) : {act:0, rec:0, meses:0, aprox:false};
         out.push({m, o, sit, base, vence, atraso: hoy > vence ? -diasEntre(hoy, vence) : 0, ...r, total: base!=null ? r2(base + r.act + r.rec) : null});
@@ -7225,7 +7229,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   function faltaComp(o, e, k){
     const d = e.d || {}; if(!d.presentada || o.clave==="iva" || o.sinCalculo) return 0;
-    const vers = d.versiones || [], tot = vers.length ? r2(vers.reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0) - (+d.aFavor||0)) : r2(+d.aPagar||0);
+    const vers = d.versiones || [];
+    // Si no sabemos cuánto se declaró (el acuse no trae importe), no se puede saber la diferencia: no se cuenta el total como pendiente
+    if(!vers.length && d.aPagar==null && d.impuesto==null && !(+d.aFavor)) return 0;
+    const tot = vers.length ? r2(vers.reduce((s,v)=>s+(+v.aPagar||0),0) + (+d.aPagar||0) - (+d.aFavor||0)) : r2((+d.aPagar||0) - (+d.recargos||0) - (+d.actualizacion||0));
     return r2((+e.calc||0) - tot) > 1 ? r2((+e.calc||0) - tot) : 0;
   }
   // ---------- Resumen de cuotas IMSS: patronales y obreras, por concepto y por mes ----------
@@ -7331,8 +7338,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   }
   // ---------- PDF de impuestos pendientes de presentar o pagar ----------
   async function exportPendientesPdf(){
-    const P = pendientesImpuestos(year), hoy = pendFecha || hoyISO, e = empActual(), f = money.format;
-    if(!P.length){ toast(`No tienes impuestos pendientes en ${year}.`); return; }
+    const P = pendVisibles(year), hoy = pendFecha || hoyISO, e = empActual(), f = money.format;
+    if(!P.length){ toast(`No tienes impuestos pendientes con importe en ${year}.`); return; }
     await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({orientation:"landscape", unit:"pt", format:"letter"}), W = doc.internal.pageSize.getWidth(), Mg = 40, VINO = [122,31,61];
     const total = r2(P.reduce((s,x)=>s+(+x.total||0),0)), base = r2(P.reduce((s,x)=>s+(+x.base||0),0)), act = r2(P.reduce((s,x)=>s+(+x.act||0),0)), rec = r2(P.reduce((s,x)=>s+(+x.rec||0),0));
     doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(empresaNombre, Mg, 46);
@@ -7363,13 +7370,14 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     await guardarArchivo(`Impuestos pendientes ${empresaNombre} ${year}.pdf`, doc.output("blob"));
   }
 
+  document.addEventListener("change", e => { if(e.target.id!=="pendSolo") return; try{ localStorage.setItem(`pendSoloMonto-${empresa}`, e.target.checked ? "1" : "0"); }catch(_){} renderImpuestos(); });
   document.addEventListener("change", e => { if(e.target.id!=="pendHasta") return; try{ localStorage.setItem(`pendHasta-${empresa}-${year}`, e.target.value); }catch(_){} renderImpuestos(); });
   document.addEventListener("click", e => { if(e.target.closest("#pendPdf")) exportPendientesPdf().catch(err=>{ console.error(err); toast("No se pudo armar el PDF."); }); });
   function htmlPendientes(){
-    const f = money.format, P = pendientesImpuestos(year), hoy = pendFecha || hoyISO;
+    const f = money.format, Ptodos = pendientesImpuestos(year), P = pendVisibles(year), ocultos = Ptodos.length - P.length, hoy = pendFecha || hoyISO;
     const porAut = a => P.filter(x=>x.o.aut===a), sum = (xs, k) => r2(xs.reduce((s,x)=>s+(+x[k]||0),0));
     let h = `<div class="bpanel" style="margin-top:16px"><h3>Pendientes de presentar o pagar en ${year}<small>Impuestos sin presentar, por pagar o con complementaria pendiente, con la actualización (INPC) y los recargos (mora ${((recCfg.tasa||{})[2026] ?? 2.07)}% mensual en 2026) calculados a la fecha de pago que elijas.</small></h3>
-      <div class="pairbar" style="padding:8px 14px;flex-wrap:wrap;gap:10px;align-items:center"><label for="pendHasta" style="margin:0;font-weight:600">Hasta</label><select id="pendHasta" style="width:auto">${MESES.map((n,i)=>`<option value="${i+1}" ${pendHastaDe(year)===i+1?"selected":""}>${n}</option>`).join("")}</select><label for="pendFecha" style="margin:0;font-weight:600">Si pago el</label><input type="date" id="pendFecha" value="${hoy}" style="width:auto">${canWrite?`<button class="linkbtn" id="pendCfg">INPC, tasas y días de vencimiento</button>`:""}${downloads?`<button class="btn sm primary" id="pendPdf" style="margin-left:auto">Descargar pendientes (PDF)</button>`:""}</div>`;
+      <div class="pairbar" style="padding:8px 14px;flex-wrap:wrap;gap:10px;align-items:center"><label for="pendHasta" style="margin:0;font-weight:600">Hasta</label><select id="pendHasta" style="width:auto">${MESES.map((n,i)=>`<option value="${i+1}" ${pendHastaDe(year)===i+1?"selected":""}>${n}</option>`).join("")}</select><label for="pendFecha" style="margin:0;font-weight:600">Si pago el</label><input type="date" id="pendFecha" value="${hoy}" style="width:auto">${canWrite?`<button class="linkbtn" id="pendCfg">INPC, tasas y días de vencimiento</button>`:""}<label class="check inline" style="margin:0"><input type="checkbox" id="pendSolo" ${pendSoloMonto()?"checked":""}> Solo los que tienen importe${ocultos && pendSoloMonto() ? ` <span class="fsub">(${ocultos} en ceros ocultos)</span>` : ""}</label>${downloads?`<button class="btn sm primary" id="pendPdf" style="margin-left:auto">Descargar pendientes (PDF)</button>`:""}</div>`;
     if(!P.length) return h + `<div class="empty" style="padding:16px">No tienes impuestos pendientes en ${year}. 🎉</div></div>`;
     h += `<div class="kpis" style="padding:0 14px 10px">${["SAT","SATEG","IMSS"].map(a=>{ const xs = porAut(a); return `<div class="kpi"><span>${a}</span><b>${f(sum(xs,"total"))}</b><small>${xs.length} ${xs.length===1?"pendiente":"pendientes"}${sum(xs,"rec")?` · recargos ${f(sum(xs,"rec"))}`:""}</small></div>`; }).join("")}<div class="kpi"><span>Total</span><b>${f(sum(P,"total"))}</b><small>impuesto ${f(sum(P,"base"))} + act. ${f(sum(P,"act"))} + rec. ${f(sum(P,"rec"))}</small></div></div>`;
     h += `<div class="sheet" style="border:none;border-radius:0"><table class="ft" style="min-width:900px"><thead><tr><th>Mes</th><th>Autoridad</th><th>Impuesto</th><th>Situación</th><th>Vence</th><th class="num">Atraso</th><th class="num">Impuesto</th><th class="num">Actualización</th><th class="num">Recargos</th><th class="num">Total a pagar</th></tr></thead><tbody>`;
