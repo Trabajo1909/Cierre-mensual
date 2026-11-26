@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 149 · DIOT en PDF</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 150 · DIOT en PDF con totales</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -4643,8 +4643,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       if(!d.imssDet) out.notas.push("Sube la línea de captura del SUA del mes para que el papel de trabajo traiga el desglose.");
       out.tablas.push(recibos(nm.filter(n=>+n.imss>0)));
     } else if(cl==="diot"){
-      out.resumen = [R("Proveedores", String((k.diot.rows||[]).length)), R("Base al 16%", k.diot.b16), R("IVA pagado", k.diot.ivaExacto, 1)];
-      out.tablas.push({titulo:"Proveedores", head:["RFC","Proveedor","Base 16%","IVA","Base 0%","IVA retenido"], body:(k.diot.rows||[]).map(g=>[g.rfc||"SIN RFC", String(g.nombre||"").slice(0,40), f(r2(g.b16)), f(r2(g.iva)), f(r2(g.b0)), f(r2(g.ret))])});
+      const rows = k.diot.rows||[], sb = r2(rows.reduce((s,g)=>s+(+g.b16||0),0)), si = r2(rows.reduce((s,g)=>s+(+g.iva||0),0)), s0 = r2(rows.reduce((s,g)=>s+(+g.b0||0),0)), sr = r2(rows.reduce((s,g)=>s+(+g.ret||0),0));
+      out.resumen = [R("Proveedores", String(rows.length)), R("Total base al 16%", sb), R("Total base al 0% y exenta", s0), R("IVA pagado menos retención (ver el resultado al final)", r2(si - sr), 1)];
+      out.tablas.push({titulo:"Proveedores", head:["RFC","Proveedor","Base 16%","IVA","Base 0%","IVA retenido"], body: rows.map(g=>[g.rfc||"SIN RFC", String(g.nombre||"").slice(0,40), f(r2(g.b16)), f(r2(g.iva)), f(r2(g.b0)), f(r2(g.ret))]),
+        tot: ["Total", `${rows.length} proveedores`, f(sb), f(si), f(s0), f(sr)]});
+      out.tablas.push({titulo:"Resultado", head:["Concepto","","","","","Importe"], body: [["Total IVA pagado","","","","", f(si)], ["(-) Total IVA retenido","","","","", f(sr)]], tot: ["IVA pagado menos retención","","","","", f(r2(si - sr))]});
     }
     if(d.presentada) out.notas.push(`Presentada${d.fechaPresentacion?` el ${d.fechaPresentacion}`:""}${d.operacion?` · número de operación ${d.operacion}`:""} · ${+d.aFavor ? `saldo a favor ${f(+d.aFavor)}` : `a pagar ${f(+d.aPagar||0)}`}${d.pagada?` · pagada${d.fechaPago?` el ${d.fechaPago}`:""}`:""}.`);
     return out;
