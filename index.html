@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 144 · PDF de impuestos pendientes</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 145 · Pendientes hasta el mes que elijas</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -7198,9 +7198,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const rec = r2(actualizado * tasa / 100);
     return {act, rec, meses, factor, tasa: r2(tasa), aprox: !(a && a.real && b && b.real)};
   }
+  // Hasta qué mes se consideran pendientes (por ejemplo, el mes en curso todavía no vence)
+  function pendHastaDe(y){ try{ const v = +localStorage.getItem(`pendHasta-${empresa}-${y}`); if(v) return v; }catch(_){} return y===now.getFullYear() ? Math.max(1, now.getMonth()) : 0; }
   function pendientesImpuestos(y){
     const hoy = pendFecha || hoyISO, out = [], dia = aut => +((recCfg.dias||{})[aut] ?? 17);
-    const ult = y < now.getFullYear() ? 12 : y===now.getFullYear() ? now.getMonth()+1 : 0;
+    const ult0 = y < now.getFullYear() ? 12 : y===now.getFullYear() ? now.getMonth()+1 : 0, ult = Math.min(ult0, pendHastaDe(y) || ult0);
     for(let m=1; m<=ult; m++){
       const k = calcMes(y, m);
       for(const o of OBLIG){
@@ -7334,7 +7336,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     await loadLibs("pdf"); const {jsPDF} = window.jspdf, doc = new jsPDF({orientation:"landscape", unit:"pt", format:"letter"}), W = doc.internal.pageSize.getWidth(), Mg = 40, VINO = [122,31,61];
     const total = r2(P.reduce((s,x)=>s+(+x.total||0),0)), base = r2(P.reduce((s,x)=>s+(+x.base||0),0)), act = r2(P.reduce((s,x)=>s+(+x.act||0),0)), rec = r2(P.reduce((s,x)=>s+(+x.rec||0),0));
     doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text(empresaNombre, Mg, 46);
-    doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(`Impuestos pendientes de presentar o pagar · ${year}`, Mg, 64);
+    doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(80); doc.text(`Impuestos pendientes de presentar o pagar · enero a ${MESES[pendHastaDe(year)-1].toLowerCase()} ${year}`, Mg, 64);
     doc.setFontSize(8.5); doc.setTextColor(120); doc.text(`${e.rfc?`RFC: ${e.rfc}    `:""}Calculado si pagas el ${fechaCorta(hoy)} ${hoy.slice(0,4)}    Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}`, Mg, 80);
     doc.setDrawColor(...VINO); doc.setLineWidth(1.2); doc.line(Mg, 90, W-Mg, 90); doc.setLineWidth(.5);
     // Resumen en cuadros
@@ -7361,12 +7363,13 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     await guardarArchivo(`Impuestos pendientes ${empresaNombre} ${year}.pdf`, doc.output("blob"));
   }
 
+  document.addEventListener("change", e => { if(e.target.id!=="pendHasta") return; try{ localStorage.setItem(`pendHasta-${empresa}-${year}`, e.target.value); }catch(_){} renderImpuestos(); });
   document.addEventListener("click", e => { if(e.target.closest("#pendPdf")) exportPendientesPdf().catch(err=>{ console.error(err); toast("No se pudo armar el PDF."); }); });
   function htmlPendientes(){
     const f = money.format, P = pendientesImpuestos(year), hoy = pendFecha || hoyISO;
     const porAut = a => P.filter(x=>x.o.aut===a), sum = (xs, k) => r2(xs.reduce((s,x)=>s+(+x[k]||0),0));
     let h = `<div class="bpanel" style="margin-top:16px"><h3>Pendientes de presentar o pagar en ${year}<small>Impuestos sin presentar, por pagar o con complementaria pendiente, con la actualización (INPC) y los recargos (mora ${((recCfg.tasa||{})[2026] ?? 2.07)}% mensual en 2026) calculados a la fecha de pago que elijas.</small></h3>
-      <div class="pairbar" style="padding:8px 14px;flex-wrap:wrap;gap:10px;align-items:center"><label for="pendFecha" style="margin:0;font-weight:600">Si pago el</label><input type="date" id="pendFecha" value="${hoy}" style="width:auto">${canWrite?`<button class="linkbtn" id="pendCfg">INPC, tasas y días de vencimiento</button>`:""}${downloads?`<button class="btn sm primary" id="pendPdf" style="margin-left:auto">Descargar pendientes (PDF)</button>`:""}</div>`;
+      <div class="pairbar" style="padding:8px 14px;flex-wrap:wrap;gap:10px;align-items:center"><label for="pendHasta" style="margin:0;font-weight:600">Hasta</label><select id="pendHasta" style="width:auto">${MESES.map((n,i)=>`<option value="${i+1}" ${pendHastaDe(year)===i+1?"selected":""}>${n}</option>`).join("")}</select><label for="pendFecha" style="margin:0;font-weight:600">Si pago el</label><input type="date" id="pendFecha" value="${hoy}" style="width:auto">${canWrite?`<button class="linkbtn" id="pendCfg">INPC, tasas y días de vencimiento</button>`:""}${downloads?`<button class="btn sm primary" id="pendPdf" style="margin-left:auto">Descargar pendientes (PDF)</button>`:""}</div>`;
     if(!P.length) return h + `<div class="empty" style="padding:16px">No tienes impuestos pendientes en ${year}. 🎉</div></div>`;
     h += `<div class="kpis" style="padding:0 14px 10px">${["SAT","SATEG","IMSS"].map(a=>{ const xs = porAut(a); return `<div class="kpi"><span>${a}</span><b>${f(sum(xs,"total"))}</b><small>${xs.length} ${xs.length===1?"pendiente":"pendientes"}${sum(xs,"rec")?` · recargos ${f(sum(xs,"rec"))}`:""}</small></div>`; }).join("")}<div class="kpi"><span>Total</span><b>${f(sum(P,"total"))}</b><small>impuesto ${f(sum(P,"base"))} + act. ${f(sum(P,"act"))} + rec. ${f(sum(P,"rec"))}</small></div></div>`;
     h += `<div class="sheet" style="border:none;border-radius:0"><table class="ft" style="min-width:900px"><thead><tr><th>Mes</th><th>Autoridad</th><th>Impuesto</th><th>Situación</th><th>Vence</th><th class="num">Atraso</th><th class="num">Impuesto</th><th class="num">Actualización</th><th class="num">Recargos</th><th class="num">Total a pagar</th></tr></thead><tbody>`;
