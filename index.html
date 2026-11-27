@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 153 · Pendientes de un mes o un periodo</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 154 · Índice: licencias que no aplican</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -5719,7 +5719,9 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     if(nm.length){ add("Resumen de nómina del mes", "Nóminas > Descargar PDF", true); add(`Recibos de nómina timbrados (${nm.length})`, "Nóminas > XML · PDF de cada recibo", nm.every(n=>(cfdiMap[String(n.uuid).toUpperCase()]||{}).pdf), false); }
     add("Cuentas por cobrar y por pagar al cierre", "Facturas y cuentas > Descargar PDF", true);
     add("Facturas del mes (XML y PDF)", "Facturas y cuentas · van en la carpeta del mes", facturas.some(f=>f.anio===year && f.mes===m), false);
-    licencias.filter(l=>l.activa!==false).forEach(l=>add(`Invoice · ${l.nombre}`, "Expediente > Invoices de licencias", ((ex.invoices||{})[l.id]||[]).length || (ex.noAplica||{})[l.id]));
+    // Si marcaste que una licencia no aplica este mes, queda en el índice como "No aplica" y sale de la lista para imprimir
+    licencias.filter(l=>l.activa!==false).forEach(l=>{ if((ex.noAplica||{})[l.id] && !((ex.invoices||{})[l.id]||[]).length){ L.push({doc:`Invoice · ${l.nombre}`, donde:"Expediente > Invoices de licencias", listo:null, imprimir:false, estado:"No aplica"}); return; }
+      add(`Invoice · ${l.nombre}`, "Expediente > Invoices de licencias", ((ex.invoices||{})[l.id]||[]).length); });
     if(activos.length) add("Activo fijo y depreciación", "Activo fijo > Descargar PDF", true, false);
     add("Notas y pendientes del mes", "Carpeta del mes (14 Notas y pendientes)", true, false);
     add("Carpeta completa subida a Drive", "Expediente > Marcar como subida a Drive", ex.drive, false);
@@ -5747,7 +5749,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
       datos: `${e.rfc?`RFC: ${e.rfc}    `:""}Elaborado: ${now.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}    ${L.length} documentos · ${faltan} faltan · ${imp} para imprimir`,
       logo:"derecha", orient:"portrait", letra:8.5, nota:"", nombreArchivo: `Indice ${anual?`cierre anual ${year}`:`cierre ${ABR[m-1]} ${year}`} ${empresaNombre}.pdf`,
       secciones: [
-        {id:"indice", titulo:"Índice de la carpeta", resumen:"Todo lo que debe llevar el cierre, dónde sacarlo en la app y si ya lo tienes.", nueva:true, visible:true, numerar:true, imprimible:true, head:["#","Documento","Dónde sacarlo","Estatus"], der:[], filas: L.map((x,i)=>({cells:[String(i+1), x.doc, x.donde, x.listo==null?"":x.listo?"Listo":"FALTA"], rojo: x.listo===false, imp: !!x.imprimir}))},
+        {id:"indice", titulo:"Índice de la carpeta", resumen:"Todo lo que debe llevar el cierre, dónde sacarlo en la app y si ya lo tienes.", nueva:true, visible:true, numerar:true, imprimible:true, head:["#","Documento","Dónde sacarlo","Estatus"], der:[], filas: L.map((x,i)=>({cells:[String(i+1), x.doc, x.donde, x.estado || (x.listo==null?"":x.listo?"Listo":"FALTA")], rojo: x.listo===false, imp: !!x.imprimir}))},
         {id:"imprimir", titulo:"Lista para imprimir", resumen:"Marca cada hoja conforme la imprimes y la archivas. Se arma sola con los renglones del índice marcados para imprimir.", nueva:true, visible:true, derivada:"indice", head:["Impreso","Documento","Estatus"], der:[], filas: []}
       ]};
   }
