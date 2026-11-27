@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 156 · 119: IVA retenido pendiente de enterar</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 157 · Recibos de nómina en un solo PDF</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -9592,7 +9592,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const S = fn => r2(vig.reduce((s,n)=>s+fn(n),0));
     $("statusLine").innerHTML = `${q ? `Búsqueda en ${year}` : MESES[nomMes-1]}: <strong>${vig.length}</strong> recibos · percepciones <strong>${f(S(n=>+n.percepciones||0))}</strong> · neto pagado <strong>${f(S(neto))}</strong>.`;
     const sinPdf = lista.filter(n=>vigente(n) && !(cfdiMap[String(n.uuid).toUpperCase()]||{}).pdf).length;
-    let h = `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><input id="nomBuscar" type="search" placeholder="Buscar empleado o UUID (todo el año)" value="${esc(nomBuscar)}" style="max-width:300px">${canWrite?`<button class="btn sm" id="nomSubir">Subir PDF y XML de recibos</button><input type="file" id="nomFile" accept=".pdf,.xml,.zip,application/pdf" multiple hidden>`:""}${sinPdf?`<span class="fsub" style="max-width:none">${sinPdf} ${sinPdf===1?"recibo sin PDF":"recibos sin PDF"} en esta lista</span>`:""}</div>`;
+    let h = `<div class="pairbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><input id="nomBuscar" type="search" placeholder="Buscar empleado o UUID (todo el año)" value="${esc(nomBuscar)}" style="max-width:300px">${canWrite?`<button class="btn sm" id="nomSubir">Subir PDF y XML de recibos</button><input type="file" id="nomFile" accept=".pdf,.xml,.zip,application/pdf" multiple hidden>`:""}<button class="btn sm primary" id="nomJuntos" title="Junta los PDF de todos los recibos del mes en uno solo, para verlo, imprimirlo o enviarlo">Recibos del mes en un PDF</button>${sinPdf?`<span class="fsub" style="max-width:none">${sinPdf} ${sinPdf===1?"recibo sin PDF":"recibos sin PDF"} en esta lista</span>`:""}</div>`;
     h += lista.length ? `<div class="sheet"><table class="ft" style="min-width:1050px"><thead><tr><th>Fecha de pago</th><th>Empleado</th><th class="num">Percepciones</th><th class="num">ISR</th><th class="num">IMSS</th><th class="num">Otras deducciones</th><th class="num">Otros pagos</th><th class="num">Neto</th><th>UUID</th></tr></thead><tbody>
       ${lista.map(n=>{ const od = r2(ded(n) - (+n.isr||0) - (+n.imss||0)); return `<tr class="${vigente(n)?"":"canc"}"><td>${fechaCorta(n.fechaPago)} ${String(n.fechaPago).slice(0,4)}</td><td><div class="fname">${esc(n.nombre||"—")}</div>${vigente(n)?"":'<div class="fsub">Cancelado</div>'}${n.conceptos?`<div class="fsub" style="max-width:none;white-space:normal">${[...Object.entries(n.conceptos.perc||{}), ...Object.entries(n.conceptos.ded||{}).map(([k,v])=>[k,-v]), ...Object.entries(n.conceptos.otros||{})].map(([k,v])=>`${esc(k)} ${f(v)}`).join(" · ")}</div>`:""}</td>
         <td class="num">${f(+n.percepciones||0)}</td><td class="num">${n.isr?f(n.isr):""}</td><td class="num">${n.imss?f(n.imss):""}</td><td class="num">${od>0.004?f(od):""}</td><td class="num">${otros(n)?f(otros(n)):""}</td><td class="num"><strong>${f(neto(n))}</strong></td><td style="min-width:150px">${uuidHTML(n.uuid)}${botonesCfdi(n.uuid)?`<div style="display:flex;gap:4px">${botonesCfdi(n.uuid)}</div>`:""}${canWrite && !(cfdiMap[String(n.uuid).toUpperCase()]||{}).pdf?`<button class="linkbtn" data-nompdf="${esc(n.uuid)}" style="font-size:12px">adjuntar PDF</button>`:""}</td></tr>`; }).join("")}
@@ -9610,11 +9610,25 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   let nomPdfPara = null;
   $("nombody").addEventListener("click", e => {
     if(e.target.closest("#nomSubir")){ $("nomFile").click(); return; }
+    if(e.target.closest("#nomJuntos")){ recibosJuntos(); return; }
     const b = e.target.closest("[data-nompdf]"); if(b){ nomPdfPara = b.dataset.nompdf; const i = document.createElement("input"); i.type = "file"; i.accept = "application/pdf,.pdf";
       i.onchange = async () => { const f = i.files[0]; if(!f || !assets) return; const u = String(nomPdfPara).toUpperCase();
         try{ setSaving("Subiendo…"); const up = await assets.upload(f); const prev = cfdiMap[u] || {}, d = {...prev, pdf: {id: up.id, nombre: f.name}}; await db.doc(`empresas/${empresa}/cfdi/${u}`).set(d); cfdiMap = {...cfdiMap, [u]: d}; setSaving("Guardado"); toast("PDF guardado con su recibo."); renderNominas(); }
         catch(err){ setSaving(""); toast("No se pudo guardar el PDF."); } }; i.click(); return; }
   });
+  // Todos los recibos del mes en un solo PDF (para imprimir de una vez)
+  async function recibosJuntos(){
+    const xs = nominas.filter(n=>n.anio===year && n.mes===nomMes && vigente(n)).sort((a,b)=>String(a.fechaPago).localeCompare(String(b.fechaPago)) || String(a.nombre).localeCompare(String(b.nombre)));
+    const con = xs.filter(n=>(cfdiMap[String(n.uuid).toUpperCase()]||{}).pdf), sin = xs.length - con.length;
+    if(!con.length){ toast(xs.length ? "Ningún recibo de este mes tiene su PDF. Súbelos con \"Subir PDF y XML de recibos\"." : "No hay recibos en este mes."); return; }
+    try{ setSaving(`Juntando ${con.length} recibos…`); await loadLibs("pdflib"); const {PDFDocument} = window.PDFLib, out = await PDFDocument.create(); let n = 0;
+      for(const nm of con){ const a = cfdiMap[String(nm.uuid).toUpperCase()].pdf; try{ const r0 = await fetch("/_blob/"+a.id); if(!r0.ok) continue; const src = await PDFDocument.load(await r0.arrayBuffer(), {ignoreEncryption:true}); (await out.copyPages(src, src.getPageIndices())).forEach(pg=>out.addPage(pg)); n++; setSaving(`Juntando ${n} de ${con.length}…`); }catch(err){ console.error(err); } }
+      setSaving(""); if(!n){ toast("No pude abrir los PDF de los recibos."); return; }
+      const nombre = `Recibos de nomina ${empresaNombre} ${ABR[nomMes-1]} ${year}.pdf`, blob = new Blob([await out.save()], {type:"application/pdf"});
+      toast(`Listo: ${n} recibos en un solo PDF${sin?` (${sin} sin PDF no se incluyeron)`:""}. Usa Imprimir arriba.`);
+      await verArchivo(nombre, blob, `recibos-${empresa}-${year}-${nomMes}`); }
+    catch(err){ setSaving(""); console.error(err); toast("No se pudo armar el PDF de los recibos."); }
+  }
   $("nombody").addEventListener("change", async e => { if(e.target.id!=="nomFile") return; const files = [...e.target.files]; e.target.value = ""; if(!files.length) return;
     window.__forzarCfdi = true; try{ await importar(files); } finally { window.__forzarCfdi = false; } renderNominas(); });
   $("nombody").addEventListener("input", e => { if(e.target.id==="nomBuscar"){ nomBuscar = e.target.value; const pos = e.target.selectionStart; renderNominas(); const i = $("nomBuscar"); if(i){ i.focus(); i.setSelectionRange(pos,pos); } } });
