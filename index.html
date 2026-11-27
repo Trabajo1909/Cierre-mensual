@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 154 · Índice: licencias que no aplican</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 156 · 119: IVA retenido pendiente de enterar</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -4900,8 +4900,11 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     const ivaPend = tipo => r2(facturas.filter(fx=>fx.tipo===tipo && vigente(fx) && fx.metodo==="PPD" && fx.fecha<=fin && +fx.total>0).reduce((s,fx)=>{ const sa = saldoAl(fx, idx, fin).saldo; return s + (sa>0 ? (+fx.iva||0)*sa/fx.total : 0); },0));
     const c119 = pref("119"), c209 = pref("209");
     if(c119){ // Si tu IVA retenido se queda en 119 hasta que lo enteras, se suma el retenido del mes (se entera al mes siguiente)
-      const conRet = !!((empActual().balCfg||{}).retEn119), retMes = conRet ? r2((calcMes(y, m).ret||{}).iva || 0) : 0;
-      add("Saldos acumulados", "IVA pendiente de pago (119)", r2(c119.sf), r2(ivaPend("recibida") + retMes), conRet ? `IVA de PPD que aún no pagas + IVA que retuviste en el mes y enteras en tu declaración (${money.format(retMes)})` : "IVA de facturas de proveedores PPD que aún no pagas"); }
+      // Retenido que sigue en 119: el del mes (se entera el mes siguiente) y el de meses anteriores cuya declaración de retenciones aún no está pagada al cierre
+      const conRet = !!((empActual().balCfg||{}).retEn119); let retMes = 0; const detRet = [];
+      if(conRet) for(let mm=1; mm<=m; mm++){ const rv = r2((calcMes(y, mm).ret||{}).iva || 0); if(!(rv>0)) continue; const d = declDe(y, mm, "iva-ret"), pagadaAntes = d && d.pagada && (!d.fechaPago || String(d.fechaPago) <= fin);
+        if(mm===m || !pagadaAntes){ retMes = r2(retMes + rv); detRet.push(`${ABR[mm-1]} ${money.format(rv)}`); } }
+      add("Saldos acumulados", "IVA pendiente de pago (119)", r2(c119.sf), r2(ivaPend("recibida") + retMes), conRet ? `IVA de PPD que aún no pagas + IVA retenido que aún no enteras (${detRet.join(", ") || "$0.00"}). Si ya pagaste la declaración de retenciones de un mes, márcala como pagada en Impuestos.` : "IVA de facturas de proveedores PPD que aún no pagas"); }
     if(c209) add("Saldos acumulados", "IVA trasladado no cobrado (209)", r2(-c209.sf) || 0, ivaPend("emitida"), "IVA de facturas a clientes PPD que aún no cobras");
     // Provisiones que se acumulan sin pagarse (211)
     for(const c of cs.filter(x=>/^211-\d\d-000$/.test(x.cuenta) && !/-00-000$/.test(x.cuenta))){
@@ -5128,7 +5131,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
   async function exportBalanza(fmt){
     const b = balanzas[mesKey(year, blMes)]; if(!b){ toast("No hay balanza de este mes."); return; }
     const r = revisarBalanza(b), titulo = `${empresaNombre} · Revisión de balanza · ${MESES[blMes-1]} ${year}`, nombre = `Revision balanza ${empresaNombre} ${ABR[blMes-1]} ${year}`;
-    const filas = r.filas.map(x=>[x.grupo, x.concepto, x.bal, x.app, x.dif==null?null:(Math.abs(x.dif)<=1?0:x.dif), x.dif==null?"Sin dato":Math.abs(x.dif)<=1?"Cuadra":"Revisar"]);
+    // Igual que en pantalla: lo que explicaste sale como "Explicada" y los avisos que ya revisaste no se repiten
+    const nmB = nmDe(year, blMes), revB = nmB.balRev || {}, okA = nmB.avisosOk || {};
+    const filas = r.filas.map(x=>{ const rv = revDe(revB, x.concepto), dif = x.dif==null?null:(Math.abs(x.dif)<=1?0:x.dif); return [x.grupo, x.concepto + (rv && rv.nota ? ` (explicación: ${rv.nota})` : ""), x.bal, x.app, dif, x.dif==null?"Sin dato":Math.abs(x.dif)<=1?"Cuadra":rv?"Explicada":"Revisar"]; });
+    const avisosPend = r.avisos.filter(a=>!okA[claveAviso(a)]), avisosRev = r.avisos.length - avisosPend.length;
     try{
       if(fmt==="xlsx"){
         await loadLibs("excel"); const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("Revisión"), M='"$"#,##0.00;-"$"#,##0.00';
@@ -5136,7 +5142,8 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         ws.addRow([titulo]).font={bold:true,size:13}; ws.addRow([]);
         const hr = ws.addRow(["Grupo","Concepto","Balanza","App","Diferencia","Estatus"]); hr.font={bold:true};
         filas.forEach(x=>{ const rr = ws.addRow(x); [3,4,5].forEach(i=>rr.getCell(i).numFmt=M); });
-        if(r.avisos.length){ ws.addRow([]); ws.addRow(["Para revisar también"]).font={bold:true}; r.avisos.forEach(a=>ws.addRow(["",a])); }
+        if(avisosPend.length){ ws.addRow([]); ws.addRow(["Para revisar también"]).font={bold:true}; avisosPend.forEach(a=>ws.addRow(["",a])); }
+        if(avisosRev){ ws.addRow(["", `${avisosRev} ${avisosRev===1?"aviso ya revisado":"avisos ya revisados"}`]); }
         const w2 = wb.addWorksheet("Balanza"); w2.columns=[{width:14},{width:40},{width:16},{width:16},{width:16},{width:16}];
         w2.addRow(["Cuenta","Nombre","Saldo inicial","Cargos","Abonos","Saldo final"]).font={bold:true};
         b.cuentas.forEach(c=>{ const rr = w2.addRow([c.cuenta,c.nombre,c.si,c.cargos,c.abonos,c.sf]); [3,4,5,6].forEach(i=>rr.getCell(i).numFmt=M); });
@@ -5150,9 +5157,10 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
         doc.setDrawColor(122,31,61); doc.setLineWidth(1.2); doc.line(40, 90, W-40, 90); doc.setLineWidth(.5); doc.setTextColor(20);
         doc.autoTable({startY:104, head:[["Concepto","Balanza","App","Diferencia","Estatus"]], body: filas.map(x=>[`${x[1]}`, ...[x[2],x[3],x[4]].map(v=>({content: v==null?"—":money.format(v), styles:{halign:"right"}})), x[5]]),
           theme:"grid", margin:{left:40,right:40,top:84}, styles:{fontSize:8.5,cellPadding:4,lineColor:[210,210,210],lineWidth:.5}, headStyles:{fillColor:[122,31,61],textColor:[255,255,255]},
-          didParseCell: d => { if(d.section==="body" && d.column.index===4) d.cell.styles.fillColor = d.cell.raw==="Revisar" ? [244,204,204] : d.cell.raw==="Cuadra" ? [217,234,211] : [237,237,237]; } });
-        if(r.avisos.length){ doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.text("Para revisar también", 40, doc.lastAutoTable.finalY+22); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
-          let yy = doc.lastAutoTable.finalY+36; r.avisos.forEach(a=>{ const ls = doc.splitTextToSize("• "+a, 530); doc.text(ls, 40, yy); yy += ls.length*11; }); }
+          didParseCell: d => { if(d.section==="body" && d.column.index===4) d.cell.styles.fillColor = d.cell.raw==="Revisar" ? [244,204,204] : d.cell.raw==="Cuadra" ? [217,234,211] : d.cell.raw==="Explicada" ? [250,238,218] : [237,237,237]; } });
+        if(avisosPend.length){ doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.text("Para revisar también", 40, doc.lastAutoTable.finalY+22); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+          let yy = doc.lastAutoTable.finalY+36; avisosPend.forEach(a=>{ const ls = doc.splitTextToSize("• "+a, 530); doc.text(ls, 40, yy); yy += ls.length*11; }); }
+        else if(avisosRev){ doc.setFontSize(8.5); doc.setTextColor(120); doc.text(`Sin observaciones pendientes (${avisosRev} ${avisosRev===1?"aviso revisado":"avisos revisados"}).`, 40, doc.lastAutoTable.finalY+22); doc.setTextColor(20); }
         await guardarArchivo(`${nombre}.pdf`, doc.output("blob"));
       }
     }catch(e){ toast("No se pudo preparar el archivo."); }
