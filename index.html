@@ -434,7 +434,7 @@ h1{font-weight:700;letter-spacing:-.025em;font-size:clamp(26px,3.6vw,36px)}
   <header class="top">
     <div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img id="empLogo" alt="Logo de la empresa" hidden style="max-height:40px;max-width:160px;object-fit:contain"><p class="company" id="companyLabel" style="margin:0">Control de cierre contable</p><button class="linkbtn" id="logoBtn" type="button" style="font-size:12px">Logo y formato de PDF</button></div>
-      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 151 · Resumen de nómina en PDF</p>
+      <p class="fsub" id="verLabel" style="margin:0;max-width:none">Versión 152 · Dashboard en la lista para imprimir</p>
       <h1>
         <span id="viewTitle">Cierre</span> <span id="yearLabel">2026</span><button class="guia" id="guiaBtn" type="button">¿Cómo funciona?</button>
         <span class="year-nav">
@@ -5705,6 +5705,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     add("Balanza de comprobación", "CONTPAQi (súbela en Balanza)", hayBal);
     add("Revisión de la balanza", "Balanza > Descargar PDF", hayBal);
     add("Estados financieros (resultados y balance)", "Estados financieros > Descargar PDF", hayBal);
+    add("Dashboard del mes (Cómo va la empresa)", "Dashboard > Del mes > Descargar PDF", hayBal);
     cuentasB.forEach(c=>{ const cc = concDe(c.id, year, m); add(`Conciliación bancaria · ${c.nombre}`, "Bancos > Descargar PDF", cc && (cc.banco||[]).length + (cc.aux||[]).length);
       add(`Estado de cuenta · ${c.nombre}`, "Bancos > Ver estado de cuenta", cc && ((cc.banco||[]).length || cc.edoSubido));
       add(`Auxiliar · ${c.nombre}`, "Bancos > Ver auxiliar", cc && ((cc.aux||[]).length || cc.auxSubido)); });
@@ -5735,6 +5736,7 @@ window.DRIVE_SCRIPT_TOKEN = "0cf361653cde6c369fa02309defcbee1";
     add("Activo fijo con depreciación del año", "Activo fijo > PDF", activos.length>0); add("Cálculo anual de nómina y constancias de sueldos", "Documentos", tiene(/anual.*(sueldo|n[oó]mina)|constancia.*sueldo/i));
     add("Prima de riesgo de trabajo", "Documentos", tiene(/prima de riesgo/i)); add("Acta constitutiva, poderes y actas de asamblea", "Documentos > Expediente de la empresa", tiene(/acta|poder|asamblea/i));
     add("Constancia de situación fiscal", "Documentos > Expediente de la empresa", tiene(/situaci[oó]n fiscal|csf/i)); add("Contratos vigentes", "Documentos > Expediente de la empresa", tiene(/contrato/i));
+    add("Dashboard del año (Cómo va la empresa)", "Dashboard > Del año > Descargar PDF", nBal>0);
     add("Resumen del año y presupuesto contra real", "Resumen > PDF", true, false);
     return L;
   }
